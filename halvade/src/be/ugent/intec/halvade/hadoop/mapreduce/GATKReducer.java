@@ -320,6 +320,10 @@ public class GATKReducer extends Reducer<ChromosomeRegion, SAMRecordWritable, Ch
             if(exomebed.endsWith(".gz"))
                 exomebed = HDFSFileIO.Unzip(exomebed);
             region = tools.filterExomeBed(exomebed, r);
+            if(region == null) {
+                Logger.DEBUG("empty region file, no vcf results!!");
+                return;
+            }
         } else 
             r.writeToPicardRegionFile(region);
         

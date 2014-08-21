@@ -114,8 +114,10 @@ public class PreprocessingTools {
         builder.startProcess();
         // read from output and write to regionVcf file!
         InputStream is = builder.getSTDOUTStream();
+        int totalwritten = 0;
         while ((read = is.read(bytes)) != -1) {
                 vcfStream.write(bytes, 0, read);
+                totalwritten += read;
         }            
             
         int error = builder.waitForCompletion();
@@ -130,8 +132,10 @@ public class PreprocessingTools {
         vcfStream.close();
         // remove bed file?
         bed.delete();
-        return regionBed.getAbsolutePath();
-        
+        if (totalwritten == 0 ) 
+            return null;
+        else
+            return regionBed.getAbsolutePath();
     }
     
     public int callElPrep(String input, String output, String rg, int threads, Iterator<SAMRecordWritable> it,

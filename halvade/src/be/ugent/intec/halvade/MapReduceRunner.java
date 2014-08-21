@@ -10,8 +10,6 @@ import fi.tkk.ics.hadoop.bam.VariantContextWritable;
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import be.ugent.intec.halvade.hadoop.partitioners.*;
 import be.ugent.intec.halvade.tools.GATKTools;
-import be.ugent.intec.halvade.utils.FastQFileReader;
-import be.ugent.intec.halvade.utils.InterleaveFiles;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -63,7 +61,7 @@ public class MapReduceRunner extends Configured implements Tool  {
     protected boolean justPut = false;
     protected boolean justCombine = false;
     protected boolean useBedTools = false;
-    protected boolean useGenotyper = false;
+    protected boolean useGenotyper = true;
     protected String RGID = "GROUP1";
     protected String RGLB = "LIB1";
     protected String RGPL = "ILLUMINA";
@@ -148,26 +146,10 @@ public class MapReduceRunner extends Configured implements Tool  {
             MyConf.setMultiplier(conf, multiplier);
             getNumberOfRegions(conf);
            
-            
-            // add bin files to distributed cache (they need to be on hdfs!)
-//            try {
-//                DistributedCache.addFileToClassPath(new URI("/test1"), conf, fs);
-//            } catch (URISyntaxException ex) {
-//                Logger.EXCEPTION(ex);
-//            }
-            
-            // upload files if manifest file is provided!
-            if(manifest != null) 
-                processFiles(fs);
             // only put files or continue?
             if(justPut)
                 return 0;
-            else if (justCombine) {
-                postProcessVCF(tmpDir, out, ref, fs);
-                return 0;
-            }
-                
-                 
+            
             if(!halvadeDir.endsWith("/"))
                 halvadeDir += "/";
             URI binTar = new URI(halvadeDir + "bin.tar.gz");
@@ -338,9 +320,9 @@ public class MapReduceRunner extends Configured implements Tool  {
         Option optKeep = OptionBuilder.withArgName( "keep tmp files" )
                                 .withDescription(  "Keep intermediate files." )
                                 .create( "keep" );
-        Option optHap = OptionBuilder.withArgName( "use unified genotyper" )
-                                .withDescription(  "Use UnifiedGenotyper instead of HaplotypeCaller for Variant Detection." )
-                                .create( "g" );
+        Option optHap = OptionBuilder.withArgName( "use haplotypecaller" )
+                                .withDescription(  "Use HaplotypeCaller instead of UnifiedGenotyper for Variant Detection." )
+                                .create( "hc" );
         Option optCov = OptionBuilder.withArgName( "coverage" )
                                 .hasArg()
                                 .withDescription(  "Sets the coverage to better distribute the tasks.")
@@ -499,7 +481,7 @@ public class MapReduceRunner extends Configured implements Tool  {
             justPut = true;
         if(line.hasOption("exome")) {
             exomeBedFile = line.getOptionValue("exome");
-            coverage = 8;
+            coverage = 30;
         }
         if(line.hasOption("cov"))
             coverage = Integer.parseInt(line.getOptionValue("cov"));
@@ -507,8 +489,8 @@ public class MapReduceRunner extends Configured implements Tool  {
             justCombine = true;
         if(line.hasOption("b"))
             useBedTools = true;
-        if(line.hasOption("g"))
-            useGenotyper = true;
+        if(line.hasOption("hc"))
+            useGenotyper = false;
         if(line.hasOption("P"))
             useIPrep = false;
         if(line.hasOption("id"))
@@ -556,99 +538,7 @@ public class MapReduceRunner extends Configured implements Tool  {
         while(multiplier * minRegions < reducers) 
             multiplier++;
     }
-    
-    // TODO: only works on hdfs
-    private void postProcessVCF(String dir, String hdfsdir, String hdfsref, FileSystem fs) throws InterruptedException, IOException {
-        // update to either work with bin or make it also a map ?? its already on hdfs so perfect....
-//        if(!hdfsdir.endsWith("/"))
-//            hdfsdir = hdfsdir + "/";
-//        if(!dir.endsWith("/"))
-//            dir = dir + "/";
-//        String scratchout = dir + "combined.vcf";
-//        String hdfsout = hdfsdir + "combined.vcf";
-//        ArrayList<String> variantFiles = new ArrayList<String>();
-//        String localref = null;
-//        File dir_ = new File(dir);
-//        for (File file : dir_.listFiles()) {
-//            if (file.getName().endsWith(".fa")) {
-//                localref = file.getAbsolutePath();
-//                Logger.DEBUG("found existing ref: \"" + localref + "\"");
-//            }
-//        }
-//        if(localref == null) {
-//            Logger.DEBUG("Reference not found in " + tmpDir);
-//            Logger.DEBUG("Downloading new...");
-//            localref = dir + "ref.fa";
-//            fs.copyToLocalFile(new Path(hdfsref), new Path(localref));
-//            fs.copyToLocalFile(new Path(hdfsref.replaceAll(".fasta", ".dict")), new Path(localref.replaceAll(".fa", ".dict")));
-//            fs.copyToLocalFile(new Path(hdfsref + ".fai"), new Path(localref + ".fai"));            
-//        }
-//        
-//        GATKTools gatk = new GATKTools(localref, bin);
-//        gatk.setMemory(mem*1024);
-//        gatk.setThreadsPerType(1, 1);
-//        if(java != null) 
-//            gatk.setJava(java);
-//        // get all variantfiles from the out folder (files starting with attempt*)
-//        FileStatus[] status = fs.listStatus(new Path(hdfsdir));
-//        for(int i =0; i < status.length; i++) {
-//            if(status[i].isFile() && status[i].getPath().getName().startsWith("attempt")) {
-//                String name = dir + status[i].getPath().getName();
-//                fs.copyToLocalFile(status[i].getPath(), new Path(name));
-//                if(name.endsWith("vcf")) {
-//                    variantFiles.add(name);
-//                    Logger.DEBUG("Adding file " + name);
-//                }
-//            }
-//        }
-//        
-//        Logger.DEBUG("run CombineVariants");
-//        PhasedCombineVariants(variantFiles, scratchout, localref, gatk);
-//        
-//        if(scratchout != null) {
-//            fs.copyFromLocalFile(new Path(scratchout), new Path(hdfsout));
-//            fs.copyFromLocalFile(new Path(scratchout + ".idx"), new Path(hdfsout + ".idx"));
-//        }
-//
-//        if(scratchout != null) {
-//            removeLocalFile(scratchout);
-//            removeLocalFile(scratchout + ".idx");
-//        }
-    }
-    
-    protected void PhasedCombineVariants(ArrayList<String> files, String outfile, String ref, GATKTools gatk) throws InterruptedException {
-        if(files.size() > 50) {
-            ArrayList<String> outfiles = new ArrayList<>();
-            ArrayList<String> tmpList = new ArrayList<>();
-            for(int i = 0; i < files.size(); i++ ) {
-                tmpList.add(files.get(i));
-                if(tmpList.size() == 49) {
-                    String newOut = outfile + outfiles.size() + ".vcf";
-                    PhasedCombineVariants(tmpList, newOut, ref, gatk);
-                    outfiles.add(newOut);
-                    tmpList.clear();
-                }
-            }
-            if(!tmpList.isEmpty()) {
-                String newOut = outfile + outfiles.size() + ".vcf";
-                PhasedCombineVariants(tmpList, newOut, ref, gatk);
-                outfiles.add(newOut);
-                tmpList.clear();
-            }
-            gatk.runCombineVariants(outfiles.toArray(new String[outfiles.size()]), outfile, ref);
-            for(String snps : outfiles){
-                removeLocalFile(snps);
-                removeLocalFile(snps + ".idx");
-            }
-        } else {
-            gatk.runCombineVariants(files.toArray(new String[files.size()]), outfile, ref);
-            for(String snps : files){
-                removeLocalFile(snps);
-                removeLocalFile(snps + ".idx");
-            }
-        }        
-    }
-    
+        
     protected boolean removeLocalFile(String filename) {
         File f = new File(filename);
         return f.exists() && f.delete();
@@ -693,6 +583,7 @@ public class MapReduceRunner extends Configured implements Tool  {
     private static final int MEM_REDUCE_TASK = 14; // minimum requirement reduce task
     private static final int VCORES_MAP_TASK = 8; // set a minimum of cores so it take too many tasks per node
     private static final int OS_REQ = 2; // minimum requirement for OS
+    private static final int SWAP_EXTRA = 20;
     
     private void getBestDistribution(Configuration conf) {
         mem = mem - OS_REQ;
@@ -709,15 +600,21 @@ public class MapReduceRunner extends Configured implements Tool  {
         else
             reducersPerContainer = memReduceLimit;        
         
-        Logger.DEBUG("using " + mapsPerContainer + " maps per node and " + reducersPerContainer + " reducers per node");
         mthreads = Math.max(1,vcores/mapsPerContainer);
         mappers = Math.max(1,nodes*mapsPerContainer);
         GATKCPUThreads = Math.max(1,vcores/reducersPerContainer);
         GATKdataThreads = Math.max(1,vcores/reducersPerContainer);
-        conf.set("mapreduce.map.cpu.vcores", ""+vcores/mapsPerContainer);
-        conf.set("mapreduce.map.memory.mb", ""+mem*1024/mapsPerContainer); 
-        conf.set("mapreduce.reduce.cpu.vcores", ""+vcores/reducersPerContainer);
-        conf.set("mapreduce.reduce.memory.mb", ""+mem*1024/reducersPerContainer); 
+        Logger.DEBUG("using " + mapsPerContainer + " maps [" 
+                + mthreads + " cpu , " + ((mem-OS_REQ)*1024/mapsPerContainer) +
+                " mb] per node and " + reducersPerContainer + " reducers ["
+                + GATKCPUThreads + " cpu, " + ((SWAP_EXTRA + mem)*1024/reducersPerContainer) +
+                " mb] per node");
+        conf.set("mapreduce.map.cpu.vcores", ""+mthreads);
+        conf.set("mapreduce.map.memory.mb", ""+((mem-OS_REQ)*1024/mapsPerContainer)); 
+//        conf.set("mapreduce.map.memory.mb", ""+((SWAP_EXTRA + mem)*1024/mapsPerContainer)); 
+        conf.set("mapreduce.reduce.cpu.vcores", ""+GATKCPUThreads);
+//        conf.set("mapreduce.reduce.memory.mb", ""+((SWAP_EXTRA + mem)*1024/reducersPerContainer)); 
+        conf.set("mapreduce.reduce.memory.mb", ""+((mem-OS_REQ)*1024/reducersPerContainer)); 
         conf.set("mapreduce.job.reduce.slowstart.completedmaps", ""+1.0);
         
         // experimental - need more data
@@ -725,90 +622,6 @@ public class MapReduceRunner extends Configured implements Tool  {
         
     }
 
-    private long getBestFileSize(long filesize, int threads) {
-//        long maxFileSize = Math.max(MINFILESIZE, filesize / (mappers * MAP_M));
-//        int map_M = MAP_M;
-//        long maxFileSize = filesize / (mappers * map_M);
-//        while(maxFileSize < MINFILESIZE && map_M > 1) {
-//            map_M--;
-//            maxFileSize = filesize / (mappers * map_M);            
-//        }
-//        maxFileSize = Math.min(MAXFILESIZE, maxFileSize);
-//        long smallestfilesize = (filesize % (maxFileSize * threads) ) / threads;
-//        int iterations = 0;
-//        long bestFileSize = maxFileSize, bestRemainder = smallestfilesize;
-//        while((100.0*smallestfilesize / maxFileSize ) < 75 && iterations < 100) {
-//            maxFileSize += INCFILESIZE;
-//            smallestfilesize = (filesize % (maxFileSize * threads) ) / threads;
-//            if(smallestfilesize > bestRemainder) {
-//                bestFileSize = maxFileSize;
-//                bestRemainder = smallestfilesize;
-//            }
-//            iterations++;
-//        }
-//        Logger.DEBUG("estimated best filesize: " + (bestFileSize / (1024.0*1024.0)) + " MB");
-//        Logger.DEBUG("last files will be " + (bestRemainder / (1024.0*1024.0)) + " MB");
-//        return bestFileSize;
-        
-        // ~60MB
-        return 60000000;
-    }
-    
-    // TODO: edit remove and use a separate tool to upload data! now only works on hdfs!
-    private int processFiles(FileSystem fs) throws IOException, InterruptedException {    
-        Timer timer = new Timer();
-        timer.start();
-        // use the input directory as ouput to put the fastq files!
-        if(!in.endsWith("/")) {
-            in = in + "/";
-        }
-        Path outpath = new Path(in);
-        if (fs.exists(outpath) && !fs.getFileStatus(outpath).isDirectory()) {
-            Logger.DEBUG("please provide an output directory");
-            return 1;
-        }
-        FastQFileReader pairedReader = FastQFileReader.getPairedInstance();
-        FastQFileReader singleReader = FastQFileReader.getSingleInstance();
-        long filesize = 0L;
-        if(manifest != null) {
-            Logger.DEBUG("reading input pairs from file.");
-            // read from file
-            BufferedReader br = new BufferedReader(new FileReader(manifest)); 
-            String line;
-            while ((line = br.readLine()) != null) {
-                String[] files = line.split("\t");
-                if(files.length == 2) {
-                    pairedReader.addFilePair(files[0], files[1]);
-                    File f = new File(files[0]);
-                    filesize += f.length();
-                    f = new File(files[1]);
-                    filesize += f.length();
-                } else if(files.length == 1) {
-                    singleReader.addSingleFile(files[0]);
-                    File f = new File(files[0]);
-                    filesize += f.length();
-                }
-            }
-        }
-        
-        int bestThreads = Math.min(nodes, mthreads);
-        long maxFileSize = getBestFileSize(filesize, bestThreads); 
-        InterleaveFiles[] fileThreads = new InterleaveFiles[bestThreads];
-        // start interleaveFile threads
-        for(int t = 0; t < bestThreads; t++) {
-            fileThreads[t] = new InterleaveFiles(fs , 
-                    in + "pthread" + t + "_", 
-                    in + "sthread" + t + "_",
-                    maxFileSize);
-            fileThreads[t].start();
-        }
-        for(int t = 0; t < bestThreads; t++)
-            fileThreads[t].join();
-        timer.stop();
-        Logger.DEBUG("Time to process data: " + timer.getFormattedCurrentTime());
-        return 0;
-    }
-    
     private void parseANNFile(Configuration conf) {
         Logger.DEBUG("parsing ANN file...");
         try {

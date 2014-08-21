@@ -255,11 +255,11 @@ public class GATKTools {
             "-L", region,
             "--no_cmdline_in_header"};
         command.addAll(Arrays.asList(gatkcmd));
-        if(useUnifiedGenotyper && threadingType == 0) {
-            // add cpu threads per data threads
-            command.add(multiThreadingTypes[1]);
-            command.add("" + Math.max(1, (threadsPerType[1] /  threadsPerType[0])));
-        }
+//        if(useUnifiedGenotyper && threadingType == 0 && (threadsPerType[1] /  threadsPerType[0]) >= 2) {
+//            // add cpu threads per data threads
+//            command.add(multiThreadingTypes[1]);
+//            command.add("" + Math.max(1, (threadsPerType[1] /  threadsPerType[0])));
+//        }
         if(knownSites != null) {
             for(String knownSite : knownSites) {
                 command.add("-dbsnp");
