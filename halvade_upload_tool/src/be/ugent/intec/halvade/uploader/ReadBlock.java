@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package be.ugent.intec.halvade.utils;
+package be.ugent.intec.halvade.uploader;
 
 import java.io.BufferedReader;
 import java.io.IOException;

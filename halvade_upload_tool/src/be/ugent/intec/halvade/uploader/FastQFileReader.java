@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package be.ugent.intec.halvade.awsuploader;
+package be.ugent.intec.halvade.uploader;
 
 import java.io.*;
 import java.util.LinkedList;

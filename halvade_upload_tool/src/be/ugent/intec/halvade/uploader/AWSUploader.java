@@ -4,7 +4,7 @@
  * and open the template in the editor.
  */
 
-package be.ugent.intec.halvade.awsuploader;
+package be.ugent.intec.halvade.uploader;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.BasicAWSCredentials;

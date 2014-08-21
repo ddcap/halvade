@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package be.ugent.intec.halvade.utils;
+package be.ugent.intec.halvade.uploader;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -16,16 +16,16 @@ import org.apache.hadoop.fs.Path;
  *
  * @author ddecap
  */
-public class InterleaveFiles extends Thread {
+public class HDFSInterleaveFiles extends Thread {
     private FastQFileReader pReader;
     private FastQFileReader sReader;
     private static long MAXFILESIZE = 60000000L; // ~60MB
     String pairedBase;
     String singleBase;
-    FileSystem fs; // TODO: only works on hdfs!
+    FileSystem fs; // HDFS
     long read, written;
     
-    public InterleaveFiles(FileSystem fs, String paired, String single, long maxFileSize) {
+    public HDFSInterleaveFiles(String paired, String single, long maxFileSize, FileSystem fs) {
         this.fs = fs;
         this.pairedBase = paired;
         this.singleBase = single;
@@ -34,16 +34,6 @@ public class InterleaveFiles extends Thread {
         pReader = FastQFileReader.getPairedInstance();
         sReader = FastQFileReader.getSingleInstance();
         MAXFILESIZE = maxFileSize;
-    }
-    
-    public InterleaveFiles(FileSystem fs, String paired, String single) {
-        this.fs = fs;
-        this.pairedBase = paired;
-        this.singleBase = single;
-        written = 0;
-        read = 0;
-        pReader = FastQFileReader.getPairedInstance();
-        sReader = FastQFileReader.getSingleInstance();
     }
 
     private double round(double value) {
@@ -54,10 +44,12 @@ public class InterleaveFiles extends Thread {
     public void run() {
         try {
             Logger.DEBUG("Starting thread to write reads to hdfs");
-            int part = 0;
+            int part = 0;    
+            int count = 0;
             FSDataOutputStream dataStream = fs.create(new Path(pairedBase + part + ".fq.gz"),true);
             OutputStream gzipOutputStream = 
                     new GZIPOutputStream(new BufferedOutputStream(dataStream));
+            
             ReadBlock block = new ReadBlock();
             int fileWritten = 0;
             while(pReader.getNextBlock(block)) {
@@ -65,27 +57,28 @@ public class InterleaveFiles extends Thread {
                 // check filesize
                 if(dataStream.size() > MAXFILESIZE) {
                     gzipOutputStream.close();
+                    count += block.size / 4;
                     dataStream.close();
-                    Logger.DEBUG("part " + part + " written: " + dataStream.size());
                     written += dataStream.size();
                     read += fileWritten;
                     fileWritten = 0;
                     part++;
                     dataStream = fs.create(new Path(pairedBase + part + ".fq.gz"),true);
                     gzipOutputStream = 
-                        new GZIPOutputStream(new BufferedOutputStream(dataStream));
+                        new GZIPOutputStream(new BufferedOutputStream(dataStream));                  
                 }
             }
-            // finish the files            
+            // finish the files          
             gzipOutputStream.close();
-            dataStream.close();
             if(dataStream.size() == 0 || fileWritten == 0) {
                 // delete this file
-                fs.delete(new Path(pairedBase + part + ".fq.gz"), true);
+                fs.delete(new Path(singleBase + part + ".fq.gz"), true);
             } else {
-                Logger.DEBUG("part " + part + " written: " + dataStream.size());
+                count += block.size / 4;
+                written += dataStream.size();
+                read += fileWritten;
+                dataStream.close();
             }
-            written += dataStream.size();
             
             // do single reads
             part = 0;
@@ -98,8 +91,8 @@ public class InterleaveFiles extends Thread {
                 // check filesize
                 if(dataStream.size() > MAXFILESIZE) {
                     gzipOutputStream.close();
+                    count += block.size / 4;
                     dataStream.close();
-                    Logger.DEBUG("part " + part + " written: " + dataStream.size());
                     written += dataStream.size();
                     read += fileWritten;
                     fileWritten = 0;
@@ -109,16 +102,18 @@ public class InterleaveFiles extends Thread {
                         new GZIPOutputStream(new BufferedOutputStream(dataStream));
                 }
             }
-            // finish the files            
+            // finish the files
             gzipOutputStream.close();
-            dataStream.close();
             if(dataStream.size() == 0 || fileWritten == 0) {
                 // delete this file
                 fs.delete(new Path(singleBase + part + ".fq.gz"), true);
             } else {
-                Logger.DEBUG("part " + part + " written: " + dataStream.size());
+                count += block.size / 4;
+                written += dataStream.size();
+                read += fileWritten;
+                dataStream.close();
             }
-            written += dataStream.size();
+            Logger.DEBUG("number of reads: "+ count);
             Logger.DEBUG("read " + round(read / (1024*1024)) + "MB");
             Logger.DEBUG("written " + round(written / (1024*1024)) + "MB");
         } catch (IOException ex) {

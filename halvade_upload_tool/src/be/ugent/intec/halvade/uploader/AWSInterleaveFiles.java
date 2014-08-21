@@ -2,30 +2,29 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package be.ugent.intec.halvade.awsuploader;
+package be.ugent.intec.halvade.uploader;
 
-import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.logging.Level;
 import java.util.zip.GZIPOutputStream;
 
 /**
  *
  * @author ddecap
  */
-public class InterleaveFiles extends Thread {
+public class AWSInterleaveFiles extends Thread {
     private FastQFileReader pReader;
     private FastQFileReader sReader;
     private static long MAXFILESIZE = 60000000L; // ~60MB
     String pairedBase;
     String singleBase;
+    AWSUploader upl; // S3
     long read, written;
-    AWSUploader upl;
     
-    public InterleaveFiles(String paired, String single, long maxFileSize, AWSUploader upl) {
+    public AWSInterleaveFiles(String paired, String single, long maxFileSize, AWSUploader upl) {
+        this.upl = upl;
         this.pairedBase = paired;
         this.singleBase = single;
         written = 0;
@@ -33,7 +32,6 @@ public class InterleaveFiles extends Thread {
         pReader = FastQFileReader.getPairedInstance();
         sReader = FastQFileReader.getSingleInstance();
         MAXFILESIZE = maxFileSize;
-        this.upl = upl;
     }
 
     private double round(double value) {
@@ -44,7 +42,8 @@ public class InterleaveFiles extends Thread {
     public void run() {
         try {
             Logger.DEBUG("Starting thread to write reads to hdfs");
-            int part = 0;          
+            int part = 0;    
+            int count = 0;
             ByteArrayOutputStream dataStream = new ByteArrayOutputStream();
             dataStream.reset();
             OutputStream gzipOutputStream = new GZIPOutputStream(dataStream);
@@ -56,6 +55,7 @@ public class InterleaveFiles extends Thread {
                 // check filesize
                 if(dataStream.size() > MAXFILESIZE) {
                     gzipOutputStream.close();
+                    count += block.size / 4;
                     uploadToAWS(part, dataStream);
                     written += dataStream.size();
                     read += fileWritten;
@@ -69,6 +69,7 @@ public class InterleaveFiles extends Thread {
             // finish the files          
             gzipOutputStream.close();
             if(fileWritten != 0) {
+                count += block.size / 4;
                 uploadToAWS(part, dataStream);
                 written += dataStream.size();
                 read += fileWritten;
@@ -79,14 +80,14 @@ public class InterleaveFiles extends Thread {
             // do single reads
             part = 0;
             dataStream.reset();
-            gzipOutputStream = 
-                    new GZIPOutputStream(new BufferedOutputStream(dataStream));
+            gzipOutputStream = new GZIPOutputStream(dataStream);
             fileWritten = 0;
             while(sReader.getNextBlock(block)) {
                 fileWritten += block.write(gzipOutputStream);
                 // check filesize
                 if(dataStream.size() > MAXFILESIZE) {
                     gzipOutputStream.close();
+                    count += block.size / 4;
                     uploadToAWS(part, dataStream);
                     dataStream.reset();
                     written += dataStream.size();
@@ -99,14 +100,15 @@ public class InterleaveFiles extends Thread {
             // finish the files
             gzipOutputStream.close();
             if(fileWritten != 0) {
+                count += block.size / 4;
                 uploadToAWS(part, dataStream);
                 written += dataStream.size();
                 read += fileWritten;
                 dataStream.reset();
             }
+            Logger.DEBUG("number of reads: "+ count);
             Logger.DEBUG("read " + round(read / (1024*1024)) + "MB");
             Logger.DEBUG("written " + round(written / (1024*1024)) + "MB");
-            gzipOutputStream.close();
             dataStream.close();
         } catch (IOException ex) {
             Logger.EXCEPTION(ex);
