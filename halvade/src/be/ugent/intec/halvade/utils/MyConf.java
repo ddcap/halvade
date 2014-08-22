@@ -417,4 +417,14 @@ public class MyConf {
     public static String getExomeBed(Configuration conf) {
         return conf.get(exomebed);
     }
+    
+    
+    
+    private static final String inputDir = "InputDir";
+    public static void setInputDir(Configuration conf, String val) {
+        conf.set(inputDir, val);
+    }    
+    public static String getInputDir(Configuration conf) {
+        return conf.get(inputDir);
+    }
 }

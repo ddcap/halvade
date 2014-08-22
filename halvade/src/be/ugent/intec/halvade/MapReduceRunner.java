@@ -9,7 +9,6 @@ import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import fi.tkk.ics.hadoop.bam.VariantContextWritable;
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import be.ugent.intec.halvade.hadoop.partitioners.*;
-import be.ugent.intec.halvade.tools.GATKTools;
 import java.io.EOFException;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -30,11 +29,10 @@ import org.apache.hadoop.util.Tool;
 import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.MyConf;
 import be.ugent.intec.halvade.utils.Timer;
-import java.io.BufferedReader;
+import fi.tkk.ics.hadoop.bam.VCFInputFormat;
 import java.io.File;
-import java.io.FileReader;
 import java.net.URI;
-import java.util.ArrayList;
+import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.Job;
 
 /**
@@ -95,43 +93,43 @@ public class MapReduceRunner extends Configured implements Tool  {
         try {
             parseArguments(strings);
             // initialise MapReduce
-            Configuration conf = getConf();
+            Configuration halvadeConf = getConf();
             // add parameters to configuration:
             localRef = tmpDir + "ref.fa";
-            getBestDistribution(conf);
-            MyConf.setTasksPerNode(conf, reducersPerContainer);
-            MyConf.setScratchTempDir(conf, tmpDir);
-            MyConf.setRefOnHDFS(conf, ref);
-            MyConf.setRefOnScratch(conf, localRef);
-            MyConf.setKnownSitesOnHDFS(conf, hdfsSites);
-            MyConf.setNumThreads(conf, mthreads);
-            MyConf.setGATKNumDataThreads(conf, GATKdataThreads);
-            MyConf.setGATKNumCPUThreads(conf, GATKCPUThreads);
-            MyConf.setNumNodes(conf, mappers);
-            MyConf.setIsPaired(conf, paired);
+            getBestDistribution(halvadeConf);
+            MyConf.setTasksPerNode(halvadeConf, reducersPerContainer);
+            MyConf.setScratchTempDir(halvadeConf, tmpDir);
+            MyConf.setRefOnHDFS(halvadeConf, ref);
+            MyConf.setRefOnScratch(halvadeConf, localRef);
+            MyConf.setKnownSitesOnHDFS(halvadeConf, hdfsSites);
+            MyConf.setNumThreads(halvadeConf, mthreads);
+            MyConf.setGATKNumDataThreads(halvadeConf, GATKdataThreads);
+            MyConf.setGATKNumCPUThreads(halvadeConf, GATKCPUThreads);
+            MyConf.setNumNodes(halvadeConf, mappers);
+            MyConf.setIsPaired(halvadeConf, paired);
             if(exomeBedFile != null)
-                MyConf.setExomeBed(conf, exomeBedFile);
+                MyConf.setExomeBed(halvadeConf, exomeBedFile);
 //            MyConf.setBinDir(conf, bin);
-            MyConf.setFastqEncoding(conf, FASTQ_ENCODING[0]);
-            MyConf.setOutDir(conf, out);
-            MyConf.setKeepFiles(conf, keepFiles);
-            MyConf.setUseBedTools(conf, useBedTools);
-            MyConf.clearTaskFiles(conf);
-            MyConf.setUseIPrep(conf, useIPrep);
-            MyConf.setUseUnifiedGenotyper(conf, useGenotyper);
-            MyConf.setReuseJVM(conf, reuseJVM);
-            MyConf.setReadGroup(conf, "ID:" + RGID + " LB:" + RGLB + " PL:" + RGPL + " PU:" + RGPU + " SM:" + RGSM);
+            MyConf.setFastqEncoding(halvadeConf, FASTQ_ENCODING[0]);
+            MyConf.setOutDir(halvadeConf, out);
+            MyConf.setKeepFiles(halvadeConf, keepFiles);
+            MyConf.setUseBedTools(halvadeConf, useBedTools);
+            MyConf.clearTaskFiles(halvadeConf);
+            MyConf.setUseIPrep(halvadeConf, useIPrep);
+            MyConf.setUseUnifiedGenotyper(halvadeConf, useGenotyper);
+            MyConf.setReuseJVM(halvadeConf, reuseJVM);
+            MyConf.setReadGroup(halvadeConf, "ID:" + RGID + " LB:" + RGLB + " PL:" + RGPL + " PU:" + RGPU + " SM:" + RGSM);
             if(chr != null )
-                MyConf.setChrList(conf, chr);
+                MyConf.setChrList(halvadeConf, chr);
             if(java != null)
-                MyConf.setJava(conf, java);
+                MyConf.setJava(halvadeConf, java);
                     
             if(stand_call_conf > 0) 
-                MyConf.setSCC(conf, stand_call_conf);
+                MyConf.setSCC(halvadeConf, stand_call_conf);
             if(stand_emit_conf > 0) 
-                MyConf.setSEC(conf, stand_emit_conf);
+                MyConf.setSEC(halvadeConf, stand_emit_conf);
             // check if output is cleared
-            FileSystem fs = FileSystem.get(new URI(out), conf);
+            FileSystem fs = FileSystem.get(new URI(out), halvadeConf);
             if (fs.exists(new Path(out)) && !justCombine) {
                 Logger.INFO("The output directory \'" + out + "\' already exists.");
                 Logger.INFO("WARNING: Deleting the previous output directory!");
@@ -140,11 +138,11 @@ public class MapReduceRunner extends Configured implements Tool  {
 //                System.exit(-2);
             }
             // prepare the sequence dictionary for the reducer:
-            parseANNFile(conf);
+            parseANNFile(halvadeConf);
             setKeysPerChromosome();
-            MyConf.setMinChrLength(conf, minChrLength);
-            MyConf.setMultiplier(conf, multiplier);
-            getNumberOfRegions(conf);
+            MyConf.setMinChrLength(halvadeConf, minChrLength);
+            MyConf.setMultiplier(halvadeConf, multiplier);
+            getNumberOfRegions(halvadeConf);
            
             // only put files or continue?
             if(justPut)
@@ -158,12 +156,12 @@ public class MapReduceRunner extends Configured implements Tool  {
             // try to use by copying cache to every node
 //            DistributedCache.addCacheArchive(binTar, conf);
             
-            Job job = new Job(conf, "Halvade");
+            Job halvadeJob = new Job(halvadeConf, "Halvade");
             // add to dist cache with job
-            job.addCacheArchive(binTar);   
+            halvadeJob.addCacheArchive(binTar);   
             
             
-            job.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.BWAMemMapper.class);
+            halvadeJob.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.BWAMemMapper.class);
             // specify input and output dirs
             // check if input is a file or directory
             
@@ -174,49 +172,77 @@ public class MapReduceRunner extends Configured implements Tool  {
                     FileStatus[] files = fs.listStatus(new Path(in));
                     for(FileStatus file : files) {
                         if (!file.isDirectory()) {
-                            FileInputFormat.addInputPath(job, file.getPath());
+                            FileInputFormat.addInputPath(halvadeJob, file.getPath());
                         }
                     }
                 } else {
-                    FileInputFormat.addInputPath(job, new Path(in));
+                    FileInputFormat.addInputPath(halvadeJob, new Path(in));
                 }
                 
             } catch (Exception e) {
                 Logger.EXCEPTION(e);
             }
-            FileOutputFormat.setOutputPath(job, new Path(out));
+            FileOutputFormat.setOutputPath(halvadeJob, new Path(out));
             
             // specify a mapper       
-            if (aln) job.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.BWAAlnMapper.class);
-            else job.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.BWAMemMapper.class);
-            job.setMapOutputKeyClass(ChromosomeRegion.class);
-            job.setMapOutputValueClass(SAMRecordWritable.class);
-            job.setInputFormatClass(FastqInputFormat.class);
+            if (aln) halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.BWAAlnMapper.class);
+            else halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.BWAMemMapper.class);
+            halvadeJob.setMapOutputKeyClass(ChromosomeRegion.class);
+            halvadeJob.setMapOutputValueClass(SAMRecordWritable.class);
+            halvadeJob.setInputFormatClass(FastqInputFormat.class);
             
             // per chromosome && region
-            job.setPartitionerClass(ChrRgPartitioner.class);
-            job.setSortComparatorClass(ChrRgPositionComparator.class);
-            job.setGroupingComparatorClass(ChrRgRegionComparator.class);
+            halvadeJob.setPartitionerClass(ChrRgPartitioner.class);
+            halvadeJob.setSortComparatorClass(ChrRgPositionComparator.class);
+            halvadeJob.setGroupingComparatorClass(ChrRgRegionComparator.class);
             
             // # reducers
             if(justAlign)
-                job.setNumReduceTasks(0);
+                halvadeJob.setNumReduceTasks(0);
             else
-                job.setNumReduceTasks(reducers);
+                halvadeJob.setNumReduceTasks(reducers);
             // specify a reducer
-            job.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.GATKReducer.class);
-            job.setOutputKeyClass(Text.class);
-            job.setOutputValueClass(VariantContextWritable.class);
+            halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.GATKReducer.class);
+            halvadeJob.setOutputKeyClass(Text.class);
+            halvadeJob.setOutputValueClass(VariantContextWritable.class);
 //            job.setOutputFormatClass(VCFOutputFormat.class);
             
             Timer timer = new Timer();
             timer.start();
-            ret = job.waitForCompletion(true) ? 0 : 1;
-            // combine resulting files:
-//            Logger.DEBUG("combining output");
-//            postProcessVCF(tmpDir, out, ref, fs);
+            ret = halvadeJob.waitForCompletion(true) ? 0 : 1;
             timer.stop();
-            Logger.DEBUG("Running time of Job: " + timer);
+            Logger.DEBUG("Running time of Halvade Job: " + timer);
+            
+            /**
+             * combine resulting files:
+             */
+            Logger.DEBUG("combining output");            
+            Configuration combineConf = getConf();  
+            if(!out.endsWith("/")) out += "/";  
+            MyConf.setInputDir(combineConf, out);
+            MyConf.setOutDir(combineConf, out + "combinedVCF/");
+            Job combineJob = new Job(combineConf, "HalvadeCombineVCF");            
+            combineJob.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
+            
+            FileInputFormat.addInputPath(combineJob, new Path(out));
+            FileOutputFormat.setOutputPath(combineJob, new Path(out + "combinedVCF/"));
+            
+            combineJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
+            combineJob.setMapOutputKeyClass(LongWritable.class);
+            combineJob.setMapOutputValueClass(VariantContextWritable.class);
+            combineJob.setInputFormatClass(VCFInputFormat.class);
+            combineJob.setNumReduceTasks(1); 
+            combineJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineReducer.class);
+            combineJob.setOutputKeyClass(Text.class);
+            combineJob.setOutputValueClass(VariantContextWritable.class);
+//            combineJob.setOutputFormatClass(KeyIgnoringVCFOutputFormat.class);
+            
+            timer = new Timer();
+            timer.start();
+            ret = combineJob.waitForCompletion(true) ? 0 : 1;
+            timer.stop();
+            Logger.DEBUG("Running time of Combine Job: " + timer);
+            
             
         } catch (ParseException e) {
             // automatically generate the help statement
@@ -595,26 +621,26 @@ public class MapReduceRunner extends Configured implements Tool  {
             mapsPerContainer = memMapLimit;  
         
         int memReduceLimit = Math.max(mem / MEM_REDUCE_TASK,1);
-        if(memReduceLimit > vcores) 
+        if(memReduceLimit > vcores)
             reducersPerContainer = vcores;
         else
-            reducersPerContainer = memReduceLimit;        
+            reducersPerContainer = memReduceLimit;
         
         mthreads = Math.max(1,vcores/mapsPerContainer);
         mappers = Math.max(1,nodes*mapsPerContainer);
         GATKCPUThreads = Math.max(1,vcores/reducersPerContainer);
         GATKdataThreads = Math.max(1,vcores/reducersPerContainer);
         Logger.DEBUG("using " + mapsPerContainer + " maps [" 
-                + mthreads + " cpu , " + ((mem-OS_REQ)*1024/mapsPerContainer) +
+                + mthreads + " cpu , " + Math.min(mem*1024,mem*1024/mapsPerContainer) +
                 " mb] per node and " + reducersPerContainer + " reducers ["
-                + GATKCPUThreads + " cpu, " + ((SWAP_EXTRA + mem)*1024/reducersPerContainer) +
+                + GATKCPUThreads + " cpu, " + Math.min(mem*1024,((SWAP_EXTRA + mem)*1024/reducersPerContainer)) +
                 " mb] per node");
         conf.set("mapreduce.map.cpu.vcores", ""+mthreads);
-        conf.set("mapreduce.map.memory.mb", ""+((mem-OS_REQ)*1024/mapsPerContainer)); 
+        conf.set("mapreduce.map.memory.mb", ""+ Math.min(mem*1024,mem*1024/mapsPerContainer)); 
 //        conf.set("mapreduce.map.memory.mb", ""+((SWAP_EXTRA + mem)*1024/mapsPerContainer)); 
         conf.set("mapreduce.reduce.cpu.vcores", ""+GATKCPUThreads);
-//        conf.set("mapreduce.reduce.memory.mb", ""+((SWAP_EXTRA + mem)*1024/reducersPerContainer)); 
-        conf.set("mapreduce.reduce.memory.mb", ""+((mem-OS_REQ)*1024/reducersPerContainer)); 
+        conf.set("mapreduce.reduce.memory.mb", ""+Math.min(mem*1024,((SWAP_EXTRA + mem)*1024/reducersPerContainer))); 
+//        conf.set("mapreduce.reduce.memory.mb", ""+(mem*1024/reducersPerContainer)); 
         conf.set("mapreduce.job.reduce.slowstart.completedmaps", ""+1.0);
         
         // experimental - need more data
