@@ -5,11 +5,14 @@
 package be.ugent.intec.halvade.tools;
 
 import be.ugent.intec.halvade.hadoop.mapreduce.HalvadeCounters;
+import be.ugent.intec.halvade.utils.CommandGenerator;
 import java.util.ArrayList;
 import java.util.Arrays;
 import be.ugent.intec.halvade.utils.ProcessBuilderWrapper;
 import be.ugent.intec.halvade.utils.Logger;
+import be.ugent.intec.halvade.utils.MyConf;
 import java.text.DecimalFormat;
+import java.util.List;
 import org.apache.hadoop.mapreduce.Reducer;
 
 /**
@@ -76,6 +79,13 @@ public class GATKTools {
         this.java = java;
     }
     
+    private static String[] AddCustomArguments(String[] command, String customArgs) {
+        List<String> tmp = Arrays.asList(command);
+        tmp.addAll(CommandGenerator.GetArguments(customArgs));        
+        Object[] ObjectList = tmp.toArray();
+        return Arrays.copyOf(ObjectList,ObjectList.length,String[].class);  
+    }
+    
     public void runBaseRecalibrator(String input, String table, String ref, String knownSite, String region) throws InterruptedException {
         String[] knownSites = {knownSite};
         runBaseRecalibrator(input, table, ref, knownSites, region);        
@@ -117,6 +127,8 @@ public class GATKTools {
             command.add(knownSite);
         }
 //        command.addAll(Arrays.asList(covString));
+        String customArgs = MyConf.getGatkBaseRecalibratorArgs(context.getConfiguration());
+        command.addAll(CommandGenerator.GetArguments(customArgs));  
         Object[] objectList = command.toArray();
         long estimatedTime = runProcessAndWait(Arrays.copyOf(objectList,objectList.length,String[].class));
         if(context != null)
@@ -141,7 +153,8 @@ public class GATKTools {
             "-I", input,
             "-o", targets,
             "-L", region};
-        long estimatedTime = runProcessAndWait(command);    
+        String customArgs = MyConf.getGatkRealignerTargetCreatorArgs(context.getConfiguration());
+        long estimatedTime = runProcessAndWait(AddCustomArguments(command, customArgs));    
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_TARGET_CREATOR).increment(estimatedTime);
     }
@@ -167,7 +180,8 @@ public class GATKTools {
             "-targetIntervals", targets,
             "-o", output,
             "-L", region};
-        long estimatedTime = runProcessAndWait(command);    
+        String customArgs = MyConf.getGatkIndelRealignerArgs(context.getConfiguration());
+        long estimatedTime = runProcessAndWait(AddCustomArguments(command, customArgs));   
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_INDEL_REALN).increment(estimatedTime);    
     }
@@ -186,7 +200,8 @@ public class GATKTools {
             "-o", output,
             "-BQSR", table,
             "-L", region};
-        long estimatedTime = runProcessAndWait(command);  
+        String customArgs = MyConf.getGatkPrintReadsArgs(context.getConfiguration());
+        long estimatedTime = runProcessAndWait(AddCustomArguments(command, customArgs));  
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_PRINT_READS).increment(estimatedTime);        
     }
@@ -221,6 +236,8 @@ public class GATKTools {
                 command.add(input);
             }
         }
+        String customArgs = MyConf.getGatkCombineVariantsArgs(context.getConfiguration());
+        command.addAll(CommandGenerator.GetArguments(customArgs));  
         Object[] objectList = command.toArray();
         long estimatedTime = runProcessAndWait(Arrays.copyOf(objectList,objectList.length,String[].class));
         if(context != null)
@@ -266,6 +283,8 @@ public class GATKTools {
                 command.add(knownSite);
             }
         }
+        String customArgs = MyConf.getGatkVariantCallerArgs(context.getConfiguration());
+        command.addAll(CommandGenerator.GetArguments(customArgs));  
         Object[] objectList = command.toArray();
         long estimatedTime = runProcessAndWait(Arrays.copyOf(objectList,objectList.length,String[].class));   
         if(context != null)

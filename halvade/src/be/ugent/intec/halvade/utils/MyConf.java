@@ -427,4 +427,132 @@ public class MyConf {
     public static String getInputDir(Configuration conf) {
         return conf.get(inputDir);
     }
+
+    
+    /*
+    * Custom Arguments for all commands used in Halvade
+    *
+    */
+    // Alignment
+    private static final String ca_bwa_aln = "customArgsBwaAln";
+    private static final String ca_bwa_mem = "customArgsBwaMem";
+    private static final String ca_bwa_samxe = "customArgsBwaSamxe";
+    public static void setBwaAlnArgs(Configuration conf, String val) {
+        conf.set(ca_bwa_aln, val);
+    }    
+    public static String getBwaAlnArgs(Configuration conf) {
+        return conf.get(ca_bwa_aln, "");
+    }
+    public static void setBwaMemArgs(Configuration conf, String val) {
+        conf.set(ca_bwa_mem, val);
+    }    
+    public static String getBwaMemArgs(Configuration conf) {
+        return conf.get(ca_bwa_mem, "");
+    }
+    public static void setBwaSamxeArgs(Configuration conf, String val) {
+        conf.set(ca_bwa_samxe, val);
+    }    
+    public static String getBwaSamxeArgs(Configuration conf) {
+        return conf.get(ca_bwa_samxe, "");
+    }
+    // Data Preparation
+    private static final String ca_elprep = "customArgsElPrep";
+    private static final String ca_samtools_view = "customArgsSamView";
+    private static final String ca_bedtools_dbsnp = "customArgsBedToolsDbSnp";
+    private static final String ca_bedtools_exome = "customArgsBedToolsExome";
+    private static final String ca_picard_bai = "customArgsPicardBai";
+    private static final String ca_picard_rg = "customArgsPicardReadGroup";
+    private static final String ca_picard_dedup = "customArgsPicardDedup";
+    private static final String ca_picard_clean = "customArgsPicardCleanSam";
+    public static void setElPrepArgs(Configuration conf, String val) {
+        conf.set(ca_elprep, val);
+    }    
+    public static String getElPrepArgs(Configuration conf) {
+        return conf.get(ca_elprep, "");
+    }
+    public static void setSamtoolsViewArgs(Configuration conf, String val) {
+        conf.set(ca_samtools_view, val);
+    }    
+    public static String getSamtoolsViewArgs(Configuration conf) {
+        return conf.get(ca_samtools_view, "");
+    }
+    public static void setBedToolsDbSnpArgs(Configuration conf, String val) {
+        conf.set(ca_bedtools_dbsnp, val);
+    }    
+    public static String getBedToolsDbSnpArgs(Configuration conf) {
+        return conf.get(ca_bedtools_dbsnp, "");
+    }
+    public static void setBedToolsExomeArgs(Configuration conf, String val) {
+        conf.set(ca_bedtools_exome, val);
+    }    
+    public static String getBedToolsExomeArgs(Configuration conf) {
+        return conf.get(ca_bedtools_exome, "");
+    }
+    public static void setPicardBaiArgs(Configuration conf, String val) {
+        conf.set(ca_picard_bai, val);
+    }    
+    public static String getPicardBaiArgs(Configuration conf) {
+        return conf.get(ca_picard_bai, "");
+    }
+    public static void setPicardAddReadGroupArgs(Configuration conf, String val) {
+        conf.set(ca_picard_rg, val);
+    }    
+    public static String getPicardAddReadGroupArgs(Configuration conf) {
+        return conf.get(ca_picard_rg, "");
+    }
+    public static void setPicardMarkDupArgs(Configuration conf, String val) {
+        conf.set(ca_picard_dedup, val);
+    }    
+    public static String getPicardMarkDupArgs(Configuration conf) {
+        return conf.get(ca_picard_dedup, "");
+    }
+    public static void setPicardCleanSamArgs(Configuration conf, String val) {
+        conf.set(ca_picard_clean, val);
+    }    
+    public static String getPicardCleanSamArgs(Configuration conf) {
+        return conf.get(ca_picard_clean, "");
+    }    
+    // GATK tools
+    private static final String ca_gatk_rtc = "customArgsGatkRtc"; //runRealignerTargetCreator
+    private static final String ca_gatk_ir = "customArgsGatkIr"; //runIndelRealigner
+    private static final String ca_gatk_br = "customArgsGatkBr"; //runBaseRecalibrator
+    private static final String ca_gatk_pr = "customArgsGatkPr"; //runPrintReads
+    private static final String ca_gatk_cv = "customArgsGatkCv"; //runCombineVariants
+    private static final String ca_gatk_vc = "customArgsGatkVc"; //runVariantCaller    
+    public static void setGatkRealignerTargetCreatorArgs(Configuration conf, String val) {
+        conf.set(ca_gatk_rtc, val);
+    }    
+    public static String getGatkRealignerTargetCreatorArgs(Configuration conf) {
+        return conf.get(ca_gatk_rtc, "");
+    }
+    public static void setGatkIndelRealignerArgs(Configuration conf, String val) {
+        conf.set(ca_gatk_ir, val);
+    }    
+    public static String getGatkIndelRealignerArgs(Configuration conf) {
+        return conf.get(ca_gatk_ir, "");
+    }
+    public static void setGatkBaseRecalibratorArgs(Configuration conf, String val) {
+        conf.set(ca_gatk_br, val);
+    }    
+    public static String getGatkBaseRecalibratorArgs(Configuration conf) {
+        return conf.get(ca_gatk_br, "");
+    }
+    public static void setGatkPrintReadsArgs(Configuration conf, String val) {
+        conf.set(ca_gatk_pr, val);
+    }    
+    public static String getGatkPrintReadsArgs(Configuration conf) {
+        return conf.get(ca_gatk_pr, "");
+    }
+    public static void setGatkCombineVariantsArgs(Configuration conf, String val) {
+        conf.set(ca_gatk_cv, val);
+    }    
+    public static String getGatkCombineVariantsArgs(Configuration conf) {
+        return conf.get(ca_gatk_cv, "");
+    }
+    public static void setGatkVariantCallerArgs(Configuration conf, String val) {
+        conf.set(ca_gatk_vc, val);
+    }    
+    public static String getGatkVariantCallerArgs(Configuration conf) {
+        return conf.get(ca_gatk_vc, "");
+    }
 }

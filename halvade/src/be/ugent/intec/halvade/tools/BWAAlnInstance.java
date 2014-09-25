@@ -80,7 +80,8 @@ public class BWAAlnInstance extends BWAInstance {
         // use half the threads if paired reads ( 2 instances of aln will run)
         int threadsToUse = threads;
         if (isPaired && threadsToUse > 1 ) threadsToUse /= 2;
-        String[] command1 = CommandGenerator.bwaAln(bin, ref, "/dev/stdin", getFileName(tmpdir, taskId, true, 1), threadsToUse);
+        String customArgs = MyConf.getBwaAlnArgs(context.getConfiguration());
+        String[] command1 = CommandGenerator.bwaAln(bin, ref, "/dev/stdin", getFileName(tmpdir, taskId, true, 1), threadsToUse, customArgs);
         reads1 = new ProcessBuilderWrapper(command1, bin);
         reads1.setThreads(threadsToUse);
         reads1.startProcess(null, System.err);
@@ -94,7 +95,7 @@ public class BWAAlnInstance extends BWAInstance {
         }
         fastqFile1 = new BufferedWriter(new FileWriter(file1.getAbsoluteFile()));
         if(isPaired) {
-            String[] command2 = CommandGenerator.bwaAln(bin, ref, "/dev/stdin", getFileName(tmpdir, taskId, true, 2), threadsToUse);
+            String[] command2 = CommandGenerator.bwaAln(bin, ref, "/dev/stdin", getFileName(tmpdir, taskId, true, 2), threadsToUse, customArgs);
             reads2 = new ProcessBuilderWrapper(command2, bin);
             reads2.setThreads(threadsToUse);
             reads2.startProcess(null, System.err);
@@ -148,13 +149,14 @@ public class BWAAlnInstance extends BWAInstance {
         }
     }
     
-    private void startBWASamXe() throws InterruptedException {   
+    private void startBWASamXe() throws InterruptedException { 
+        String customArgs = MyConf.getBwaSamxeArgs(context.getConfiguration());  
         String[] command = CommandGenerator.bwaSamXe(bin, ref,
                 getFileName(tmpdir, taskId, true, 1), 
                 getFileName(tmpdir, taskId, false, 1), 
                 getFileName(tmpdir, taskId, true, 2), 
                 getFileName(tmpdir, taskId, false, 2), 
-                isPaired, threads);
+                isPaired, threads, customArgs);
         samxe = new ProcessBuilderWrapper(command, bin);
         samxe.startProcess(null, System.err);     
         if(!samxe.isAlive())

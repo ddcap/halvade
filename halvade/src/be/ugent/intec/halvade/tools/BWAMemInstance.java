@@ -39,7 +39,8 @@ public class BWAMemInstance extends BWAInstance {
     @Override
     protected void startBWA(Mapper.Context context) throws IOException, InterruptedException {
         // make command
-        String[] command = CommandGenerator.bwaMem(bin, ref, null, null, isPaired, true, threads);
+        String customArgs = MyConf.getBwaMemArgs(context.getConfiguration());
+        String[] command = CommandGenerator.bwaMem(bin, ref, null, null, isPaired, true, threads, customArgs);
         pbw = new ProcessBuilderWrapper(command, bin);
         // run command
         // needs to be streamed to output otherwise the process blocks ...

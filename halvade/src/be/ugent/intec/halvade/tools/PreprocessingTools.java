@@ -17,6 +17,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import net.sf.picard.sam.*;
 import net.sf.samtools.SAMFileHeader;
@@ -70,7 +73,8 @@ public class PreprocessingTools {
         int read = 0;
         byte[] bytes = new byte[bufferSize];
         
-        String[] command = CommandGenerator.BedTools(bin, dbsnps, bed.getAbsolutePath());
+        String customArgs = MyConf.getBedToolsDbSnpArgs(context.getConfiguration());  
+        String[] command = CommandGenerator.bedTools(bin, dbsnps, bed.getAbsolutePath(), customArgs);
         
         long startTime = System.currentTimeMillis();
         ProcessBuilderWrapper builder = new ProcessBuilderWrapper(command, null);
@@ -107,7 +111,8 @@ public class PreprocessingTools {
         int read = 0;
         byte[] bytes = new byte[bufferSize];
         
-        String[] command = CommandGenerator.BedTools(bin, exomebed, bed.getAbsolutePath());
+        String customArgs = MyConf.getBedToolsExomeArgs(context.getConfiguration());  
+        String[] command = CommandGenerator.bedTools(bin, exomebed, bed.getAbsolutePath(), customArgs);
         
         long startTime = System.currentTimeMillis();
         ProcessBuilderWrapper builder = new ProcessBuilderWrapper(command, null);
@@ -175,7 +180,8 @@ public class PreprocessingTools {
         }
         Swriter.close();
         
-        String[] command = CommandGenerator.elPrep(bin, input, output, threads, true, rg, dictFile);
+        String customArgs = MyConf.getElPrepArgs(context.getConfiguration());  
+        String[] command = CommandGenerator.elPrep(bin, input, output, threads, true, rg, dictFile, customArgs);
         long estimatedTime = runProcessAndWait(command);
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_IPREP).increment(estimatedTime);
@@ -186,7 +192,8 @@ public class PreprocessingTools {
     public int streamElPrep(Reducer.Context context, String output, String rg, int threads, Iterator<SAMRecordWritable> it, 
             SAMFileHeader header, String dictFile, ChromosomeRange r) throws InterruptedException, IOException {
         long startTime = System.currentTimeMillis();
-        String[] command = CommandGenerator.elPrep(bin, "/dev/stdin", output, threads, true, rg, dictFile);
+        String customArgs = MyConf.getElPrepArgs(context.getConfiguration());  
+        String[] command = CommandGenerator.elPrep(bin, "/dev/stdin", output, threads, true, rg, dictFile, customArgs);
 //        runProcessAndWait(command);
         ProcessBuilderWrapper builder = new ProcessBuilderWrapper(command, null);
         builder.startProcess(true);        
@@ -253,7 +260,8 @@ public class PreprocessingTools {
     }
     
     public void callSAMToBAM(String input, String output) throws InterruptedException {
-        String[] command = CommandGenerator.SAMToolsView(bin, input, output);
+        String customArgs = MyConf.getSamtoolsViewArgs(context.getConfiguration());  
+        String[] command = CommandGenerator.SAMToolsView(bin, input, output, customArgs);
         long estimatedTime = runProcessAndWait(command); 
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_SAMTOBAM).increment(estimatedTime);
@@ -271,103 +279,6 @@ public class PreprocessingTools {
         return estimatedTime;
     }
     
-    // Picard tools!
-    /*
-    protected class CleanSamWrapper extends CleanSam {
-        public CleanSamWrapper() {
-            super();
-        }
-        
-        public int startWrapper(String[] args) {
-            return instanceMain(args);
-        }
-    }
-    
-    public int runCleanSam(String input, String output) {
-        String[] args = {"INPUT=" + input, 
-                         "OUTPUT=" + output};            
-        CleanSamWrapper wrapper = new CleanSamWrapper();
-        long startTime = System.currentTimeMillis();
-        int ret = wrapper.startWrapper(args);
-        long estimatedTime = System.currentTimeMillis() - startTime;
-        if(context != null)
-            context.getCounter(HalvadeCounters.TIME_PICARD_CLEANSAM).increment(estimatedTime);
-        return ret;
-    }
-        
-    protected class MarkDuplicatesWrapper extends MarkDuplicates {
-        public MarkDuplicatesWrapper() {
-            super();
-        }
-        
-        public int startWrapper(String[] args) {
-            return instanceMain(args);
-        }
-    }
-    
-    public int runMarkDuplicates(String input, String output, String metrics) {
-        String[] args = {"INPUT=" + input, 
-                         "OUTPUT=" + output, 
-                         "METRICS_FILE=" + metrics};            
-        MarkDuplicatesWrapper wrapper = new MarkDuplicatesWrapper();
-        long startTime = System.currentTimeMillis();
-        int ret = wrapper.startWrapper(args);
-        long estimatedTime = System.currentTimeMillis() - startTime;
-        if(context != null)
-            context.getCounter(HalvadeCounters.TIME_PICARD_MARKDUP).increment(estimatedTime);
-        return ret;
-    }
-           
-    protected class AddOrReplaceReadGroupsWrapper extends AddOrReplaceReadGroups {
-        public AddOrReplaceReadGroupsWrapper() {
-            super();      
-        }
-        
-        public int startWrapper(String[] args) {
-            return instanceMain(args);
-        }
-    }
-        
-    public int runAddOrReplaceReadGroups(String input, String output,
-            String RGID, String RGLB, String RGPL, 
-            String RGPU, String RGSM) {
-        String[] args = {"INPUT=" + input, 
-                         "OUTPUT=" + output, 
-                         "RGID=" + RGID,
-                         "RGLB=" + RGLB,
-                         "RGPL=" + RGPL,
-                         "RGPU=" + RGPU,
-                         "RGSM=" + RGSM};            
-        AddOrReplaceReadGroupsWrapper wrapper = new AddOrReplaceReadGroupsWrapper();
-        long startTime = System.currentTimeMillis();
-        int ret = wrapper.startWrapper(args);
-        long estimatedTime = System.currentTimeMillis() - startTime;
-        if(context != null)
-            context.getCounter(HalvadeCounters.TIME_PICARD_ADDGRP).increment(estimatedTime);
-        return ret;
-    }
-    
-    protected class BuildBamIndexWrapper extends BuildBamIndex {
-        public BuildBamIndexWrapper() {
-            super();      
-        }
-        
-        public int startWrapper(String[] args) {
-            return instanceMain(args);
-        }
-    }
-    
-    public int runBuildBamIndex(String input) {
-        String[] args = {"INPUT=" + input};            
-        BuildBamIndexWrapper wrapper = new BuildBamIndexWrapper();
-        long startTime = System.currentTimeMillis();
-        int ret = wrapper.startWrapper(args);
-        long estimatedTime = System.currentTimeMillis() - startTime;
-        if(context != null)
-            context.getCounter(HalvadeCounters.TIME_PICARD_BAI).increment(estimatedTime);
-        return ret;
-    }
-    */
     String[] PicardTools = {
         "BuildBamIndex.jar", 
         "AddOrReplaceReadGroups.jar",
@@ -375,14 +286,27 @@ public class PreprocessingTools {
         "CleanSam.jar"
     };
     
+    private static String[] GetStringVector(Collection<String> c) {
+        Object[] ObjectList = c.toArray();
+        return Arrays.copyOf(ObjectList,ObjectList.length,String[].class);        
+    }
+    
     public int runBuildBamIndex(String input) throws InterruptedException {
         String tool;
         if(bin.endsWith("/")) 
             tool = bin + PicardTools[0];
         else
-            tool = bin + "/" + PicardTools[0];
-        String[] command = {java, mem, "-jar", tool, "INPUT=" + input};
-        long estimatedTime = runProcessAndWait(command);
+            tool = bin + "/" + PicardTools[0];     
+              
+        ArrayList<String> command = new ArrayList<>();
+        command.add(java);
+        command.add(mem);
+        command.add("-jar");
+        command.add(tool);
+        command.add("INPUT=" + input);
+        String customArgs = MyConf.getPicardBaiArgs(context.getConfiguration());  
+        command.addAll(CommandGenerator.GetArguments(customArgs));        
+        long estimatedTime = runProcessAndWait(GetStringVector(command));
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_PICARD_BAI).increment(estimatedTime);
         return 0;
@@ -394,16 +318,22 @@ public class PreprocessingTools {
         if(bin.endsWith("/")) 
             tool = bin + PicardTools[1];
         else
-            tool = bin + "/" + PicardTools[1];
-        String[] command = {java, mem, "-jar", tool, 
-                         "INPUT=" + input, 
-                         "OUTPUT=" + output, 
-                         "RGID=" + RGID,
-                         "RGLB=" + RGLB,
-                         "RGPL=" + RGPL,
-                         "RGPU=" + RGPU,
-                         "RGSM=" + RGSM};        
-        long estimatedTime = runProcessAndWait(command);
+            tool = bin + "/" + PicardTools[1];      
+        ArrayList<String> command = new ArrayList<>();
+        command.add(java);
+        command.add(mem);
+        command.add("-jar");
+        command.add(tool);
+        command.add("INPUT=" + input);
+        command.add("OUTPUT=" + output);
+        command.add("RGID=" + RGID);
+        command.add("RGLB=" + RGLB);
+        command.add("RGPL=" + RGPL);
+        command.add("RGPU=" + RGPU);
+        command.add("RGSM=" + RGSM);                         
+        String customArgs = MyConf.getPicardAddReadGroupArgs(context.getConfiguration());  
+        command.addAll(CommandGenerator.GetArguments(customArgs));        
+        long estimatedTime = runProcessAndWait(GetStringVector(command));
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_PICARD_ADDGRP).increment(estimatedTime);
         return 0;
@@ -413,12 +343,18 @@ public class PreprocessingTools {
         if(bin.endsWith("/")) 
             tool = bin + PicardTools[2];
         else
-            tool = bin + "/" + PicardTools[2];
-        String[] command = {java, mem, "-jar", tool, "INPUT=" + input, 
-                         "OUTPUT=" + output, 
-                         "METRICS_FILE=" + metrics};            
-        
-        long estimatedTime = runProcessAndWait(command);
+            tool = bin + "/" + PicardTools[2];  
+        ArrayList<String> command = new ArrayList<>();
+        command.add(java);
+        command.add(mem);
+        command.add("-jar");
+        command.add(tool);
+        command.add("INPUT=" + input);
+        command.add("OUTPUT=" + output);
+        command.add("METRICS_FILE=" + metrics);                     
+        String customArgs = MyConf.getPicardMarkDupArgs(context.getConfiguration());  
+        command.addAll(CommandGenerator.GetArguments(customArgs));        
+        long estimatedTime = runProcessAndWait(GetStringVector(command));
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_PICARD_MARKDUP).increment(estimatedTime);
         return 0;
@@ -428,11 +364,17 @@ public class PreprocessingTools {
         if(bin.endsWith("/")) 
             tool = bin + PicardTools[3];
         else
-            tool = bin + "/" + PicardTools[3];
-        String[] command = {java, mem, "-jar", tool, "INPUT=" + input, 
-                         "OUTPUT=" + output};            
-        
-        long estimatedTime = runProcessAndWait(command);
+            tool = bin + "/" + PicardTools[3];   
+        ArrayList<String> command = new ArrayList<>();
+        command.add(java);
+        command.add(mem);
+        command.add("-jar");
+        command.add(tool);
+        command.add("INPUT=" + input);
+        command.add("OUTPUT=" + output);                   
+        String customArgs = MyConf.getPicardCleanSamArgs(context.getConfiguration());  
+        command.addAll(CommandGenerator.GetArguments(customArgs)); 
+        long estimatedTime = runProcessAndWait(GetStringVector(command));  
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_PICARD_CLEANSAM).increment(estimatedTime);
         return 0;
