@@ -1,4 +1,4 @@
-halvade
+Halvade
 =======
 
 Halvade, a mapreduce implementation of the best practice DNA-seq pipeline by Broad Institute.
