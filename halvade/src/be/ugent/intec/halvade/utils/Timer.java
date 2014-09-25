@@ -4,6 +4,10 @@
  */
 package be.ugent.intec.halvade.utils;
 
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+
 /**
  *
  * @author ddecap
@@ -16,6 +20,12 @@ public class Timer {
     private static long day = 60*60*24;
     private static long hour = 60*60;
     private static long minute = 60;
+    private static final DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+    
+    
+    public static String getGlobalTime() {
+        return dateFormat.format(new Date());
+    }
     
     public void start(){
         start = System.nanoTime();
@@ -49,7 +59,6 @@ public class Timer {
         else
             return getFormattedElapsedTime();
     }
-    
     
     
     private String timeToString(double time)

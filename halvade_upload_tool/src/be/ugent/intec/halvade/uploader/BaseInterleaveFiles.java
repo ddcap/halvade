@@ -4,27 +4,29 @@
  */
 package be.ugent.intec.halvade.uploader;
 
+import java.io.BufferedOutputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.zip.GZIPOutputStream;
+import org.apache.hadoop.fs.Path;
 
 /**
  *
  * @author ddecap
  */
-public class AWSInterleaveFiles extends Thread {
-    private FastQFileReader pReader;
-    private FastQFileReader sReader;
-    private static long MAXFILESIZE = 60000000L; // ~60MB
-    String pairedBase;
-    String singleBase;
-    AWSUploader upl; // S3
-    long read, written;
+abstract class BaseInterleaveFiles extends Thread {
+    protected static final int BUFFERSIZE = 128*1024;
+    protected FastQFileReader pReader;
+    protected FastQFileReader sReader;
+    protected static long MAXFILESIZE = 60000000L; // ~60MB
+    protected String pairedBase;
+    protected String singleBase;
+    protected long read, written;
+    protected String fsName;
     
-    public AWSInterleaveFiles(String paired, String single, long maxFileSize, AWSUploader upl) {
-        this.upl = upl;
+    public BaseInterleaveFiles(String paired, String single, long maxFileSize) {
         this.pairedBase = paired;
         this.singleBase = single;
         written = 0;
@@ -34,93 +36,95 @@ public class AWSInterleaveFiles extends Thread {
         MAXFILESIZE = maxFileSize;
     }
 
-    private double round(double value) {
+    protected double round(double value) {
         return (int)(value * 100 + 0.5) / 100.0;
     }
+
+    protected abstract OutputStream getNewDataStream(int part, String prefix) throws IOException;
+    protected abstract BufferedOutputStream getNewGZIPStream(OutputStream dataStream) throws IOException;
+    protected abstract int getSize(OutputStream dataStream);
+    protected abstract void writeData(int part, OutputStream dataStream, BufferedOutputStream gzipStream) throws IOException;
+    protected abstract OutputStream resetDataStream(int part, String prefix, OutputStream dataStream) throws IOException;
+    protected abstract void deleteFile(String prefix, int part) throws IOException;
+    protected abstract void closeStreams(OutputStream dataStream, OutputStream gzipStream) throws IOException;
 
     @Override
     public void run() {
         try {
-            Logger.DEBUG("Starting thread to write reads to hdfs");
+            Logger.DEBUG("Starting thread to write reads to " + fsName);
             int part = 0;    
             int count = 0;
-            ByteArrayOutputStream dataStream = new ByteArrayOutputStream();
-            dataStream.reset();
-            OutputStream gzipOutputStream = new GZIPOutputStream(dataStream);
+            OutputStream dataStream = getNewDataStream(part, pairedBase);
+            BufferedOutputStream gzipStream = getNewGZIPStream(dataStream); 
             
             ReadBlock block = new ReadBlock();
             int fileWritten = 0;
+            int tSize;
             while(pReader.getNextBlock(block)) {
-                fileWritten += block.write(gzipOutputStream);
+                fileWritten += block.write(gzipStream);
                 // check filesize
-                if(dataStream.size() > MAXFILESIZE) {
-                    gzipOutputStream.close();
+                tSize = getSize(dataStream);
+                if(tSize > MAXFILESIZE) {
+                    gzipStream.close();
                     count += block.size / 4;
-                    uploadToAWS(part, dataStream);
-                    written += dataStream.size();
+                    writeData(part, dataStream, gzipStream);
+                    written += tSize;
                     read += fileWritten;
                     fileWritten = 0;
                     part++;
-                    
-                    dataStream.reset(); 
-                    gzipOutputStream = new GZIPOutputStream(dataStream);                    
+                    dataStream = resetDataStream(part, pairedBase, dataStream);
+                    gzipStream = getNewGZIPStream(dataStream);                 
                 }
             }
             // finish the files          
-            gzipOutputStream.close();
-            if(fileWritten != 0) {
+            gzipStream.close();
+            tSize = getSize(dataStream);
+            if(tSize == 0 || fileWritten == 0) {
+                deleteFile(pairedBase, part);
+            } else if(fileWritten != 0) {
                 count += block.size / 4;
-                uploadToAWS(part, dataStream);
-                written += dataStream.size();
+                writeData(part, dataStream, gzipStream);
+                written += tSize;
                 read += fileWritten;
-                dataStream.reset();
             }
-            gzipOutputStream = new GZIPOutputStream(dataStream);
             
             // do single reads
             part = 0;
-            dataStream.reset();
-            gzipOutputStream = new GZIPOutputStream(dataStream);
+            dataStream = resetDataStream(part, singleBase, dataStream);
+            gzipStream = getNewGZIPStream(dataStream);  
             fileWritten = 0;
             while(sReader.getNextBlock(block)) {
-                fileWritten += block.write(gzipOutputStream);
+                fileWritten += block.write(gzipStream);
                 // check filesize
-                if(dataStream.size() > MAXFILESIZE) {
-                    gzipOutputStream.close();
+                tSize = getSize(dataStream);
+                if(tSize > MAXFILESIZE) {
+                    gzipStream.close();
                     count += block.size / 4;
-                    uploadToAWS(part, dataStream);
-                    dataStream.reset();
-                    written += dataStream.size();
+                    writeData(part, dataStream, gzipStream);
+                    written += tSize;
                     read += fileWritten;
                     fileWritten = 0;
                     part++;
-                    gzipOutputStream = new GZIPOutputStream(dataStream);
+                    dataStream = resetDataStream(part, singleBase, dataStream);
+                    gzipStream = getNewGZIPStream(dataStream);    
                 }
             }
             // finish the files
-            gzipOutputStream.close();
-            if(fileWritten != 0) {
+            gzipStream.close();
+            tSize = getSize(dataStream);
+            if(tSize == 0 || fileWritten == 0) {
+                deleteFile(pairedBase, part);
+            } else if(fileWritten != 0) {
                 count += block.size / 4;
-                uploadToAWS(part, dataStream);
-                written += dataStream.size();
+                writeData(part, dataStream, gzipStream);
+                written += tSize;
                 read += fileWritten;
-                dataStream.reset();
             }
             Logger.DEBUG("number of reads: "+ count);
             Logger.DEBUG("read " + round(read / (1024*1024)) + "MB");
             Logger.DEBUG("written " + round(written / (1024*1024)) + "MB");
-            dataStream.close();
+            closeStreams(dataStream, gzipStream);
         } catch (IOException ex) {
-            Logger.EXCEPTION(ex);
-        }
-    }
-    
-    public void uploadToAWS(int part, ByteArrayOutputStream stream) {
-        try {
-            Logger.DEBUG("uploading part " + part + ": " + stream.size());
-            upl.Upload(pairedBase + part + ".fq.gz", new ByteArrayInputStream(stream.toByteArray()), stream.size());
-        } catch (InterruptedException ex) {
-            Logger.DEBUG("failed to upload part to AWS...");
             Logger.EXCEPTION(ex);
         }
     }

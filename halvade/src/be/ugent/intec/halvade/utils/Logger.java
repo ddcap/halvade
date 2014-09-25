@@ -36,7 +36,7 @@ public class Logger {
     
     public static void DEBUG(String message) {
         if(LEVEL >= DEBUG)
-            System.err.println("[DEBUG] " + message);
+            System.err.println("[" + Timer.getGlobalTime() + " - DEBUG] " + message);
     }
     
     public static void INFO(String message) {

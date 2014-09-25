@@ -15,9 +15,11 @@ import org.apache.tools.bzip2.CBZip2InputStream;
  * @author ddecap
  */
 public class FastQFileReader {
+    private static final int BUFFERSIZE = 128*1024;
+    
     private static BufferedReader getReader(String file) throws FileNotFoundException, IOException {
         if(file.endsWith(".gz")) {
-            GZIPInputStream gzip = new GZIPInputStream(new FileInputStream(file)); 
+            GZIPInputStream gzip = new GZIPInputStream(new FileInputStream(file), BUFFERSIZE); 
             return new BufferedReader(new InputStreamReader(gzip));
         } else if(file.endsWith(".bz2")) {
             CBZip2InputStream bzip2 = new CBZip2InputStream(new FileInputStream(file));

@@ -90,7 +90,7 @@ public class ChromosomeRegion implements WritableComparable<ChromosomeRegion> {
 
     @Override
     public String toString() {
-        return chromosome + "-" + region + "-";
+        return chromosome + "-" + region; // + "-";
     }
     public String toFullString() {
         return chromosome + "-" + region + "-" + position + "-" + reduceNumber;

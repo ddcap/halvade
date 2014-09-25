@@ -16,108 +16,49 @@ import org.apache.hadoop.fs.Path;
  *
  * @author ddecap
  */
-public class HDFSInterleaveFiles extends Thread {
-    private FastQFileReader pReader;
-    private FastQFileReader sReader;
-    private static long MAXFILESIZE = 60000000L; // ~60MB
-    String pairedBase;
-    String singleBase;
+public class HDFSInterleaveFiles extends BaseInterleaveFiles {
     FileSystem fs; // HDFS
-    long read, written;
     
     public HDFSInterleaveFiles(String paired, String single, long maxFileSize, FileSystem fs) {
+        super(paired, single, maxFileSize);
         this.fs = fs;
-        this.pairedBase = paired;
-        this.singleBase = single;
-        written = 0;
-        read = 0;
-        pReader = FastQFileReader.getPairedInstance();
-        sReader = FastQFileReader.getSingleInstance();
-        MAXFILESIZE = maxFileSize;
-    }
-
-    private double round(double value) {
-        return (int)(value * 100 + 0.5) / 100.0;
+        this.fsName = "HDFS";
     }
 
     @Override
-    public void run() {
-        try {
-            Logger.DEBUG("Starting thread to write reads to hdfs");
-            int part = 0;    
-            int count = 0;
-            FSDataOutputStream dataStream = fs.create(new Path(pairedBase + part + ".fq.gz"),true);
-            OutputStream gzipOutputStream = 
-                    new GZIPOutputStream(new BufferedOutputStream(dataStream));
-            
-            ReadBlock block = new ReadBlock();
-            int fileWritten = 0;
-            while(pReader.getNextBlock(block)) {
-                fileWritten += block.write(gzipOutputStream);
-                // check filesize
-                if(dataStream.size() > MAXFILESIZE) {
-                    gzipOutputStream.close();
-                    count += block.size / 4;
-                    dataStream.close();
-                    written += dataStream.size();
-                    read += fileWritten;
-                    fileWritten = 0;
-                    part++;
-                    dataStream = fs.create(new Path(pairedBase + part + ".fq.gz"),true);
-                    gzipOutputStream = 
-                        new GZIPOutputStream(new BufferedOutputStream(dataStream));                  
-                }
-            }
-            // finish the files          
-            gzipOutputStream.close();
-            if(dataStream.size() == 0 || fileWritten == 0) {
-                // delete this file
-                fs.delete(new Path(singleBase + part + ".fq.gz"), true);
-            } else {
-                count += block.size / 4;
-                written += dataStream.size();
-                read += fileWritten;
-                dataStream.close();
-            }
-            
-            // do single reads
-            part = 0;
-            dataStream = fs.create(new Path(singleBase + part + ".fq.gz"),true);
-            gzipOutputStream = 
-                    new GZIPOutputStream(new BufferedOutputStream(dataStream));
-            fileWritten = 0;
-            while(sReader.getNextBlock(block)) {
-                fileWritten += block.write(gzipOutputStream);
-                // check filesize
-                if(dataStream.size() > MAXFILESIZE) {
-                    gzipOutputStream.close();
-                    count += block.size / 4;
-                    dataStream.close();
-                    written += dataStream.size();
-                    read += fileWritten;
-                    fileWritten = 0;
-                    part++;
-                    dataStream = fs.create(new Path(singleBase + part + ".fq.gz"),true);
-                    gzipOutputStream = 
-                        new GZIPOutputStream(new BufferedOutputStream(dataStream));
-                }
-            }
-            // finish the files
-            gzipOutputStream.close();
-            if(dataStream.size() == 0 || fileWritten == 0) {
-                // delete this file
-                fs.delete(new Path(singleBase + part + ".fq.gz"), true);
-            } else {
-                count += block.size / 4;
-                written += dataStream.size();
-                read += fileWritten;
-                dataStream.close();
-            }
-            Logger.DEBUG("number of reads: "+ count);
-            Logger.DEBUG("read " + round(read / (1024*1024)) + "MB");
-            Logger.DEBUG("written " + round(written / (1024*1024)) + "MB");
-        } catch (IOException ex) {
-            Logger.EXCEPTION(ex);
-        }
+    protected OutputStream getNewDataStream(int part, String prefix) throws IOException {
+       return fs.create(new Path(prefix + part + ".fq.gz"),true);
+    }
+
+    @Override
+    protected BufferedOutputStream getNewGZIPStream(OutputStream dataStream) throws IOException {
+        return new BufferedOutputStream(new GZIPOutputStream(dataStream), BUFFERSIZE);
+    }
+
+    @Override
+    protected int getSize(OutputStream dataStream) {
+        return ((FSDataOutputStream)dataStream).size();
+    }
+    
+    @Override
+    protected void writeData(int part, OutputStream dataStream, BufferedOutputStream gzipStream) throws IOException {
+        gzipStream.close();
+        dataStream.close();
+    }
+    
+    @Override
+    protected OutputStream resetDataStream(int part, String prefix, OutputStream dataStream) throws IOException {
+        return fs.create(new Path(prefix + part + ".fq.gz"),true);
+    }
+    
+    @Override
+    protected void deleteFile(String prefix, int part) throws IOException {
+        fs.delete(new Path(prefix + part + ".fq.gz"), true);
+    }
+    
+    @Override
+    protected void closeStreams(OutputStream dataStream, OutputStream gzipStream) throws IOException {
+        dataStream.close();
+        gzipStream.close();
     }
 }

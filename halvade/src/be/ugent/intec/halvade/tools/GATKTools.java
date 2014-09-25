@@ -176,11 +176,11 @@ public class GATKTools {
         /**
          * example:
          * -I input.bam -o recalibrated.bam -T TableRecalibration -recalFile recal.csv -R ref
+         * Not using multi-threading, tests show best performance is single thread
          */
         String[] command = {
             java, mem, "-jar", gatk,
             "-T", "PrintReads",
-            multiThreadingTypes[1], "" + threadsPerType[1], // only supports -nct
             "-R", ref,
             "-I", input,
             "-o", output,

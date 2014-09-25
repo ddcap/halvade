@@ -605,43 +605,33 @@ public class MapReduceRunner extends Configured implements Tool  {
     }
     
     
-    private static final int MEM_MAP_TASK = 8; // minimum requirement map task
-    private static final int MEM_REDUCE_TASK = 14; // minimum requirement reduce task
-    private static final int VCORES_MAP_TASK = 8; // set a minimum of cores so it take too many tasks per node
-    private static final int OS_REQ = 2; // minimum requirement for OS
+    private static final int MEM_MAP_TASK = 15;
+    private static final int MEM_REDUCE_TASK = 15;
+    private static final int VCORES_MAP_TASK = 8;
+    private static final int VCORES_REDUCE_TASK = 8;
     private static final int SWAP_EXTRA = 20;
     
     private void getBestDistribution(Configuration conf) {
-        mem = mem - OS_REQ;
-        int memMapLimit = Math.max(mem / MEM_MAP_TASK,1);
-        int vcoresMapLimit = Math.max(vcores / VCORES_MAP_TASK,1);
-        if (vcoresMapLimit < memMapLimit)
-            mapsPerContainer = vcoresMapLimit;
-        else
-            mapsPerContainer = memMapLimit;  
+        mapsPerContainer = Math.min(Math.max(vcores / VCORES_MAP_TASK,1), Math.max(mem / MEM_MAP_TASK,1));
+        reducersPerContainer = Math.min(Math.max(vcores / VCORES_REDUCE_TASK, 1), Math.max(mem / MEM_REDUCE_TASK,1));
         
-        int memReduceLimit = Math.max(mem / MEM_REDUCE_TASK,1);
-        if(memReduceLimit > vcores)
-            reducersPerContainer = vcores;
-        else
-            reducersPerContainer = memReduceLimit;
-        
+        mappers = Math.max(1,nodes*mapsPerContainer);        
         mthreads = Math.max(1,vcores/mapsPerContainer);
-        mappers = Math.max(1,nodes*mapsPerContainer);
         GATKCPUThreads = Math.max(1,vcores/reducersPerContainer);
         GATKdataThreads = Math.max(1,vcores/reducersPerContainer);
+        int mmem = Math.min(mem*1024,mem*1024/mapsPerContainer);
+        int rmem = Math.min(mem*1024,((SWAP_EXTRA + mem)*1024/reducersPerContainer));
+        
         Logger.DEBUG("using " + mapsPerContainer + " maps [" 
-                + mthreads + " cpu , " + Math.min(mem*1024,mem*1024/mapsPerContainer) +
+                + mthreads + " cpu , " + mmem +
                 " mb] per node and " + reducersPerContainer + " reducers ["
-                + GATKCPUThreads + " cpu, " + Math.min(mem*1024,((SWAP_EXTRA + mem)*1024/reducersPerContainer)) +
+                + GATKCPUThreads + " cpu, " + rmem +
                 " mb] per node");
-        conf.set("mapreduce.map.cpu.vcores", ""+mthreads);
-        conf.set("mapreduce.map.memory.mb", ""+ Math.min(mem*1024,mem*1024/mapsPerContainer)); 
-//        conf.set("mapreduce.map.memory.mb", ""+((SWAP_EXTRA + mem)*1024/mapsPerContainer)); 
-        conf.set("mapreduce.reduce.cpu.vcores", ""+GATKCPUThreads);
-        conf.set("mapreduce.reduce.memory.mb", ""+Math.min(mem*1024,((SWAP_EXTRA + mem)*1024/reducersPerContainer))); 
-//        conf.set("mapreduce.reduce.memory.mb", ""+(mem*1024/reducersPerContainer)); 
-        conf.set("mapreduce.job.reduce.slowstart.completedmaps", ""+1.0);
+        conf.set("mapreduce.map.cpu.vcores", "" + mthreads);
+        conf.set("mapreduce.map.memory.mb", "" + mmem); 
+        conf.set("mapreduce.reduce.cpu.vcores", "" + GATKCPUThreads);
+        conf.set("mapreduce.reduce.memory.mb", "" + rmem); 
+        conf.set("mapreduce.job.reduce.slowstart.completedmaps", "" + 1.0);
         
         // experimental - need more data
         reducers = (int) (coverage * 6.40 * reducersPerContainer);
