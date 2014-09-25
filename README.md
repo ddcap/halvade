@@ -3,7 +3,7 @@ halvade
 
 Halvade, a mapreduce implementation of the best practice DNA-seq pipeline by Broad Institute.
 
-To build the Halvade run this command in the `halvade` folder:
+To build Halvade run this command in the `halvade` folder:
 
 `> ant` 
 
