@@ -1,7 +1,20 @@
 /*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
+ * Copyright (C) 2014 ddecap
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 package be.ugent.intec.halvade.utils;
 
 /**
@@ -17,6 +30,7 @@ public class Logger {
      * 3:ALL
      */
     private static int LEVEL = 2;
+    private static int DEBUG2 = 3;
     private static final int EXCEPTION = 2;
     private static final int DEBUG = 1;
     private static final int INFO = 0;
@@ -42,5 +56,10 @@ public class Logger {
     public static void INFO(String message) {
         if(LEVEL >= INFO)
             System.err.println("[INFO] " + message);
+    }
+    
+    public static void DEBUG2(String message) {
+        if(LEVEL >= DEBUG2)
+            System.err.println("[" + Timer.getGlobalTime() + " - DEBUG] " + message);
     }
 }

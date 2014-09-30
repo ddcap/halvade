@@ -1,7 +1,18 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ * Copyright (C) 2014 ddecap
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package be.ugent.intec.halvade.tools;
@@ -38,9 +49,9 @@ public abstract class BWAInstance {
 //    protected static TaskInputOutputContext<LongWritable, Text, ChromosomeRegion, SAMRecordWritable> context;
     protected static Mapper.Context context;
     protected boolean isPaired = true;
+    protected int[] regionsPerChr;
     protected int[] regionSizePerChr;
-    protected int[] keysPerChr;
-    protected int[] randomShuffleReducers;
+    protected int[] chromosomeStartKey;
     protected String chr;
     protected int multiplier, minChrLength, reducers;
     protected static final long RND_SEED = 19940627L;
@@ -52,6 +63,7 @@ public abstract class BWAInstance {
         writableRegion = new ChromosomeRegion();
         minChrLength = MyConf.getMinChrLength(context.getConfiguration());
         multiplier = MyConf.getMultiplier(context.getConfiguration());
+        minChrLength = minChrLength / multiplier;
         chr = MyConf.getChrList(context.getConfiguration());
         
         tmpdir = MyConf.getScratchTempDir(context.getConfiguration());
@@ -61,65 +73,62 @@ public abstract class BWAInstance {
         isPaired = MyConf.getIsPaired(context.getConfiguration());
         Logger.DEBUG("paired? " + isPaired);
         Logger.DEBUG("called BWAInstance constructor");
-        calculateRegionsPerChromosome(context.getConfiguration());        
-        //reducers = MyConf.getReducers(context.getConfiguration());
-        //initiateShuffle();
+        calculateRegionsPerChromosome(context.getConfiguration());
     }
     
-    private void initiateShuffle() {
-        randomShuffleReducers = new int[reducers];
-        for(int i = 0; i < reducers; i++)
-            randomShuffleReducers[i] = i;
-        Random rnd = new Random(RND_SEED);
-        int idx, tmp;
-        for(int i = randomShuffleReducers.length - 1; i > 0; i--) {
-            idx = rnd.nextInt(i + 1);
-            // swap
-            tmp = randomShuffleReducers[idx];
-            randomShuffleReducers[idx] = randomShuffleReducers[i];
-            randomShuffleReducers[i] = tmp;
-        }
+    private String[] getChromosomeNames(SAMSequenceDictionary dict) {
+        String[] chrs = new String[dict.size()];
+        for(int i = 0; i < dict.size(); i++) 
+            chrs[i] = dict.getSequence(i).getSequenceName();
+        return chrs;
     }
     
     private void calculateRegionsPerChromosome(Configuration conf) throws IOException {
         SAMSequenceDictionary dict = MyConf.getSequenceDictionary(conf);
+        regionsPerChr = new int[dict.size()];
         regionSizePerChr = new int[dict.size()];
-        keysPerChr = new int[dict.size()];
-        keysPerChr[0] = 0;
-        int[] tmpRegionsPerChr = new int[dict.size()];
-        for(int i = 0; i < dict.size(); i++)
-            tmpRegionsPerChr[i] = 1; // assume one if not in the list
+        chromosomeStartKey = new int[dict.size()];
+        int currentKey = 0;
+        String[] chrs;
+        if(chr == null) 
+            chrs = getChromosomeNames(dict);
+        else
+            chrs = chr.split(",");
         
-        if(chr == null) {
-            for(int i = 0; i < dict.size(); i++)  {
-                int seqlen = dict.getSequence(i).getSequenceLength();
-                if (dict.getSequence(i).getSequenceLength() < minChrLength / multiplier)
-                    tmpRegionsPerChr[i] = 1;
-                else
-                    tmpRegionsPerChr[i] = multiplier*(int)Math.ceil((double)seqlen / minChrLength);
-                regionSizePerChr[i] = seqlen / tmpRegionsPerChr[i] + 1;
+        // chr bigger than 
+        int i = 0;
+        for(String chr_ : chrs) {
+            int seqlen = dict.getSequence(chr_).getSequenceLength();
+            if(seqlen > minChrLength) {
+                regionsPerChr[i] = (int)Math.ceil((double)seqlen / minChrLength);
+                regionSizePerChr[i] = seqlen / regionsPerChr[i] + 1;
+                chromosomeStartKey[i] = currentKey;
+                currentKey += regionsPerChr[i];
             }
-        } else {
-            String[] chrs = chr.split(",");
-            for(int i = 0; i < dict.size(); i++)  {
-                int seqlen = dict.getSequence(i).getSequenceLength();
-                regionSizePerChr[i] = seqlen + 1;
-            }
-            for(String chr_ : chrs){
-                int id = dict.getSequenceIndex(chr_);
-                int seqlen = dict.getSequence(chr_).getSequenceLength();
-                if (dict.getSequence(id).getSequenceLength() < minChrLength / multiplier)
-                    tmpRegionsPerChr[id] = 1;
-                else
-                    tmpRegionsPerChr[id] = multiplier*(int)Math.ceil((double)seqlen / minChrLength);
-                regionSizePerChr[id] = seqlen / tmpRegionsPerChr[id] + 1;
-            }
+            i++;
         }
-        for(int i = 1; i < dict.size(); i++)
-            keysPerChr[i] = keysPerChr[i - 1] + tmpRegionsPerChr[i - 1];
         
-        for(int i = 0; i < dict.size(); i++)
-            Logger.DEBUG(i + ": " + keysPerChr[i] + " keys and regionsize is " + regionSizePerChr[i]);
+        // combine small chr
+        int currentKeySize = 0;
+        i = 0;
+        for(String chr_ : chrs) {
+            int seqlen = dict.getSequence(chr_).getSequenceLength();
+            if(seqlen < minChrLength) {
+                regionsPerChr[i] = 1;
+                regionSizePerChr[i] = seqlen + 1;
+                chromosomeStartKey[i] = currentKey;
+                currentKeySize += seqlen;
+                if(currentKeySize > minChrLength) {
+                    currentKey++;
+                    currentKeySize = 0;
+                }
+                
+            }
+            i++;
+        }
+        for(i = 0; i < chromosomeStartKey.length; i++)
+            Logger.DEBUG(dict.getSequence(i).getSequenceName() + "[" + dict.getSequence(i).getSequenceLength() + 
+                    "]: starts with key " + chromosomeStartKey[i] + " with " + regionsPerChr[i] + " regions of size " + regionSizePerChr[i]);
     }
     
     
@@ -134,8 +143,7 @@ public abstract class BWAInstance {
     }
         
     int getKey(int region, int chromosome) {
-//        return randomShuffleReducers[(int) (keysPerChr[chromosome] + region)];
-        return (int) (keysPerChr[chromosome] + region);
+        return (int) (chromosomeStartKey[chromosome] + region);
     }
     
     int getRegion(int position, int chromosome) {

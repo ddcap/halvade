@@ -1,9 +1,19 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ * Copyright (C) 2014 ddecap
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 package be.ugent.intec.halvade;
 
 import be.ugent.intec.halvade.utils.Logger;
@@ -77,6 +87,7 @@ public class HalvadeOptions {
     protected String halvadeDir = "/halvade/";
     protected String bin;
     protected boolean combineVcf = true;
+    protected boolean dryRun = false;
     // custom args!    
     protected String ca_bwa_aln = null;
     protected String ca_bwa_mem = null;
@@ -123,7 +134,7 @@ public class HalvadeOptions {
             MyConf.setUseIPrep(halvadeConf, useIPrep);
             MyConf.setUseUnifiedGenotyper(halvadeConf, useGenotyper);
             MyConf.setReuseJVM(halvadeConf, reuseJVM);
-            MyConf.setReadGroup(halvadeConf, "ID:" + RGID + " LB:" + RGLB + " PL:" + RGPL + " PU:" + RGPU + " SM:" + RGSM);            
+            MyConf.setReadGroup(halvadeConf, "ID:" + RGID + " LB:" + RGLB + " PL:" + RGPL + " PU:" + RGPU + " SM:" + RGSM);  
             // check for custom arguments for all tools
             if(ca_bwa_aln != null) MyConf.setBwaAlnArgs(halvadeConf, ca_bwa_aln);
             if(ca_bwa_mem != null) MyConf.setBwaMemArgs(halvadeConf, ca_bwa_mem);
@@ -175,44 +186,51 @@ public class HalvadeOptions {
             // automatically generate the help statement
             System.err.println("Error parsing: " + e.getMessage());
             HelpFormatter formatter = new HelpFormatter();
-            formatter.printHelp( "hadoop jar Halvade -I <IN> -O <OUT> " +
+            formatter.setWidth(80);
+            formatter.printHelp( "hadoop jar HalvadeWithLibs.jar -I <IN> -O <OUT> " +
                     "-R <REF> -D <SITES> -B <BIN> -nodes <nodes> -mem <mem> -vcores <cores> [options]", options);
             return 1;
         }
         return 0;
     }
     
+    private String[] getChromosomeNames(SAMSequenceDictionary dict) {
+        String[] chrs = new String[dict.size()];
+        for(int i = 0; i < dict.size(); i++) 
+            chrs[i] = dict.getSequence(i).getSequenceName();
+        return chrs;
+    }
     
     private void setKeysPerChromosome() {
         int maxChrLength = dict.getSequence(0).getSequenceLength();
         int minRegions = 0;
-        if(chr == null) {
-            for(int i = 0; i < dict.size(); i++) 
-                if(dict.getSequence(i).getSequenceLength() > maxChrLength)
-                    maxChrLength = dict.getSequence(i).getSequenceLength();
-            minChrLength = maxChrLength;
-            for(int i = 0; i < dict.size(); i++) 
-                if(dict.getSequence(i).getSequenceLength() < minChrLength &&
-                        (100.0*dict.getSequence(i).getSequenceLength() / maxChrLength) > 25.0)
-                    minChrLength = dict.getSequence(i).getSequenceLength();
-            for(int i = 0; i < dict.size(); i++) 
-                minRegions += (int)Math.ceil((double)dict.getSequence(i).getSequenceLength() / minChrLength);
-        } else {
-            String[] chrs = chr.split(",");
-            for(String chr_ : chrs)
-                if(dict.getSequence(chr_).getSequenceLength() > maxChrLength)
-                    maxChrLength = dict.getSequence(chr_).getSequenceLength();
-            minChrLength = maxChrLength;
-            for(String chr_ : chrs)
-                if(dict.getSequence(chr_).getSequenceLength() < minChrLength &&
-                        (100.0*dict.getSequence(chr_).getSequenceLength() / maxChrLength) > 25.0)
-                    minChrLength = dict.getSequence(chr_).getSequenceLength();
-            for(String chr_ : chrs)
+        String[] chrs;
+        if(chr == null) 
+            chrs = getChromosomeNames(dict);
+        else
+            chrs = chr.split(",");
+        
+        for(String chr_ : chrs)
+            if(dict.getSequence(chr_).getSequenceLength() > maxChrLength)
+                maxChrLength = dict.getSequence(chr_).getSequenceLength();
+        minChrLength = maxChrLength;
+        for(String chr_ : chrs)
+            if(dict.getSequence(chr_).getSequenceLength() < minChrLength &&
+                    (100.0*dict.getSequence(chr_).getSequenceLength() / maxChrLength) > 25.0)
+                minChrLength = dict.getSequence(chr_).getSequenceLength();     
+        
+        for(String chr_ : chrs)
+            if(dict.getSequence(chr_).getSequenceLength() > minChrLength)
                 minRegions += (int)Math.ceil((double)dict.getSequence(chr_).getSequenceLength() / minChrLength);
-        }
+        double restChr = 0;
+        for(String chr_ : chrs)
+            if(dict.getSequence(chr_).getSequenceLength() < minChrLength)
+                restChr += (double)dict.getSequence(chr_).getSequenceLength() / minChrLength;
+        minRegions += (int)Math.ceil(restChr / 1.0);
         multiplier = 1;
         while(multiplier * minRegions < reducers) 
             multiplier++;
+        minChrLength = minChrLength / multiplier;
     }
         
     protected boolean removeLocalFile(String filename) {
@@ -223,34 +241,35 @@ public class HalvadeOptions {
     private int getNumberOfRegions(Configuration conf) {
         // use keysPerChromosome
         int regions = 0;
-        if(chr == null) {
-            for(int i = 0; i < dict.size(); i++)  {
-                int count;
-                if (dict.getSequence(i).getSequenceLength() < minChrLength / multiplier)
-                    count = 1;
-                else
-                   count = multiplier*(int)Math.ceil((double)dict.getSequence(i).getSequenceLength() / minChrLength);
-                if(count > 0) be.ugent.intec.halvade.utils.Logger.DEBUG(dict.getSequence(i).getSequenceName() + ": " + count + 
-                        " regions [" + (dict.getSequence(i).getSequenceLength() / count + 1) + "].");
-                regions += count;
-            }
-        } else {
-            String[] chrs = chr.split(",");
-            for(String chr_ : chrs){
-                int count;
-                if (dict.getSequence(chr_).getSequenceLength() < minChrLength / multiplier)
-                    count = 1;
-                else
-                    count = 
-                        multiplier*(int)Math.ceil((double)dict.getSequence(chr_).getSequenceLength() / minChrLength);
-                if(count > 0) be.ugent.intec.halvade.utils.Logger.DEBUG(dict.getSequence(chr_).getSequenceName() + ": " + count + " regions.");
+        String[] chrs;
+        if(chr == null) 
+            chrs = getChromosomeNames(dict);
+        else
+            chrs = chr.split(",");
+        
+        for(String chr_ : chrs) {
+            if(dict.getSequence(chr_).getSequenceLength() > minChrLength) {
+                int count =  (int)Math.ceil((double)dict.getSequence(chr_).getSequenceLength() / minChrLength);
+                Logger.DEBUG2(dict.getSequence(chr_).getSequenceName() + ": " + count + 
+                    " regions [" + (dict.getSequence(chr_).getSequenceLength() / count + 1) + "].");
                 regions += count;
             }
         }
-        be.ugent.intec.halvade.utils.Logger.DEBUG("found " + regions + " regions.");
+        double restChr = 0;
+        for(String chr_ : chrs) {
+            if(dict.getSequence(chr_).getSequenceLength() < minChrLength) {
+                restChr += (double)dict.getSequence(chr_).getSequenceLength() / minChrLength;
+//                Logger.DEBUG("shared chromosome: " + dict.getSequence(chr_).getSequenceName() 
+//                        + " [" + dict.getSequence(chr_).getSequenceLength() + "].");
+            }
+        }
+        Logger.DEBUG("Regions with collection of chromosomes: " + (int)Math.ceil(restChr / 1.0));
+        regions += (int)Math.ceil(restChr / 1.0);
+        be.ugent.intec.halvade.utils.Logger.DEBUG("Total regions: " + regions);
         // set random shuffled regions
         reducers = regions;
         MyConf.setReducers(conf, reducers);
+        
         return regions;
     }
     
@@ -552,6 +571,9 @@ public class HalvadeOptions {
                                 .withDescription(  "A string containing all additional arguments, white space sepparated, for the GATK HaplotypeCaller or UnifiedGenotyper command, depending on which is used.")
                                 .create( "ca_gatk_vc" );
         
+        Option optDry = OptionBuilder.withArgName( "dryrun" )
+                                .withDescription(  "execute a dryrun, will calculate task size, split for regions etc, but not execute the MapReduce job.")
+                                .create( "dryrun" );
         
         
         options.addOption(optIn);
@@ -587,6 +609,7 @@ public class HalvadeOptions {
         options.addOption(optEx);
         options.addOption(optMpn);
         options.addOption(optRpn);
+        options.addOption(optDry);
         
         // custom arguments
         options.addOption(optCABwaAln);
@@ -660,6 +683,8 @@ public class HalvadeOptions {
             exomeBedFile = line.getOptionValue("exome");
             coverage = 30;
         }
+        if(line.hasOption("dryrun"))
+            dryRun = true;
         if(line.hasOption("cov"))
             coverage = Integer.parseInt(line.getOptionValue("cov"));
         if(line.hasOption("c"))
