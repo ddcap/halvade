@@ -28,9 +28,8 @@ import org.apache.hadoop.io.WritableComparable;
  */
 public class ChromosomeRegion implements WritableComparable<ChromosomeRegion> {
     protected int chromosome;
-    protected int region;
     protected int position;
-    protected int reduceNumber;
+    protected int reduceNumber; // identifies region in chromosome but every number is unique, so chr is also separate!
 
     public int getChromosome() {
         return chromosome;
@@ -39,39 +38,26 @@ public class ChromosomeRegion implements WritableComparable<ChromosomeRegion> {
     public int getPosition() {
         return position;
     }
-
-    public int getRegion() {
-        return region;
-    }
     
     public int getReduceNumber() {
         return reduceNumber;
     }
 
-    public void setChromosomeRegion(int chromosome, int region, int position, int reducenumber) {
+    public void setChromosomeRegion(int chromosome, int position, int reducenumber) {
         this.chromosome = chromosome;
         this.position = position;
-        this.region = region;
         this.reduceNumber = reducenumber;
     }
     
     public ChromosomeRegion() {
-        this.region = -1;
+        this.reduceNumber = -1;
         this.chromosome = -1;
         this.position = -1;
-    }
-    
-    public ChromosomeRegion(int chromosome, int region, int position, int reducenumber) {
-        this.region = region;
-        this.chromosome = chromosome;
-        this.position = position;
-        this.reduceNumber = reducenumber;
     }
 
     @Override
     public void write(DataOutput d) throws IOException {
         d.writeInt(chromosome);
-        d.writeInt(region);
         d.writeInt(position);
         d.writeInt(reduceNumber);
     }
@@ -79,7 +65,6 @@ public class ChromosomeRegion implements WritableComparable<ChromosomeRegion> {
     @Override
     public void readFields(DataInput di) throws IOException {
         chromosome = di.readInt();
-        region = di.readInt();
         position = di.readInt();
         reduceNumber = di.readInt();
     }
@@ -92,20 +77,20 @@ public class ChromosomeRegion implements WritableComparable<ChromosomeRegion> {
          * 0 if equals
          * x > 0 if t is bigger than this
          */
-        if(chromosome == t.chromosome) {
-            if(region == t.region) 
+//        if(chromosome == t.chromosome) {
+            if(reduceNumber == t.reduceNumber) 
                 return position - t.position;
             else
-                return region - t.region;
-        } else
-            return chromosome - t.chromosome;
+                return reduceNumber - t.reduceNumber;
+//        } else
+//            return chromosome - t.chromosome;
     }
 
     @Override
     public String toString() {
-        return chromosome + "-" + region; // + "-";
+        return chromosome + "-" + reduceNumber; 
     }
     public String toFullString() {
-        return chromosome + "-" + region + "-" + position + "-" + reduceNumber;
+        return chromosome + "-" + reduceNumber + "-" + position;
     }
 }

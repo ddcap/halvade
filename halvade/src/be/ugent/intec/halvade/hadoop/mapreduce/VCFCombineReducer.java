@@ -80,6 +80,7 @@ public class VCFCombineReducer extends Reducer<LongWritable, VariantContextWrita
             outpFormat = new KeyIgnoringVCFOutputFormat(VCFFormat.VCF);
             String input = MyConf.getInputDir(context.getConfiguration());
             String output = MyConf.getOutDir(context.getConfiguration());
+            reportBest = MyConf.getReportAllVariant(context.getConfiguration());
             FileSystem fs = FileSystem.get(new URI(input), context.getConfiguration());
             Path firstVcfFile = null;
             if (fs.getFileStatus(new Path(input)).isDirectory()) {

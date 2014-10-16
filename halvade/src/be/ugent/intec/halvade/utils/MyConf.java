@@ -27,7 +27,6 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 
 /**
  *
@@ -432,7 +431,35 @@ public class MyConf {
         return conf.get(exomebed);
     }
     
+    private static final String reportAllVariant = "reportAllVariant";
+    public static void setReportAllVariant(Configuration conf, boolean val) {
+        if(val)
+            conf.set(reportAllVariant, "true");
+        else 
+            conf.set(reportAllVariant, "false");
+    }    
+    public static boolean getReportAllVariant(Configuration conf) {
+        String s = conf.get(reportAllVariant, "false");
+        if(s.equalsIgnoreCase("true"))
+            return true;
+        else 
+            return false;
+    }
     
+    private static final String keepChrSplitPairs = "keepChrSplitPairs";
+    public static void setkeepChrSplitPairs(Configuration conf, boolean val) {
+        if(val)
+            conf.set(keepChrSplitPairs, "true");
+        else 
+            conf.set(keepChrSplitPairs, "false");
+    }    
+    public static boolean getkeepChrSplitPairs(Configuration conf) {
+        String s = conf.get(keepChrSplitPairs);
+        if(s.equalsIgnoreCase("true"))
+            return true;
+        else 
+            return false;
+    }
     
     private static final String inputDir = "InputDir";
     public static void setInputDir(Configuration conf, String val) {
@@ -569,4 +596,5 @@ public class MyConf {
     public static String getGatkVariantCallerArgs(Configuration conf) {
         return conf.get(ca_gatk_vc, "");
     }
+
 }

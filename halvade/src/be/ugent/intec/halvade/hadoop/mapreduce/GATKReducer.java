@@ -81,7 +81,7 @@ public class GATKReducer extends Reducer<ChromosomeRegion, SAMRecordWritable, Ch
         Logger.DEBUG("count: " + count);
         String output = null;
         String outputdir = MyConf.getOutDir(context.getConfiguration());   
-        if(variantFiles.size() > 1) {
+        if(variantFiles.size() > 1) { // should not happen -> multiple keys per reducer
             GATKTools gatk = new GATKTools(ref, bin);
             gatk.setThreadsPerType(dataThreads, cpuThreads);
             gatk.setContext(context);
@@ -150,14 +150,13 @@ public class GATKReducer extends Reducer<ChromosomeRegion, SAMRecordWritable, Ch
         getReadGroupData(context.getConfiguration());
         taskId = context.getTaskAttemptID().toString();
         taskId = taskId.substring(taskId.indexOf("r_"));
-        SAMSequenceDictionary dict = MyConf.getSequenceDictionary(context.getConfiguration());
         header = new SAMFileHeader();
         header.setSequenceDictionary(dict);
         count = 0;
         exomeBedFile = MyConf.getExomeBed(context.getConfiguration());
         useBedTools = MyConf.getUseBedTools(context.getConfiguration());
         useUnifiedGenotyper = MyConf.getUseUnifiedGenotyper(context.getConfiguration());
-        variantFiles = new ArrayList<String>();
+        variantFiles = new ArrayList<>();
         bin  = checkBinaries(context);
     }
     
@@ -323,7 +322,7 @@ public class GATKReducer extends Reducer<ChromosomeRegion, SAMRecordWritable, Ch
         String targets = base + ".intervals";
         String snps = base + ".vcf";
         
-        // download exomebed
+        // download exomebed 
         if(exomeBedFile != null) {
             String exomebed = base  + "exome.bed";
             if(exomeBedFile.endsWith(".gz"))

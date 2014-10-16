@@ -43,7 +43,7 @@ public class ChromosomeRange {
         }
         
         protected String getBedRegion() {
-            return sequenceName + "\t" + alignmentStart + "\t" + alignmentEnd;
+            return sequenceName + "\t" + (alignmentStart - 1)  + "\t" + (alignmentEnd - 1); // bed has 0 offset, while gatk,picard has 1 offset
         }
     }
     

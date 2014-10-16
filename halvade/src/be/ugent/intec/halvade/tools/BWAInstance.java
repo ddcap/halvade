@@ -25,7 +25,7 @@ import be.ugent.intec.halvade.utils.ProcessBuilderWrapper;
 import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Random;
+import java.util.Arrays;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMRecord;
 import net.sf.samtools.SAMSequenceDictionary;
@@ -54,7 +54,7 @@ public abstract class BWAInstance {
     protected int[] chromosomeStartKey;
     protected String chr;
     protected int multiplier, minChrLength, reducers;
-    protected static final long RND_SEED = 19940627L;
+    protected boolean keepChrSplitPairs;
     
     
     protected BWAInstance(Mapper.Context context, String bin) throws IOException {
@@ -74,6 +74,7 @@ public abstract class BWAInstance {
         Logger.DEBUG("paired? " + isPaired);
         Logger.DEBUG("called BWAInstance constructor");
         calculateRegionsPerChromosome(context.getConfiguration());
+        keepChrSplitPairs = MyConf.getkeepChrSplitPairs(context.getConfiguration());
     }
     
     private String[] getChromosomeNames(SAMSequenceDictionary dict) {
@@ -152,27 +153,34 @@ public abstract class BWAInstance {
     
     public int writePairedSAMRecordToContext(SAMRecord sam) throws IOException, InterruptedException {
         int count = 0;
-        if (!sam.getReadUnmappedFlag() && sam.getReferenceIndex() == sam.getMateReferenceIndex()) {
+        int read1Ref = sam.getReferenceIndex();
+        int read2Ref = sam.getMateReferenceIndex();
+        if (!sam.getReadUnmappedFlag() && (read1Ref == read2Ref || keepChrSplitPairs)) {
+            // check if pair is aligned or not???? -> can be 0?
             context.getCounter(HalvadeCounters.OUT_BWA_READS).increment(1);
             writableRecord.set(sam);
-            // positions are always leftmost positions in sam files!
-            int beginpos = Math.min(sam.getAlignmentStart(), sam.getMateAlignmentStart());
-            int endpos = Math.max(sam.getAlignmentStart(), sam.getMateAlignmentStart());
-            endpos += sam.getReadLength();
-            int beginregion = getRegion(beginpos, sam.getReferenceIndex());
-            int endregion = getRegion(endpos, sam.getReferenceIndex());
-            writableRegion.setChromosomeRegion(sam.getReferenceIndex(), beginregion, 
-                    sam.getAlignmentStart(), getKey(beginregion, sam.getReferenceIndex()));         
+            int[] keys = new int[4];
+            int readLength = sam.getReadLength();
+            int beginpos1 = sam.getAlignmentStart();
+            int beginpos2 = sam.getMateAlignmentStart();
+            keys[0] = getKey(getRegion(beginpos1, read1Ref), read1Ref);
+            keys[1] = getKey(getRegion(beginpos1 + readLength, read1Ref), read1Ref);
+            keys[2] = getKey(getRegion(beginpos2, read2Ref), read2Ref);
+            keys[3] = getKey(getRegion(beginpos2 + readLength, read2Ref), read1Ref);
+            Arrays.sort(keys);
+            // add this read as to be sorted to all unique found keys (mate will be added when the mate is parsed)
+            writableRegion.setChromosomeRegion(read1Ref, beginpos1, keys[0]);
             context.write(writableRegion, writableRecord);
             count++;
-            if(beginregion != endregion) {
-                context.getCounter(HalvadeCounters.OUT_OVERLAPPING_READS).increment(1);
-                writableRegion.setChromosomeRegion(sam.getReferenceIndex(), endregion, 
-                        sam.getAlignmentStart(), getKey(endregion, sam.getReferenceIndex()));
-                context.write(writableRegion, writableRecord);
-                count++;
+            for(int i = 1; i < 4; i++) {
+                if(keys[i] != keys[i - 1]) {
+                    context.getCounter(HalvadeCounters.OUT_OVERLAPPING_READS).increment(1);
+                    writableRegion.setChromosomeRegion(read1Ref, beginpos1, keys[i]);
+                    context.write(writableRegion, writableRecord);
+                    count++;
+                }
             }
-        }else {
+        } else {
             if(sam.getReadUnmappedFlag()) 
                 context.getCounter(HalvadeCounters.OUT_UNMAPPED_READS).increment(1);
             else
@@ -190,13 +198,13 @@ public abstract class BWAInstance {
             int endpos = sam.getAlignmentEnd();
             int beginregion = getRegion(beginpos, sam.getReferenceIndex());
             int endregion = getRegion(endpos, sam.getReferenceIndex());
-            writableRegion.setChromosomeRegion(sam.getReferenceIndex(), beginregion, 
+            writableRegion.setChromosomeRegion(sam.getReferenceIndex(),  
                     sam.getAlignmentStart(), getKey(beginregion, sam.getReferenceIndex()));
             context.write(writableRegion, writableRecord);
             count++;
             if(beginregion != endregion) {
                 context.getCounter(HalvadeCounters.OUT_OVERLAPPING_READS).increment(1);
-                writableRegion.setChromosomeRegion(sam.getReferenceIndex(), endregion, 
+                writableRegion.setChromosomeRegion(sam.getReferenceIndex(),  
                         sam.getAlignmentStart(), getKey(endregion, sam.getReferenceIndex()));
                 context.write(writableRegion, writableRecord);
                 count++;

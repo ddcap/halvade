@@ -17,31 +17,30 @@
 
 package be.ugent.intec.halvade.hadoop.mapreduce;
 
-import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
-import java.io.IOException;
-import org.apache.hadoop.io.Text;
-import org.apache.hadoop.mapreduce.Mapper;
 import be.ugent.intec.halvade.tools.BWAMemInstance;
 import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.MyConf;
+import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
+import fi.tkk.ics.hadoop.bam.SequencedFragment;
 import java.io.File;
+import java.io.IOException;
 import java.net.URISyntaxException;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
 
 /**
  *
  * @author ddecap
  */
-// TODO use compressed SAMrecod as output
-public class BWAMemMapper extends Mapper<LongWritable, Text, ChromosomeRegion, SAMRecordWritable> {
+public class StarAlignMapper extends Mapper<Text, SequencedFragment, ChromosomeRegion, SAMRecordWritable> {
     private BWAMemInstance instance;
-    private int count, readcount;
+    private int count;
     private boolean reuseJVM;
 
     @Override
-    protected void cleanup(Context context) throws IOException, InterruptedException {
+    protected void cleanup(Mapper.Context context) throws IOException, InterruptedException {
         super.cleanup(context);
         Logger.DEBUG(count + "fastq reads processed");
         Logger.DEBUG("starting cleanup");
@@ -61,17 +60,19 @@ public class BWAMemMapper extends Mapper<LongWritable, Text, ChromosomeRegion, S
     
 
     @Override
-    protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
-        instance.feedLine(value.toString());
+    protected void map(Text key, SequencedFragment value, Mapper.Context context) throws IOException, InterruptedException {
+        instance.feedLine("@" + key.toString());
+        instance.feedLine(value.getSequence().toString());
+        instance.feedLine("+"); // just write +, illumina is always +?
+        instance.feedLine(value.getQuality().toString());
         count++;
-        if(count % 4 == 0) {
-            context.getCounter(HalvadeCounters.IN_BWA_READS).increment(1);
-            readcount++;
-        }
+        context.getCounter(HalvadeCounters.IN_BWA_READS).increment(1);
+        // tell the framework we are still working
+        context.progress();
     }
 
     @Override
-    protected void setup(Context context) throws IOException, InterruptedException {
+    protected void setup(Mapper.Context context) throws IOException, InterruptedException {
         super.setup(context);
         try {
             reuseJVM = MyConf.getReuseJVM(context.getConfiguration());
@@ -79,7 +80,6 @@ public class BWAMemMapper extends Mapper<LongWritable, Text, ChromosomeRegion, S
             instance = BWAMemInstance.getBWAInstance(context, binDir);
             Logger.DEBUG("bwa startup state: " + instance.getState());
             count = 0;
-            readcount = 0;
             // add a file to distributed cache representing this task
             String taskId = context.getTaskAttemptID().toString();
             Logger.DEBUG("taskId = " + taskId);
@@ -90,7 +90,7 @@ public class BWAMemMapper extends Mapper<LongWritable, Text, ChromosomeRegion, S
         }
     }
     
-    protected String checkBinaries(Context context) throws IOException {
+    protected String checkBinaries(Mapper.Context context) throws IOException {
         Logger.DEBUG("Checking for binaries...");
         String binDir = MyConf.getBinDir(context.getConfiguration());
         if(binDir != null) {
@@ -138,3 +138,4 @@ public class BWAMemMapper extends Mapper<LongWritable, Text, ChromosomeRegion, S
         }
     }
 }
+

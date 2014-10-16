@@ -88,6 +88,8 @@ public class HalvadeOptions {
     protected String bin;
     protected boolean combineVcf = true;
     protected boolean dryRun = false;
+    protected boolean keepChrSplitPairs = true;
+    protected boolean startupJob = true;
     // custom args!    
     protected String ca_bwa_aln = null;
     protected String ca_bwa_mem = null;
@@ -106,6 +108,7 @@ public class HalvadeOptions {
     protected String ca_gatk_pr = null;
     protected String ca_gatk_cv = null;
     protected String ca_gatk_vc = null; 
+    boolean reportAll = false;
     
     public int GetOptions(String[] args, Configuration halvadeConf) throws IOException, URISyntaxException {
         try {
@@ -135,6 +138,7 @@ public class HalvadeOptions {
             MyConf.setUseUnifiedGenotyper(halvadeConf, useGenotyper);
             MyConf.setReuseJVM(halvadeConf, reuseJVM);
             MyConf.setReadGroup(halvadeConf, "ID:" + RGID + " LB:" + RGLB + " PL:" + RGPL + " PU:" + RGPU + " SM:" + RGSM);  
+            MyConf.setkeepChrSplitPairs(halvadeConf, keepChrSplitPairs);
             // check for custom arguments for all tools
             if(ca_bwa_aln != null) MyConf.setBwaAlnArgs(halvadeConf, ca_bwa_aln);
             if(ca_bwa_mem != null) MyConf.setBwaMemArgs(halvadeConf, ca_bwa_mem);
@@ -572,8 +576,18 @@ public class HalvadeOptions {
                                 .create( "ca_gatk_vc" );
         
         Option optDry = OptionBuilder.withArgName( "dryrun" )
-                                .withDescription(  "execute a dryrun, will calculate task size, split for regions etc, but not execute the MapReduce job.")
+                                .withDescription(  "Execute a dryrun, will calculate task size, split for regions etc, but not execute the MapReduce job.")
                                 .create( "dryrun" );
+        
+        Option optDrop = OptionBuilder.withArgName( "drop" )
+                                .withDescription(  "Drop all paired-end reads where the pairs are aligned to different chromosomes.")
+                                .create( "drop" );
+        Option optStartupJob= OptionBuilder.withArgName( "job" )
+                                .withDescription(  "Runs a void MapReduce job that will simply download all required data for BWA and GATK to each node.")
+                                .create( "ref_start" );
+        Option optReportAll= OptionBuilder.withArgName( "boolean" )
+                                .withDescription(  "Reports all variants at the same location when combining variants.")
+                                .create( "report_all" );
         
         
         options.addOption(optIn);
@@ -610,6 +624,8 @@ public class HalvadeOptions {
         options.addOption(optMpn);
         options.addOption(optRpn);
         options.addOption(optDry);
+        options.addOption(optDrop);
+        options.addOption(optReportAll);
         
         // custom arguments
         options.addOption(optCABwaAln);
@@ -652,7 +668,7 @@ public class HalvadeOptions {
         if(line.hasOption("mpn"))
             mapsPerContainer = Integer.parseInt(line.getOptionValue("mpn"));
         if(line.hasOption("rpn"))
-            mapsPerContainer = Integer.parseInt(line.getOptionValue("rpn"));
+            reducersPerContainer = Integer.parseInt(line.getOptionValue("rpn"));
         
         if(line.hasOption("B")){
             halvadeDir = line.getOptionValue("B");
@@ -661,6 +677,8 @@ public class HalvadeOptions {
             stand_call_conf = Integer.parseInt(line.getOptionValue("scc"));
         if(line.hasOption("sec"))
             stand_emit_conf = Integer.parseInt(line.getOptionValue("sec"));
+        if(line.hasOption("report_all"))
+            reportAll = true;
         if(line.hasOption("keep"))
             keepFiles = true;
         if(line.hasOption("s"))
@@ -685,6 +703,8 @@ public class HalvadeOptions {
         }
         if(line.hasOption("dryrun"))
             dryRun = true;
+        if(line.hasOption("drop"))
+            keepChrSplitPairs = false;
         if(line.hasOption("cov"))
             coverage = Integer.parseInt(line.getOptionValue("cov"));
         if(line.hasOption("c"))

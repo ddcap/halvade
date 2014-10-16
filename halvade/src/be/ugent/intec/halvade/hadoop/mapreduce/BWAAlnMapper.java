@@ -18,7 +18,6 @@
 package be.ugent.intec.halvade.hadoop.mapreduce;
 
 import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
-import fi.tkk.ics.hadoop.bam.SequencedFragment;
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import be.ugent.intec.halvade.tools.BWAAlnInstance;
 import java.io.IOException;
@@ -30,17 +29,17 @@ import java.io.File;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
-import java.util.logging.Level;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
 
 /**
  *
  * @author ddecap
  */
 
-public class BWAAlnMapper extends Mapper<Text, SequencedFragment, ChromosomeRegion, SAMRecordWritable> {
+public class BWAAlnMapper extends Mapper<LongWritable, Text, ChromosomeRegion, SAMRecordWritable> {
     private BWAAlnInstance instance;
-    private int count;
+    private int count, readcount;
     private boolean reuseJVM;
 
     @Override
@@ -66,13 +65,13 @@ public class BWAAlnMapper extends Mapper<Text, SequencedFragment, ChromosomeRegi
     
 
     @Override
-    protected void map(Text key, SequencedFragment value, Context context) throws IOException, InterruptedException {
-        instance.feedLine("@" + key.toString(), (count % 2 + 1));
-        instance.feedLine(value.getSequence().toString(), (count % 2 + 1));
-        instance.feedLine("+", (count % 2 + 1)); // just write +, the extra information is same as key
-        instance.feedLine(value.getQuality().toString(), (count % 2 + 1));
+    protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+        instance.feedLine(value.toString(), (readcount % 2 + 1));
         count++;
-        context.getCounter(HalvadeCounters.IN_BWA_READS).increment(1);
+        if(count % 4 == 0) {
+            context.getCounter(HalvadeCounters.IN_BWA_READS).increment(1);
+            readcount++;
+        }
     }
 
     @Override
@@ -83,6 +82,7 @@ public class BWAAlnMapper extends Mapper<Text, SequencedFragment, ChromosomeRegi
             String binDir = checkBinaries(context);
             instance = BWAAlnInstance.getBWAInstance(context, binDir);      
             count = 0;
+            readcount = 0;
             // add a file to distributed cache representing this task
             String taskId = context.getTaskAttemptID().toString();
             Logger.DEBUG("taskId = " + taskId);

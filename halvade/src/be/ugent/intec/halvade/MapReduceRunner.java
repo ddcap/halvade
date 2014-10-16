@@ -38,6 +38,7 @@ import fi.tkk.ics.hadoop.bam.VCFInputFormat;
 import java.net.URI;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 
 /**
  *
@@ -54,7 +55,7 @@ public class MapReduceRunner extends Configured implements Tool  {
             halvadeOpts = new HalvadeOptions();
             int optR = halvadeOpts.GetOptions(strings, halvadeConf);
             if (optR != 0) return optR;
-            // initialise MapReduce
+            // initialise MapReduce - copy ref to each node!
             
             
             // only put files or continue?
@@ -95,7 +96,8 @@ public class MapReduceRunner extends Configured implements Tool  {
             else halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.BWAMemMapper.class);
             halvadeJob.setMapOutputKeyClass(ChromosomeRegion.class);
             halvadeJob.setMapOutputValueClass(SAMRecordWritable.class);
-            halvadeJob.setInputFormatClass(FastqInputFormat.class);
+            halvadeJob.setInputFormatClass(TextInputFormat.class); 
+//            halvadeJob.setInputFormatClass(FastqInputFormat.class);
             
             // per chromosome && region
             halvadeJob.setPartitionerClass(ChrRgPartitioner.class);
@@ -131,6 +133,7 @@ public class MapReduceRunner extends Configured implements Tool  {
                 if(!halvadeOpts.out.endsWith("/")) halvadeOpts.out += "/";  
                 MyConf.setInputDir(combineConf, halvadeOpts.out);
                 MyConf.setOutDir(combineConf, halvadeOpts.out + "combinedVCF/");
+                MyConf.setReportAllVariant(combineConf, halvadeOpts.reportAll);
                 Job combineJob = new Job(combineConf, "HalvadeCombineVCF");            
                 combineJob.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
 
