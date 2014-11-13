@@ -36,7 +36,7 @@ import org.apache.hadoop.mapreduce.Mapper;
  *
  * @author ddecap
  */
-public class BWAAlnInstance extends BWAInstance {
+public class BWAAlnInstance extends AlignerInstance {
     
     private static BWAAlnInstance instance;
     private ProcessBuilderWrapper reads1;
@@ -86,7 +86,7 @@ public class BWAAlnInstance extends BWAInstance {
     }
         
     @Override
-    protected void startBWA(Mapper.Context context) throws IOException, InterruptedException {
+    protected void startAligner(Mapper.Context context) throws IOException, InterruptedException {
         // make command
         // use half the threads if paired reads ( 2 instances of aln will run)
         int threadsToUse = threads;
@@ -179,7 +179,7 @@ public class BWAAlnInstance extends BWAInstance {
     }
 
     @Override
-    public void closeBWA() throws InterruptedException {
+    public void closeAligner() throws InterruptedException {
         // close last BWA aln
         closeBWAAln();
 
@@ -209,7 +209,7 @@ public class BWAAlnInstance extends BWAInstance {
     static public BWAAlnInstance getBWAInstance(Mapper.Context context, String bin) throws IOException, InterruptedException, URISyntaxException {
         if(instance == null) {
             instance = new BWAAlnInstance(context, bin);
-            instance.startBWA(context);
+            instance.startAligner(context);
         }
         BWAAlnInstance.context = context;
         Logger.DEBUG("Started BWA");

@@ -109,6 +109,7 @@ public class HalvadeOptions {
     protected String ca_gatk_cv = null;
     protected String ca_gatk_vc = null; 
     boolean reportAll = false;
+    private static final int EXOME_COV = 6;
     
     public int GetOptions(String[] args, Configuration halvadeConf) throws IOException, URISyntaxException {
         try {
@@ -251,11 +252,12 @@ public class HalvadeOptions {
         else
             chrs = chr.split(",");
         
+        Logger.DEBUG("min chr length to be splittable: " + minChrLength, 3);
         for(String chr_ : chrs) {
-            if(dict.getSequence(chr_).getSequenceLength() > minChrLength) {
+            if(dict.getSequence(chr_).getSequenceLength() >= minChrLength) {
                 int count =  (int)Math.ceil((double)dict.getSequence(chr_).getSequenceLength() / minChrLength);
-                Logger.DEBUG2(dict.getSequence(chr_).getSequenceName() + ": " + count + 
-                    " regions [" + (dict.getSequence(chr_).getSequenceLength() / count + 1) + "].");
+                Logger.DEBUG(dict.getSequence(chr_).getSequenceName() + ": " + count + 
+                    " regions [" + (dict.getSequence(chr_).getSequenceLength() / count + 1) + "].", 3);
                 regions += count;
             }
         }
@@ -263,8 +265,8 @@ public class HalvadeOptions {
         for(String chr_ : chrs) {
             if(dict.getSequence(chr_).getSequenceLength() < minChrLength) {
                 restChr += (double)dict.getSequence(chr_).getSequenceLength() / minChrLength;
-//                Logger.DEBUG("shared chromosome: " + dict.getSequence(chr_).getSequenceName() 
-//                        + " [" + dict.getSequence(chr_).getSequenceLength() + "].");
+                Logger.DEBUG("shared chromosome: " + dict.getSequence(chr_).getSequenceName() 
+                        + " [" + dict.getSequence(chr_).getSequenceLength() + "].", 3);
             }
         }
         Logger.DEBUG("Regions with collection of chromosomes: " + (int)Math.ceil(restChr / 1.0));
@@ -283,6 +285,7 @@ public class HalvadeOptions {
     private static final int VCORES_MAP_TASK = 8;
     private static final int VCORES_REDUCE_TASK = 8;
     private static final int SWAP_EXTRA = 20;
+    private static final double REDUCE_TASKS_FACTOR = 0.42;
     
     private void getBestDistribution(Configuration conf) {
         if (mapsPerContainer == -1) mapsPerContainer = Math.min(Math.max(vcores / VCORES_MAP_TASK,1), Math.max(mem / MEM_MAP_TASK,1));
@@ -307,7 +310,7 @@ public class HalvadeOptions {
         conf.set("mapreduce.job.reduce.slowstart.completedmaps", "" + 1.0);
         
         // experimental - need more data
-        reducers = (int) (coverage * 6.40 * reducersPerContainer);
+        reducers = (int) (coverage * REDUCE_TASKS_FACTOR * nodes * reducersPerContainer);
         
     }
 
@@ -699,7 +702,7 @@ public class HalvadeOptions {
             justPut = true;
         if(line.hasOption("exome")) {
             exomeBedFile = line.getOptionValue("exome");
-            coverage = 30;
+            coverage = EXOME_COV;
         }
         if(line.hasOption("dryrun"))
             dryRun = true;

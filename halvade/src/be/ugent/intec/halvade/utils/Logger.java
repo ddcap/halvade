@@ -30,7 +30,6 @@ public class Logger {
      * 3:ALL
      */
     private static int LEVEL = 2;
-    private static int DEBUG2 = 3;
     private static final int EXCEPTION = 2;
     private static final int DEBUG = 1;
     private static final int INFO = 0;
@@ -58,8 +57,8 @@ public class Logger {
             System.err.println("[INFO] " + message);
     }
     
-    public static void DEBUG2(String message) {
-        if(LEVEL >= DEBUG2)
+    public static void DEBUG(String message, int level) {
+        if(LEVEL >= level)
             System.err.println("[" + Timer.getGlobalTime() + " - DEBUG] " + message);
     }
 }

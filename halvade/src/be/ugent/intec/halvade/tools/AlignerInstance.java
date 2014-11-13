@@ -36,7 +36,7 @@ import org.apache.hadoop.mapreduce.Mapper;
  *
  * @author ddecap
  */
-public abstract class BWAInstance {
+public abstract class AlignerInstance {
     protected static SAMFileHeader header;
     protected static SAMRecordWritable writableRecord;
     protected static ChromosomeRegion writableRegion;
@@ -52,12 +52,13 @@ public abstract class BWAInstance {
     protected int[] regionsPerChr;
     protected int[] regionSizePerChr;
     protected int[] chromosomeStartKey;
+    protected int[] chromosomeSizes;
     protected String chr;
     protected int multiplier, minChrLength, reducers;
     protected boolean keepChrSplitPairs;
     
     
-    protected BWAInstance(Mapper.Context context, String bin) throws IOException {
+    protected AlignerInstance(Mapper.Context context, String bin) throws IOException {
         header = null;
         writableRecord = new SAMRecordWritable();
         writableRegion = new ChromosomeRegion();
@@ -65,6 +66,7 @@ public abstract class BWAInstance {
         multiplier = MyConf.getMultiplier(context.getConfiguration());
         minChrLength = minChrLength / multiplier;
         chr = MyConf.getChrList(context.getConfiguration());
+        reducers = MyConf.getReducers(context.getConfiguration());
         
         tmpdir = MyConf.getScratchTempDir(context.getConfiguration());
         ref = MyConf.getRefOnScratch(context.getConfiguration());
@@ -89,6 +91,7 @@ public abstract class BWAInstance {
         regionsPerChr = new int[dict.size()];
         regionSizePerChr = new int[dict.size()];
         chromosomeStartKey = new int[dict.size()];
+        chromosomeSizes = new int[dict.size()];
         int currentKey = 0;
         String[] chrs;
         if(chr == null) 
@@ -100,7 +103,8 @@ public abstract class BWAInstance {
         int i = 0;
         for(String chr_ : chrs) {
             int seqlen = dict.getSequence(chr_).getSequenceLength();
-            if(seqlen > minChrLength) {
+            chromosomeSizes[i] = seqlen;
+            if(seqlen >= minChrLength) {
                 regionsPerChr[i] = (int)Math.ceil((double)seqlen / minChrLength);
                 regionSizePerChr[i] = seqlen / regionsPerChr[i] + 1;
                 chromosomeStartKey[i] = currentKey;
@@ -156,7 +160,6 @@ public abstract class BWAInstance {
         int read1Ref = sam.getReferenceIndex();
         int read2Ref = sam.getMateReferenceIndex();
         if (!sam.getReadUnmappedFlag() && (read1Ref == read2Ref || keepChrSplitPairs)) {
-            // check if pair is aligned or not???? -> can be 0?
             context.getCounter(HalvadeCounters.OUT_BWA_READS).increment(1);
             writableRecord.set(sam);
             int[] keys = new int[4];
@@ -164,9 +167,16 @@ public abstract class BWAInstance {
             int beginpos1 = sam.getAlignmentStart();
             int beginpos2 = sam.getMateAlignmentStart();
             keys[0] = getKey(getRegion(beginpos1, read1Ref), read1Ref);
-            keys[1] = getKey(getRegion(beginpos1 + readLength, read1Ref), read1Ref);
+            if(beginpos1 + readLength < chromosomeSizes[read1Ref]) // check if it goes out the chr range
+                keys[1] = getKey(getRegion(beginpos1 + readLength, read1Ref), read1Ref);
+            else 
+                keys[1] = keys[0];
+            
             keys[2] = getKey(getRegion(beginpos2, read2Ref), read2Ref);
-            keys[3] = getKey(getRegion(beginpos2 + readLength, read2Ref), read1Ref);
+            if(beginpos2 + readLength < chromosomeSizes[read2Ref]) // check if it goes out the chr range
+                keys[3] = getKey(getRegion(beginpos2 + readLength, read2Ref), read2Ref);
+            else 
+                keys[3] = keys[2];
             Arrays.sort(keys);
             // add this read as to be sorted to all unique found keys (mate will be added when the mate is parsed)
             writableRegion.setChromosomeRegion(read1Ref, beginpos1, keys[0]);
@@ -226,6 +236,6 @@ public abstract class BWAInstance {
     public abstract void flushStream();  
     public abstract int getState();
     public abstract InputStream getSTDOUTStream();
-    public abstract void closeBWA() throws InterruptedException;
-    protected abstract void startBWA(Mapper.Context context) throws IOException, InterruptedException;
+    public abstract void closeAligner() throws InterruptedException;
+    protected abstract void startAligner(Mapper.Context context) throws IOException, InterruptedException;
 }

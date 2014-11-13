@@ -382,14 +382,14 @@ public class MyConf {
         return conf.getInt(nReducers, 1);
     }
     public static void setMinChrLength(Configuration conf, int val) {
-        Logger.DEBUG2("min chr size set to " + val);
+        Logger.DEBUG("min chr size set to " + val, 3);
         conf.setInt(minChrSize, val);
     }    
     public static int getMinChrLength(Configuration conf) {
         return conf.getInt(minChrSize, DEFAULT_MIN_CHR_SIZE);
     }
     public static void setMultiplier(Configuration conf, int val) {
-        Logger.DEBUG2("multiplier set to " + val);
+        Logger.DEBUG("multiplier set to " + val, 3);
         conf.setInt(multiplier, val);
     }    
     public static int getMultiplier(Configuration conf) {

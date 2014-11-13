@@ -19,7 +19,7 @@ package be.ugent.intec.halvade.utils;
 
 import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
-import be.ugent.intec.halvade.tools.BWAInstance;
+import be.ugent.intec.halvade.tools.AlignerInstance;
 import java.io.File;
 import java.io.InputStream;
 import net.sf.samtools.*;
@@ -52,10 +52,10 @@ public class SAMStreamHandler extends Thread {
     TaskInputOutputContext<LongWritable, Text, ChromosomeRegion, SAMRecordWritable> context;
     SAMRecordWritable writableRecord;
     ChromosomeRegion writableRegion;
-    BWAInstance instance;
+    AlignerInstance instance;
     boolean isPaired = true;
 
-    public SAMStreamHandler(BWAInstance instance, Context context) {
+    public SAMStreamHandler(AlignerInstance instance, Context context) {
         this.is = instance.getSTDOUTStream();
         this.mFileHeader = instance.getFileHeader();
         this.instance = instance;

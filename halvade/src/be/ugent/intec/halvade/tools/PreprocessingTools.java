@@ -23,6 +23,7 @@ import be.ugent.intec.halvade.utils.CommandGenerator;
 import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.MyConf;
 import be.ugent.intec.halvade.utils.ProcessBuilderWrapper;
+import be.ugent.intec.halvade.utils.SAMRecordIterator;
 import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import java.io.BufferedWriter;
 import java.io.File;
@@ -34,7 +35,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
-import net.sf.picard.sam.*;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileWriter;
 import net.sf.samtools.SAMFileWriterFactory;
@@ -100,7 +100,7 @@ public class PreprocessingTools {
             
         int error = builder.waitForCompletion();
         if(error != 0)
-            throw new ProcessException("Preprocessing Tool", error);
+            throw new ProcessException("BedTools", error);
         long estimatedTime = System.currentTimeMillis() - startTime;
         Logger.DEBUG("estimated time: " + estimatedTime / 1000);
         if(context != null)
@@ -140,7 +140,7 @@ public class PreprocessingTools {
             
         int error = builder.waitForCompletion();
         if(error != 0)
-            throw new ProcessException("Preprocessing Tool", error);
+            throw new ProcessException("BedTools", error);
         long estimatedTime = System.currentTimeMillis() - startTime;
         Logger.DEBUG("estimated time: " + estimatedTime / 1000);
         if(context != null)
@@ -155,55 +155,34 @@ public class PreprocessingTools {
         else
             return regionBed.getAbsolutePath();
     }
-    
-    public int callElPrep(String input, String output, String rg, int threads, Iterator<SAMRecordWritable> it,
-            SAMFileHeader header, String dictFile, ChromosomeRange r) throws InterruptedException {
-        int srcount = 0; 
+            
+    public int callElPrep(String input, String output, String rg, int threads, 
+            SAMRecordIterator SAMit,
+            SAMFileHeader header, String dictFile) throws InterruptedException, QualityException {
         
+        SAMRecord sam;
         SAMFileWriterFactory factory = new SAMFileWriterFactory();
         SAMFileWriter Swriter = factory.makeSAMWriter(header, true, new File(input));
-        SAMRecord sam = null;
-        int currentStart = -1, currentEnd = -1;
-        if(it.hasNext()) {
-            srcount++;
-            sam = it.next().get();
-            sam.setHeader(header);
+        
+        while(SAMit.hasNext()) {
+            sam = SAMit.next();
             Swriter.addAlignment(sam);
-            currentStart = sam.getAlignmentStart();
-            currentEnd = sam.getAlignmentEnd();
         }
-        while(it.hasNext()) {
-            srcount++;
-            sam = it.next().get();
-            sam.setHeader(header);
-            Swriter.addAlignment(sam);
-            if(sam.getAlignmentStart() <= currentEnd){
-                if (sam.getAlignmentEnd() > currentEnd) {
-                    currentEnd = sam.getAlignmentEnd();
-                }
-            } else {
-                // new region to start here, add current!
-                r.addRange(currentStart, currentEnd);
-                currentStart = sam.getAlignmentStart();
-                currentEnd = sam.getAlignmentEnd();
-            }
-        }
-        if(sam != null) {
-            r.addRange(currentStart, currentEnd);
-        }
+        int reads = SAMit.getCount();
         Swriter.close();
         
         String customArgs = MyConf.getElPrepArgs(context.getConfiguration());  
         String[] command = CommandGenerator.elPrep(bin, input, output, threads, true, rg, dictFile, customArgs);
-        long estimatedTime = runProcessAndWait(command);
+        long estimatedTime = runProcessAndWait("elPrep", command);
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_IPREP).increment(estimatedTime);
         
-        return srcount;
+        return reads;
     }
         
-    public int streamElPrep(Reducer.Context context, String output, String rg, int threads, Iterator<SAMRecordWritable> it, 
-            SAMFileHeader header, String dictFile, ChromosomeRange r) throws InterruptedException, IOException {
+    public int streamElPrep(Reducer.Context context, String output, String rg, 
+            int threads, SAMRecordIterator SAMit, 
+            SAMFileHeader header, String dictFile) throws InterruptedException, IOException, QualityException {
         long startTime = System.currentTimeMillis();
         String customArgs = MyConf.getElPrepArgs(context.getConfiguration());  
         String[] command = CommandGenerator.elPrep(bin, "/dev/stdin", output, threads, true, rg, dictFile, customArgs);
@@ -211,60 +190,27 @@ public class PreprocessingTools {
         ProcessBuilderWrapper builder = new ProcessBuilderWrapper(command, null);
         builder.startProcess(true);        
         BufferedWriter localWriter = builder.getSTDINWriter();
-        // get the header
         
+        // write header
         final StringWriter headerTextBuffer = new StringWriter();
         new SAMTextHeaderCodec().encode(headerTextBuffer, header);
         final String headerText = headerTextBuffer.toString();
         localWriter.write(headerText, 0, headerText.length());
-        SAMRecord sam = null;
-        int reads = 0;
-        int currentStart = -1, currentEnd = -1;
-        if(it.hasNext()) {
-            sam = it.next().get();
-            sam.setHeader(header);
-//            Logger.DEBUG(sam.getReferenceName() + "[" + sam.getAlignmentStart() + "-" + sam.getAlignmentEnd() + "] -- " +
-//                    sam.getMateReferenceName() + "[" + sam.getMateAlignmentStart() + "]");
+        
+        
+        SAMRecord sam;
+        while(SAMit.hasNext()) {
+            sam = SAMit.next();
             String samString = sam.getSAMString();
             localWriter.write(samString, 0, samString.length());
-            reads++;
-            currentStart = sam.getAlignmentStart();
-            currentEnd = sam.getAlignmentEnd();
-//            Logger.DEBUG("new region: " + currentStart + " - " + currentEnd);
         }
-        while(it.hasNext()) {
-            sam = it.next().get();
-            sam.setHeader(header);
-//            Logger.DEBUG(sam.getReferenceName() + "[" + sam.getAlignmentStart() + "-" + sam.getAlignmentEnd() + "] -- " +
-//                    sam.getMateReferenceName() + "[" + sam.getMateAlignmentStart() + "]");
-            String samString = sam.getSAMString();
-            localWriter.write(samString, 0, samString.length());
-            reads++;
-            if(sam.getAlignmentStart() <= currentEnd){
-                if (sam.getAlignmentEnd() > currentEnd) {
-                    currentEnd = sam.getAlignmentEnd();
-//                    Logger.DEBUG("extending region: " + currentEnd);
-                }
-            } else {
-                // new region to start here, add current!
-                r.addRange(currentStart, currentEnd);
-//                Logger.DEBUG("write region: " + currentStart + " - " + currentEnd);
-                currentStart = sam.getAlignmentStart();
-                currentEnd = sam.getAlignmentEnd();
-//                Logger.DEBUG("new region: " + currentStart + " - " + currentEnd);
-            }
-        }
-        if(sam != null){
-//            Logger.DEBUG("write region: " + currentStart + " - " + currentEnd);
-            r.addRange(currentStart, currentEnd);
-//            Logger.DEBUG(sam.getAlignmentEnd() + " end of region");
-        }
+        int reads = SAMit.getCount();
         localWriter.flush();
         localWriter.close();
-        
+                
         int error = builder.waitForCompletion();
         if(error != 0)
-            throw new ProcessException("Preprocessing Tool", error);
+            throw new ProcessException("elPrep", error);
         long estimatedTime = System.currentTimeMillis() - startTime;
         Logger.DEBUG("estimated time: " + estimatedTime / 1000);
         if(context != null)
@@ -275,18 +221,18 @@ public class PreprocessingTools {
     public void callSAMToBAM(String input, String output) throws InterruptedException {
         String customArgs = MyConf.getSamtoolsViewArgs(context.getConfiguration());  
         String[] command = CommandGenerator.SAMToolsView(bin, input, output, customArgs);
-        long estimatedTime = runProcessAndWait(command); 
+        long estimatedTime = runProcessAndWait("SAMtools view", command); 
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_SAMTOBAM).increment(estimatedTime);
     }
     
-    private long runProcessAndWait(String[] command) throws InterruptedException {
+    private long runProcessAndWait(String name, String[] command) throws InterruptedException {
         long startTime = System.currentTimeMillis();
         ProcessBuilderWrapper builder = new ProcessBuilderWrapper(command, null);
         builder.startProcess();
         int error = builder.waitForCompletion();
         if(error != 0)
-            throw new ProcessException("Preprocessing Tool", error);
+            throw new ProcessException(name, error);
         long estimatedTime = System.currentTimeMillis() - startTime;
         Logger.DEBUG("estimated time: " + estimatedTime / 1000);
         return estimatedTime;
@@ -318,8 +264,8 @@ public class PreprocessingTools {
         command.add(tool);
         command.add("INPUT=" + input);
         String customArgs = MyConf.getPicardBaiArgs(context.getConfiguration());  
-        command.addAll(CommandGenerator.GetArguments(customArgs));        
-        long estimatedTime = runProcessAndWait(GetStringVector(command));
+        command = CommandGenerator.addToCommand(command, customArgs);        
+        long estimatedTime = runProcessAndWait("Picard BuildBamIndex", GetStringVector(command));
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_PICARD_BAI).increment(estimatedTime);
         return 0;
@@ -345,8 +291,8 @@ public class PreprocessingTools {
         command.add("RGPU=" + RGPU);
         command.add("RGSM=" + RGSM);                         
         String customArgs = MyConf.getPicardAddReadGroupArgs(context.getConfiguration());  
-        command.addAll(CommandGenerator.GetArguments(customArgs));        
-        long estimatedTime = runProcessAndWait(GetStringVector(command));
+        command = CommandGenerator.addToCommand(command, customArgs);        
+        long estimatedTime = runProcessAndWait("Picard AddOrReplaceReadGroup", GetStringVector(command));
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_PICARD_ADDGRP).increment(estimatedTime);
         return 0;
@@ -366,8 +312,8 @@ public class PreprocessingTools {
         command.add("OUTPUT=" + output);
         command.add("METRICS_FILE=" + metrics);                     
         String customArgs = MyConf.getPicardMarkDupArgs(context.getConfiguration());  
-        command.addAll(CommandGenerator.GetArguments(customArgs));        
-        long estimatedTime = runProcessAndWait(GetStringVector(command));
+        command = CommandGenerator.addToCommand(command, customArgs);        
+        long estimatedTime = runProcessAndWait("Picard MarkDuplicates", GetStringVector(command));
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_PICARD_MARKDUP).increment(estimatedTime);
         return 0;
@@ -386,8 +332,8 @@ public class PreprocessingTools {
         command.add("INPUT=" + input);
         command.add("OUTPUT=" + output);                   
         String customArgs = MyConf.getPicardCleanSamArgs(context.getConfiguration());  
-        command.addAll(CommandGenerator.GetArguments(customArgs)); 
-        long estimatedTime = runProcessAndWait(GetStringVector(command));  
+        command = CommandGenerator.addToCommand(command, customArgs);        
+        long estimatedTime = runProcessAndWait("Picard CleanSam", GetStringVector(command));  
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_PICARD_CLEANSAM).increment(estimatedTime);
         return 0;

@@ -29,7 +29,7 @@ import org.apache.hadoop.mapreduce.Mapper.Context;
  *
  * @author ddecap
  */
-public class BWAMemInstance extends BWAInstance {
+public class BWAMemInstance extends AlignerInstance {
     
     private static BWAMemInstance instance;
     private ProcessBuilderWrapper pbw;
@@ -50,7 +50,7 @@ public class BWAMemInstance extends BWAInstance {
     }
     
     @Override
-    protected void startBWA(Mapper.Context context) throws IOException, InterruptedException {
+    protected void startAligner(Mapper.Context context) throws IOException, InterruptedException {
         // make command
         String customArgs = MyConf.getBwaMemArgs(context.getConfiguration());
         String[] command = CommandGenerator.bwaMem(bin, ref, null, null, isPaired, true, threads, customArgs);
@@ -77,7 +77,7 @@ public class BWAMemInstance extends BWAInstance {
     }
 
     @Override
-    public void closeBWA() throws InterruptedException {
+    public void closeAligner() throws InterruptedException {
         try {
             // close the input stream
             pbw.getSTDINWriter().flush();
@@ -97,7 +97,7 @@ public class BWAMemInstance extends BWAInstance {
     static public BWAMemInstance getBWAInstance(Mapper.Context context, String bin) throws IOException, InterruptedException, URISyntaxException {
         if(instance == null) {
             instance = new BWAMemInstance(context, bin);
-            instance.startBWA(context);
+            instance.startAligner(context);
         }
         BWAMemInstance.context = context;
         return instance;

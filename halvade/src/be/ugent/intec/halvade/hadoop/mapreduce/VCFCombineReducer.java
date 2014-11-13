@@ -86,14 +86,19 @@ public class VCFCombineReducer extends Reducer<LongWritable, VariantContextWrita
             if (fs.getFileStatus(new Path(input)).isDirectory()) {
                 // get first file
                 FileStatus[] files = fs.listStatus(new Path(input));
-                if(files.length > 0) {
-                    firstVcfFile = files[0].getPath();
+                int i = 0, l = files.length;
+                while(i < l && !files[i].getPath().getName().endsWith(".vcf")) {
+                    i++;
+                }
+                if(i < l) {
+                    firstVcfFile = files[i].getPath();
                 } else {
                     throw new InterruptedException("VCFCombineReducer: No files in input folder.");
                 }
             } else {
                 throw new InterruptedException("VCFCombineReducer: Input directory is not a directory.");
             }
+            Logger.DEBUG("first file: " + firstVcfFile);
             outpFormat.readHeaderFrom(firstVcfFile, fs);
             recordWriter = outpFormat.getRecordWriter(context, new Path(output + "HalvadeCombined.vcf"));
         } catch (URISyntaxException ex) {

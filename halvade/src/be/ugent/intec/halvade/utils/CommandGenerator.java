@@ -19,7 +19,6 @@ package be.ugent.intec.halvade.utils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.List;
 
 /**
  *
@@ -27,8 +26,10 @@ import java.util.List;
  */
 public class CommandGenerator {
     
-    public static List<String>GetArguments(String args) {
-        return Arrays.asList(args.split("\\s+"));
+    public static ArrayList<String> addToCommand(ArrayList<String> command, String args) {
+        if(args.isEmpty()) return command;
+        command.addAll(Arrays.asList(args.split("\\s+")));
+        return command;
     }
     
     // BWA constants
@@ -75,7 +76,7 @@ public class CommandGenerator {
         command.add(bed);
 //        command.add(bedToolsOptions[3]); // gives empty files??
         command.add(bedToolsOptions[4]);
-        command.addAll(GetArguments(customArgs));
+        command = addToCommand(command, customArgs);
         Object[] ObjectList = command.toArray();
         String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
         return StringArray;
@@ -106,7 +107,7 @@ public class CommandGenerator {
         command.add(elPrepOptions[5]);
         command.add(elPrepOptions[6]);
         command.add(new Integer(threads).toString());
-        command.addAll(GetArguments(customArgs));
+        command = addToCommand(command, customArgs);
 //        command.add(iPrepOptions[7]); // custom garbage collection
 //        command.add(iPrepOptions[8]);
         Object[] ObjectList = command.toArray();
@@ -125,7 +126,7 @@ public class CommandGenerator {
         command.add("-o");
         command.add(output);
         command.add(input);
-        command.addAll(GetArguments(customArgs));
+        command = addToCommand(command, customArgs);
         Object[] ObjectList = command.toArray();
         String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
         return StringArray;
@@ -156,7 +157,7 @@ public class CommandGenerator {
             if(!isPaired && bwaReadsFile2 != null)
                 command.add(bwaReadsFile2);
         }        
-        command.addAll(GetArguments(customArgs));
+        command = addToCommand(command, customArgs);
         Object[] ObjectList = command.toArray();
         String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
         return StringArray;        
@@ -182,7 +183,7 @@ public class CommandGenerator {
         
         command.add(bwaReferenceIndex);
         command.add(bwaReadsFile);
-        command.addAll(GetArguments(customArgs));
+        command = addToCommand(command, customArgs);
         Object[] ObjectList = command.toArray();
         String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
         return StringArray;
@@ -208,7 +209,7 @@ public class CommandGenerator {
         if(paired) command.add(bwaSaiFile2);
         command.add(bwaReadsFile1);
         if(paired) command.add(bwaReadsFile2);
-        command.addAll(GetArguments(customArgs));
+        command = addToCommand(command, customArgs);
         Object[] ObjectList = command.toArray();
         String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
         return StringArray;

@@ -35,13 +35,12 @@ public class ChrRgPositionComparator  extends WritableComparator {
         ChromosomeRegion r1 = (ChromosomeRegion) a;
         ChromosomeRegion r2 = (ChromosomeRegion) b;
                 
-//        if(r1.getChromosome() == r2.getChromosome()) {
-        if(r1.getReduceNumber()== r2.getReduceNumber()) // need to check for key because of overlap!
-            return r1.getPosition() - r2.getPosition();
-        else
-            return r1.getReduceNumber() - r2.getReduceNumber();
-//        } else
-//            return r1.getChromosome() - r2.getChromosome();
+        if(r1.getReduceNumber()== r2.getReduceNumber()) { 
+            if(r1.getChromosome() == r2.getChromosome()) // can have multiple chr in same region -> pairs send to multiple regions
+                return r1.getPosition() - r2.getPosition();
+            else 
+                return r1.getChromosome() - r2.getChromosome();
+        } else
+            return r1.getReduceNumber() - r2.getReduceNumber();  
     }
-    
 }

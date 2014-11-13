@@ -17,23 +17,37 @@
 
 package be.ugent.intec.halvade.tools;
 
+import java.util.Arrays;
+
 /**
  *
  * @author ddecap
  */
 public class ProcessException extends InterruptedException {
     private String programName;
+    private String[] command;
     private int errorCode;
 
     public ProcessException(String name, int error) {
         super();
+        command = null;
+        programName = name;
+        errorCode = error;
+    }    
+    
+    public ProcessException(String[] command, String name, int error) {
+        super();
+        this.command = command;
         programName = name;
         errorCode = error;
     }
 
     @Override
     public String toString() {
-        return programName + " exited with code " + errorCode; //To change body of generated methods, choose Tools | Templates.
+        if(command == null)
+            return programName + " exited with code " + errorCode;
+        else
+            return "command: " + Arrays.toString(command) + "\n" + programName + " exited with code " + errorCode; 
     }
     
     

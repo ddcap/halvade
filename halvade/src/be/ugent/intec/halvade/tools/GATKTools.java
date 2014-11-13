@@ -93,8 +93,9 @@ public class GATKTools {
     }
     
     private static String[] AddCustomArguments(String[] command, String customArgs) {
-        List<String> tmp = Arrays.asList(command);
-        tmp.addAll(CommandGenerator.GetArguments(customArgs));        
+        if(customArgs.isEmpty()) return command;
+        ArrayList<String> tmp = new ArrayList(Arrays.asList(command));
+        tmp = CommandGenerator.addToCommand(tmp, customArgs);  
         Object[] ObjectList = tmp.toArray();
         return Arrays.copyOf(ObjectList,ObjectList.length,String[].class);  
     }
@@ -141,9 +142,9 @@ public class GATKTools {
         }
 //        command.addAll(Arrays.asList(covString));
         String customArgs = MyConf.getGatkBaseRecalibratorArgs(context.getConfiguration());
-        command.addAll(CommandGenerator.GetArguments(customArgs));  
+        command = CommandGenerator.addToCommand(command, customArgs);   
         Object[] objectList = command.toArray();
-        long estimatedTime = runProcessAndWait(Arrays.copyOf(objectList,objectList.length,String[].class));
+        long estimatedTime = runProcessAndWait("GATK BaseRecalibrator", Arrays.copyOf(objectList,objectList.length,String[].class));
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_RECAL).increment(estimatedTime);
     }
@@ -167,7 +168,7 @@ public class GATKTools {
             "-o", targets,
             "-L", region};
         String customArgs = MyConf.getGatkRealignerTargetCreatorArgs(context.getConfiguration());
-        long estimatedTime = runProcessAndWait(AddCustomArguments(command, customArgs));    
+        long estimatedTime = runProcessAndWait("GATK RealignerTargetCreator", AddCustomArguments(command, customArgs));    
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_TARGET_CREATOR).increment(estimatedTime);
     }
@@ -194,7 +195,7 @@ public class GATKTools {
             "-o", output,
             "-L", region};
         String customArgs = MyConf.getGatkIndelRealignerArgs(context.getConfiguration());
-        long estimatedTime = runProcessAndWait(AddCustomArguments(command, customArgs));   
+        long estimatedTime = runProcessAndWait("GATK IndelRealigner", AddCustomArguments(command, customArgs));   
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_INDEL_REALN).increment(estimatedTime);    
     }
@@ -214,7 +215,7 @@ public class GATKTools {
             "-BQSR", table,
             "-L", region};
         String customArgs = MyConf.getGatkPrintReadsArgs(context.getConfiguration());
-        long estimatedTime = runProcessAndWait(AddCustomArguments(command, customArgs));  
+        long estimatedTime = runProcessAndWait("GATK PrintReads", AddCustomArguments(command, customArgs));  
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_PRINT_READS).increment(estimatedTime);        
     }
@@ -250,9 +251,9 @@ public class GATKTools {
             }
         }
         String customArgs = MyConf.getGatkCombineVariantsArgs(context.getConfiguration());
-        command.addAll(CommandGenerator.GetArguments(customArgs));  
+        command = CommandGenerator.addToCommand(command, customArgs);   
         Object[] objectList = command.toArray();
-        long estimatedTime = runProcessAndWait(Arrays.copyOf(objectList,objectList.length,String[].class));
+        long estimatedTime = runProcessAndWait("GATK CombineVariants", Arrays.copyOf(objectList,objectList.length,String[].class));
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_COMBINE_VCF).increment(estimatedTime);
     }
@@ -297,20 +298,20 @@ public class GATKTools {
             }
         }
         String customArgs = MyConf.getGatkVariantCallerArgs(context.getConfiguration());
-        command.addAll(CommandGenerator.GetArguments(customArgs));  
+        command = CommandGenerator.addToCommand(command, customArgs);   
         Object[] objectList = command.toArray();
-        long estimatedTime = runProcessAndWait(Arrays.copyOf(objectList,objectList.length,String[].class));   
+        long estimatedTime = runProcessAndWait("GATK " + VC, Arrays.copyOf(objectList,objectList.length,String[].class));   
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_VARIANT_CALLER).increment(estimatedTime);
     }
     
-    private long runProcessAndWait(String[] command) throws InterruptedException {
+    private long runProcessAndWait(String name, String[] command) throws InterruptedException {
         long startTime = System.currentTimeMillis();
         ProcessBuilderWrapper builder = new ProcessBuilderWrapper(command, null);
         builder.startProcess(true);
         int error = builder.waitForCompletion();
         if(error != 0)
-            throw new ProcessException("GATK", error);
+            throw new ProcessException(name, error);
         long estimatedTime = System.currentTimeMillis() - startTime;
         Logger.DEBUG("estimated time: " + estimatedTime / 1000);
         return estimatedTime;

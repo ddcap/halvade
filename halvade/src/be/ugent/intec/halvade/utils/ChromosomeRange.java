@@ -48,24 +48,19 @@ public class ChromosomeRange {
     }
     
     ArrayList<Range> list;
-    String chr;
 
-    public ChromosomeRange(String chr) {
-        this.chr = chr;
-        list = new ArrayList<Range>();
-    }
-    
-    public void addRange(int start, int stop) {
-        list.add(new Range(chr, start, stop));
+    public ChromosomeRange() {
+        list = new ArrayList<>();
     }
     
     public void addRange(String chr, int start, int stop) {
+        Logger.DEBUG("adding range: " + chr + " [" + start + " - " + stop + "]", 3);
         list.add(new Range(chr, start, stop));
     }
 
     @Override
     public String toString() {
-        return chr + "-" + list.get(0).alignmentStart;
+        return list.size() + " region ranges [first: " + list.get(0).sequenceName + "-" + list.get(0).alignmentStart + "]";
     }
     
     public void writeToPicardRegionFile(String filename) throws IOException {        

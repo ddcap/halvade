@@ -17,7 +17,6 @@
 
 package be.ugent.intec.halvade;
 
-import fi.tkk.ics.hadoop.bam.FastqInputFormat;
 import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import fi.tkk.ics.hadoop.bam.VariantContextWritable;
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
@@ -124,12 +123,9 @@ public class MapReduceRunner extends Configured implements Tool  {
             Logger.DEBUG("Running time of Halvade Job: " + timer);
             
             
-            if(halvadeOpts.combineVcf) {
-                /**
-                 * combine resulting files:
-                 */
-                Logger.DEBUG("combining output");            
-                Configuration combineConf = getConf();  
+            if(halvadeOpts.combineVcf && ret == 0) {
+                Logger.DEBUG("combining output");
+                Configuration combineConf = getConf();
                 if(!halvadeOpts.out.endsWith("/")) halvadeOpts.out += "/";  
                 MyConf.setInputDir(combineConf, halvadeOpts.out);
                 MyConf.setOutDir(combineConf, halvadeOpts.out + "combinedVCF/");
@@ -137,7 +133,20 @@ public class MapReduceRunner extends Configured implements Tool  {
                 Job combineJob = new Job(combineConf, "HalvadeCombineVCF");            
                 combineJob.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
 
-                FileInputFormat.addInputPath(combineJob, new Path(halvadeOpts.out));
+                
+                try {
+                    if (fs.getFileStatus(new Path(halvadeOpts.out)).isDirectory()) {
+                        // add every file in directory
+                        FileStatus[] files = fs.listStatus(new Path(halvadeOpts.out));
+                        for(FileStatus file : files) {
+                            if (!file.isDirectory() && file.getPath().getName().endsWith(".vcf")) {
+                                FileInputFormat.addInputPath(combineJob, file.getPath());
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    Logger.EXCEPTION(e);
+                }
                 FileOutputFormat.setOutputPath(combineJob, new Path(halvadeOpts.out + "combinedVCF/"));
 
                 combineJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
@@ -148,13 +157,14 @@ public class MapReduceRunner extends Configured implements Tool  {
                 combineJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineReducer.class);
                 combineJob.setOutputKeyClass(Text.class);
                 combineJob.setOutputValueClass(VariantContextWritable.class);
-    //            combineJob.setOutputFormatClass(KeyIgnoringVCFOutputFormat.class);
+                //            combineJob.setOutputFormatClass(KeyIgnoringVCFOutputFormat.class);
 
                 timer = new Timer();
                 timer.start();
                 ret = combineJob.waitForCompletion(true) ? 0 : 1;
                 timer.stop();
                 Logger.DEBUG("Running time of Combine Job: " + timer);
+            } else {
             }
             
             
