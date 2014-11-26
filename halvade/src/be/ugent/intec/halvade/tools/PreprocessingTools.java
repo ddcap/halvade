@@ -21,7 +21,7 @@ import be.ugent.intec.halvade.hadoop.mapreduce.HalvadeCounters;
 import be.ugent.intec.halvade.utils.ChromosomeRange;
 import be.ugent.intec.halvade.utils.CommandGenerator;
 import be.ugent.intec.halvade.utils.Logger;
-import be.ugent.intec.halvade.utils.MyConf;
+import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.ProcessBuilderWrapper;
 import be.ugent.intec.halvade.utils.SAMRecordIterator;
 import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
@@ -86,7 +86,7 @@ public class PreprocessingTools {
         int read = 0;
         byte[] bytes = new byte[bufferSize];
         
-        String customArgs = MyConf.getBedToolsDbSnpArgs(context.getConfiguration());  
+        String customArgs = HalvadeConf.getBedToolsDbSnpArgs(context.getConfiguration());  
         String[] command = CommandGenerator.bedTools(bin, dbsnps, bed.getAbsolutePath(), customArgs);
         
         long startTime = System.currentTimeMillis();
@@ -124,7 +124,7 @@ public class PreprocessingTools {
         int read = 0;
         byte[] bytes = new byte[bufferSize];
         
-        String customArgs = MyConf.getBedToolsExomeArgs(context.getConfiguration());  
+        String customArgs = HalvadeConf.getBedToolsExomeArgs(context.getConfiguration());  
         String[] command = CommandGenerator.bedTools(bin, exomebed, bed.getAbsolutePath(), customArgs);
         
         long startTime = System.currentTimeMillis();
@@ -171,11 +171,11 @@ public class PreprocessingTools {
         int reads = SAMit.getCount();
         Swriter.close();
         
-        String customArgs = MyConf.getElPrepArgs(context.getConfiguration());  
-        String[] command = CommandGenerator.elPrep(bin, input, output, threads, true, rg, dictFile, customArgs);
+        String customArgs = HalvadeConf.getElPrepArgs(context.getConfiguration());  
+        String[] command = CommandGenerator.elPrep(bin, input, output, threads, true, rg, null, customArgs);
         long estimatedTime = runProcessAndWait("elPrep", command);
         if(context != null)
-            context.getCounter(HalvadeCounters.TIME_IPREP).increment(estimatedTime);
+            context.getCounter(HalvadeCounters.TIME_ELPREP).increment(estimatedTime);
         
         return reads;
     }
@@ -184,8 +184,8 @@ public class PreprocessingTools {
             int threads, SAMRecordIterator SAMit, 
             SAMFileHeader header, String dictFile) throws InterruptedException, IOException, QualityException {
         long startTime = System.currentTimeMillis();
-        String customArgs = MyConf.getElPrepArgs(context.getConfiguration());  
-        String[] command = CommandGenerator.elPrep(bin, "/dev/stdin", output, threads, true, rg, dictFile, customArgs);
+        String customArgs = HalvadeConf.getElPrepArgs(context.getConfiguration());  
+        String[] command = CommandGenerator.elPrep(bin, "/dev/stdin", output, threads, true, rg, null, customArgs);
 //        runProcessAndWait(command);
         ProcessBuilderWrapper builder = new ProcessBuilderWrapper(command, null);
         builder.startProcess(true);        
@@ -214,12 +214,12 @@ public class PreprocessingTools {
         long estimatedTime = System.currentTimeMillis() - startTime;
         Logger.DEBUG("estimated time: " + estimatedTime / 1000);
         if(context != null)
-            context.getCounter(HalvadeCounters.TIME_IPREP).increment(estimatedTime);
+            context.getCounter(HalvadeCounters.TIME_ELPREP).increment(estimatedTime);
         return reads;
     }
     
     public void callSAMToBAM(String input, String output) throws InterruptedException {
-        String customArgs = MyConf.getSamtoolsViewArgs(context.getConfiguration());  
+        String customArgs = HalvadeConf.getSamtoolsViewArgs(context.getConfiguration());  
         String[] command = CommandGenerator.SAMToolsView(bin, input, output, customArgs);
         long estimatedTime = runProcessAndWait("SAMtools view", command); 
         if(context != null)
@@ -263,7 +263,7 @@ public class PreprocessingTools {
         command.add("-jar");
         command.add(tool);
         command.add("INPUT=" + input);
-        String customArgs = MyConf.getPicardBaiArgs(context.getConfiguration());  
+        String customArgs = HalvadeConf.getPicardBaiArgs(context.getConfiguration());  
         command = CommandGenerator.addToCommand(command, customArgs);        
         long estimatedTime = runProcessAndWait("Picard BuildBamIndex", GetStringVector(command));
         if(context != null)
@@ -290,7 +290,7 @@ public class PreprocessingTools {
         command.add("RGPL=" + RGPL);
         command.add("RGPU=" + RGPU);
         command.add("RGSM=" + RGSM);                         
-        String customArgs = MyConf.getPicardAddReadGroupArgs(context.getConfiguration());  
+        String customArgs = HalvadeConf.getPicardAddReadGroupArgs(context.getConfiguration());  
         command = CommandGenerator.addToCommand(command, customArgs);        
         long estimatedTime = runProcessAndWait("Picard AddOrReplaceReadGroup", GetStringVector(command));
         if(context != null)
@@ -311,7 +311,7 @@ public class PreprocessingTools {
         command.add("INPUT=" + input);
         command.add("OUTPUT=" + output);
         command.add("METRICS_FILE=" + metrics);                     
-        String customArgs = MyConf.getPicardMarkDupArgs(context.getConfiguration());  
+        String customArgs = HalvadeConf.getPicardMarkDupArgs(context.getConfiguration());  
         command = CommandGenerator.addToCommand(command, customArgs);        
         long estimatedTime = runProcessAndWait("Picard MarkDuplicates", GetStringVector(command));
         if(context != null)
@@ -331,7 +331,7 @@ public class PreprocessingTools {
         command.add(tool);
         command.add("INPUT=" + input);
         command.add("OUTPUT=" + output);                   
-        String customArgs = MyConf.getPicardCleanSamArgs(context.getConfiguration());  
+        String customArgs = HalvadeConf.getPicardCleanSamArgs(context.getConfiguration());  
         command = CommandGenerator.addToCommand(command, customArgs);        
         long estimatedTime = runProcessAndWait("Picard CleanSam", GetStringVector(command));  
         if(context != null)

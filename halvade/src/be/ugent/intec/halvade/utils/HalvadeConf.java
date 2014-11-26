@@ -32,7 +32,7 @@ import org.apache.hadoop.fs.Path;
  *
  * @author ddecap
  */
-public class MyConf {
+public class HalvadeConf {
     /*
      * Custom configuration
      * helps to set some fixed parameters in shared configuration
@@ -44,6 +44,7 @@ public class MyConf {
     private static final String sitesOnHDFSName = "hdfssites";
     private static final String numberOfSites = "numsites";
     private static final String refOnHDFSName = "hdfsref";
+    private static final String starDirOnHDFSName = "hdfsSTARref";
     private static final String dictionarySequenceName = "seqdictionary_";
     private static final String dictionarySequenceLength = "seqdictionarylength_";
     private static final String dictionaryCount = "seqcount";
@@ -52,20 +53,13 @@ public class MyConf {
     private static final String gatkcputhreadcount = "gatkcputhreads";
     private static final String corescount = "cores";
     private static final String fastqEncoding = "hbam.fastq-input.base-quality-encoding";
-    private static final String paired = "ispaired";
-    private static final String bedtools = "usebedtools";
-    private static final String outdir = "outputdir";
     private static final String readgroup = "readgroup";
     private static final String refSize = "refsize";
-    private static final String useIPrep = "useiprep";
-    private static final String reuseJVM = "reuseJVM";
-    private static final String java = "Java";
-    private static final String keepFiles = "keepFiles";
-    private static final String useGenotyper = "usegeno";
     private static final long HUMAN_REF_SIZE = 3137161264L; // based on ucsc.hg19.fasta (see gatk bundle)
     
 
 
+    private static final String java = "Java";
     public static void setJava(Configuration conf, String val) {
         conf.set(java, val);
     } 
@@ -73,13 +67,13 @@ public class MyConf {
         return conf.get(java);
     }
     
+    private static final String bedtools = "usebedtools";
     public static void setUseBedTools(Configuration conf, boolean useBedTools) {
         if(useBedTools)
             conf.set(bedtools, "true");
         else 
             conf.set(bedtools, "false");
     }
-    
     public static boolean getUseBedTools(Configuration conf) {
         String s = conf.get(bedtools);
         if(s.equalsIgnoreCase("true"))
@@ -88,13 +82,13 @@ public class MyConf {
             return false;
     }
     
+    private static final String useGenotyper = "usegeno";
     public static void setUseUnifiedGenotyper(Configuration conf, boolean use) {
         if(use)
             conf.set(useGenotyper, "true");
         else 
             conf.set(useGenotyper, "false");
     }
-
     public static boolean getUseUnifiedGenotyper(Configuration conf) {
         String s = conf.get(useGenotyper);
         if(s.equalsIgnoreCase("true"))
@@ -103,13 +97,13 @@ public class MyConf {
             return false;
     }
     
+    private static final String keepFiles = "keepFiles";
     public static void setKeepFiles(Configuration conf, boolean use) {
         if(use)
             conf.set(keepFiles, "true");
         else 
             conf.set(keepFiles, "false");
     }
-
     public static boolean getKeepFiles(Configuration conf) {
         String s = conf.get(keepFiles);
         if(s.equalsIgnoreCase("true"))
@@ -118,13 +112,13 @@ public class MyConf {
             return false;
     }
     
+    private static final String useIPrep = "useiprep";
     public static void setUseIPrep(Configuration conf, boolean use) {
         if(use)
             conf.set(useIPrep, "true");
         else 
             conf.set(useIPrep, "false");
     }
-
     public static boolean getUseIPrep(Configuration conf) {
         String s = conf.get(useIPrep);
         if(s.equalsIgnoreCase("true"))
@@ -133,13 +127,13 @@ public class MyConf {
             return false;
     }
     
+    private static final String reuseJVM = "reuseJVM";
     public static void setReuseJVM(Configuration conf, boolean val) {
         if(val)
             conf.set(reuseJVM, "true");
         else 
             conf.set(reuseJVM, "false");
     }
-
     public static boolean getReuseJVM(Configuration conf) {
         String s = conf.get(reuseJVM);
         if(s.equalsIgnoreCase("true"))
@@ -148,13 +142,13 @@ public class MyConf {
             return false;
     }
     
+    private static final String paired = "ispaired";
     public static void setIsPaired(Configuration conf, boolean isPaired) {
         if(isPaired)
             conf.set(paired, "true");
         else 
             conf.set(paired, "false");
-    }
-    
+    }    
     public static boolean getIsPaired(Configuration conf) {
         String s = conf.get(paired);
         if(s.equalsIgnoreCase("true"))
@@ -163,6 +157,7 @@ public class MyConf {
             return false;
     }
 
+    private static final String outdir = "outputdir";
     public static void setOutDir(Configuration conf, String val) {
         if(!val.endsWith("/"))
             conf.set(outdir, val + "/");
@@ -180,12 +175,6 @@ public class MyConf {
         return conf.getLong(refSize, HUMAN_REF_SIZE);
     }
     
-    public static void setFastqEncoding(Configuration conf, String val) {
-        conf.set(fastqEncoding, val);
-    }    
-    public static String getFastqEncoding(Configuration conf) {
-        return conf.get(fastqEncoding);
-    }
     public static void setNumThreads(Configuration conf, int val) {
         conf.setInt(threadcount, val);
     }
@@ -230,27 +219,14 @@ public class MyConf {
         return conf.get(readgroup);
     }
     
-    public static String findRefOnScratch(Configuration conf) {
-        String refBase = null;
-        File dir  = new File(conf.get(scratchTempDirName));
-        for (File file : dir.listFiles()) {
-            if (file.getName().endsWith(".fa__")) {
-                refBase = file.getAbsolutePath().substring(0, file.getAbsolutePath().length() - 2);
-                Logger.DEBUG("found existing ref: \"" + refBase + "\"");
-            }
-        }
-        return refBase;
-    }
-    
-    public static void setRefOnScratch(Configuration conf, String val) {
+    public static void setRefDirOnScratch(Configuration conf, String val) {
         conf.set(refOnScratchName, val);
     }
-    public static String getRefOnScratch(Configuration conf) {
+    public static String getRefDirOnScratch(Configuration conf) {
         return conf.get(refOnScratchName);
     }
     
     public static void setKnownSitesOnHDFS(Configuration conf, String[] val) throws IOException, URISyntaxException {
-        // todo improve performance, takes over 1 minute?
         conf.setInt(numberOfSites, val.length);
         FileSystem fs;
         for(int i = 0; i < val.length;i ++) {
@@ -330,6 +306,13 @@ public class MyConf {
         return conf.get(refOnHDFSName);
     }
     
+    public static void setStarDirOnHDFS(Configuration conf, String val) {
+        conf.set(starDirOnHDFSName, val);
+    }    
+    public static String getStarDirOnHDFS(Configuration conf) {
+        return conf.get(starDirOnHDFSName);
+    }
+    
     public static int getNumberOfFiles(Configuration conf) {
         return Integer.parseInt(conf.get("mapred.map.tasks"));
     }
@@ -356,8 +339,6 @@ public class MyConf {
         return dict;
     }
     
-    private static final String multiplier = "multiplier";
-    private static final int DEFAULT_MULTIPLIER = 1;
     private static final String scc = "scc";
     private static final float DEFAULT_SCC = 30.0f;
     private static final String sec = "sec";
@@ -388,13 +369,6 @@ public class MyConf {
     public static int getMinChrLength(Configuration conf) {
         return conf.getInt(minChrSize, DEFAULT_MIN_CHR_SIZE);
     }
-    public static void setMultiplier(Configuration conf, int val) {
-        Logger.DEBUG("multiplier set to " + val, 3);
-        conf.setInt(multiplier, val);
-    }    
-    public static int getMultiplier(Configuration conf) {
-        return conf.getInt(multiplier, DEFAULT_MULTIPLIER);
-    }
     public static void setSCC(Configuration conf, double val) {
         conf.setFloat(scc, (float) val);
     }    
@@ -413,14 +387,6 @@ public class MyConf {
     }
     public static double getTasksPerNode(Configuration conf) {
         return conf.getFloat(tasksPerNode, DEFAULT_TPN);
-    }
-
-    private static final String bindir = "binDir";
-    public static void setBinDir(Configuration conf, String bin) {
-        conf.set(bindir, bin);
-    }
-    public static String getBinDir(Configuration conf) {
-        return conf.get(bindir);
     }
 
     private static final String exomebed = "exomeBed";
@@ -560,6 +526,8 @@ public class MyConf {
     private static final String ca_gatk_pr = "customArgsGatkPr"; //runPrintReads
     private static final String ca_gatk_cv = "customArgsGatkCv"; //runCombineVariants
     private static final String ca_gatk_vc = "customArgsGatkVc"; //runVariantCaller    
+    private static final String ca_gatk_snt = "customArgsGatkSnt"; //SplitNTrimReads 
+    private static final String ca_gatk_vf = "customArgsGatkVf"; //VariantFiltration
     public static void setGatkRealignerTargetCreatorArgs(Configuration conf, String val) {
         conf.set(ca_gatk_rtc, val);
     }    
@@ -596,5 +564,16 @@ public class MyConf {
     public static String getGatkVariantCallerArgs(Configuration conf) {
         return conf.get(ca_gatk_vc, "");
     }
-
+    public static void setGatkSplitNTrimArgs(Configuration conf, String val) {
+        conf.set(ca_gatk_snt, val);
+    }    
+    public static String getGatkSplitNTrimArgs(Configuration conf) {
+        return conf.get(ca_gatk_snt, "");
+    }
+    public static void setGatkVariantFiltrationArgs(Configuration conf, String val) {
+        conf.set(ca_gatk_snt, val);
+    }    
+    public static String getGatkVariantFiltrationArgs(Configuration conf) {
+        return conf.get(ca_gatk_snt, "");
+    }
 }

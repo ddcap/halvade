@@ -33,7 +33,7 @@ public class StarAlignMapper extends HalvadeMapper {
     @Override
     protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
         super.map(key, value, context);
-        ((STARInstance)instance).feedLine(value.toString(), (readcount % 2 + 1));
+        ((STARInstance)instance).feedLine(value.toString(), count, (readcount % 2 + 1));
     }
 
     @Override

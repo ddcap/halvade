@@ -32,7 +32,17 @@ public class CommandGenerator {
         return command;
     }
     
-    // BWA constants
+    private static String starBin = "STAR";
+    private static String[] starOptions = {
+        "--genomeDir", 
+        "--outFileNamePrefix", 
+        "--readFilesIn", 
+        "--outTmpDir", 
+        "--runThreadN", 
+        "--twopass1readsN", 
+        "--sjdbOverhang", 
+        "--outStd",
+        "--readFilesCommand"};
     private static String bwaCommand[] = {"bwa", "samxe"};
     private static String bwaTool[] = {"mem", "aln", "sampe", "samse"};
     private static String bwaOptions[] = 
@@ -157,6 +167,50 @@ public class CommandGenerator {
             if(!isPaired && bwaReadsFile2 != null)
                 command.add(bwaReadsFile2);
         }        
+        command = addToCommand(command, customArgs);
+        Object[] ObjectList = command.toArray();
+        String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
+        return StringArray;        
+    }
+    
+    public static String[] starAlign(String bin,
+            String starGenomeDir, 
+            String outputDir,
+            String tmpDir,
+            String readsFile1, 
+            String readsFile2,
+            int numberOfThreads, int overhang, int nReads, String customArgs) {
+        ArrayList<String> command = new ArrayList<String>();
+        Logger.DEBUG("bin dir: " + bin);
+        if(bin.endsWith("/")) 
+            command.add(bin + starBin); 
+        else
+            command.add(bin + "/" + starBin);
+        command.add(starOptions[0]);
+        command.add(starGenomeDir);
+        command.add(starOptions[1]);
+        if(outputDir.endsWith("/")) 
+            command.add(outputDir);
+        else
+            command.add(outputDir + "/");
+        command.add(starOptions[2]);
+        command.add(readsFile1);
+        if(readsFile2 != null)
+            command.add(readsFile2);
+        command.add(starOptions[3]);
+        command.add(tmpDir);
+        command.add(starOptions[4]);
+        command.add("" + numberOfThreads);
+        command.add(starOptions[5]);
+        command.add("" + nReads);
+        command.add(starOptions[6]);
+        command.add("" + overhang);
+        command.add(starOptions[7]);
+        command.add("SAM");        
+        if(readsFile1.endsWith(".gz")) {
+            command.add(starOptions[8]);
+            command.add("zcat");
+        }
         command = addToCommand(command, customArgs);
         Object[] ObjectList = command.toArray();
         String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);

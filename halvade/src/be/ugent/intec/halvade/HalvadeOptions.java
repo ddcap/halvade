@@ -16,8 +16,9 @@
  */
 package be.ugent.intec.halvade;
 
+import be.ugent.intec.halvade.utils.ChromosomeSplitter;
 import be.ugent.intec.halvade.utils.Logger;
-import be.ugent.intec.halvade.utils.MyConf;
+import be.ugent.intec.halvade.utils.HalvadeConf;
 import java.io.EOFException;
 import java.io.File;
 import java.io.IOException;
@@ -47,19 +48,17 @@ public class HalvadeOptions {
     protected String in;
     protected String out;
     protected String ref;
+    protected String STARGenome;
     protected String java = null;
     protected String tmpDir = "/tmp/halvade/";
-    protected String localRef = tmpDir + "ref.fa";
+    protected String localRefDir; 
     protected String sites;
     protected String manifest = null;
     protected int nodes, vcores, mem;
     protected int mappers = 1, reducers = 1, mthreads = 1, GATKdataThreads = 1, GATKCPUThreads = 1;
-    protected int regionSize = -1;
     protected String[] hdfsSites;
-    protected String[] FASTQ_ENCODING = {"sanger", "illumina"};
     protected boolean paired = true;
     protected boolean aln = true;
-    protected boolean justPut = false;
     protected boolean justCombine = false;
     protected boolean useBedTools = false;
     protected boolean useGenotyper = true;
@@ -72,24 +71,21 @@ public class HalvadeOptions {
     protected boolean keepFiles = false;
     protected int stand_call_conf = -1;
     protected int stand_emit_conf = -1;
-    protected int MAP_M = 10; // # files per mapper as input!
-    protected int RED_M = 4; // # keys per reducer
     protected SAMSequenceDictionary dict;
     protected String chr = null;
-    protected int multiplier;
-    protected int minChrLength;
     protected int reducersPerContainer = -1;
     protected int mapsPerContainer = -1;
     protected boolean reuseJVM = false;
     protected boolean justAlign = false;
     protected String exomeBedFile = null;
     protected int coverage = 50; 
-    protected String halvadeDir = "/halvade/";
+    protected String halvadeBinaries;
     protected String bin;
     protected boolean combineVcf = true;
     protected boolean dryRun = false;
     protected boolean keepChrSplitPairs = true;
     protected boolean startupJob = true;
+    protected boolean rnaPipeline = false;
     // custom args!    
     protected String ca_bwa_aln = null;
     protected String ca_bwa_mem = null;
@@ -115,60 +111,61 @@ public class HalvadeOptions {
         try {
             parseArguments(args);
             // add parameters to configuration:
-            localRef = tmpDir + "ref.fa";
+            localRefDir = tmpDir;
             getBestDistribution(halvadeConf);
-            MyConf.setTasksPerNode(halvadeConf, reducersPerContainer);
-            MyConf.setScratchTempDir(halvadeConf, tmpDir);
-            MyConf.setRefOnHDFS(halvadeConf, ref);
-            MyConf.setRefOnScratch(halvadeConf, localRef);
-            MyConf.setKnownSitesOnHDFS(halvadeConf, hdfsSites);
-            MyConf.setNumThreads(halvadeConf, mthreads);
-            MyConf.setGATKNumDataThreads(halvadeConf, GATKdataThreads);
-            MyConf.setGATKNumCPUThreads(halvadeConf, GATKCPUThreads);
-            MyConf.setNumNodes(halvadeConf, mappers);
-            MyConf.setIsPaired(halvadeConf, paired);
+            HalvadeConf.setTasksPerNode(halvadeConf, reducersPerContainer);
+            HalvadeConf.setScratchTempDir(halvadeConf, tmpDir);
+            HalvadeConf.setRefOnHDFS(halvadeConf, ref);
+            HalvadeConf.setStarDirOnHDFS(halvadeConf, STARGenome);
+            HalvadeConf.setRefDirOnScratch(halvadeConf, localRefDir);
+            HalvadeConf.setKnownSitesOnHDFS(halvadeConf, hdfsSites);
+            HalvadeConf.setNumThreads(halvadeConf, mthreads);
+            HalvadeConf.setGATKNumDataThreads(halvadeConf, GATKdataThreads);
+            HalvadeConf.setGATKNumCPUThreads(halvadeConf, GATKCPUThreads);
+            HalvadeConf.setNumNodes(halvadeConf, mappers);
+            HalvadeConf.setIsPaired(halvadeConf, paired);
             if(exomeBedFile != null)
-                MyConf.setExomeBed(halvadeConf, exomeBedFile);
-//            MyConf.setBinDir(halvadeConf, bin);
-            MyConf.setFastqEncoding(halvadeConf, FASTQ_ENCODING[0]);
-            MyConf.setOutDir(halvadeConf, out);
-            MyConf.setKeepFiles(halvadeConf, keepFiles);
-            MyConf.setUseBedTools(halvadeConf, useBedTools);
-            MyConf.clearTaskFiles(halvadeConf);
-            MyConf.setUseIPrep(halvadeConf, useIPrep);
-            MyConf.setUseUnifiedGenotyper(halvadeConf, useGenotyper);
-            MyConf.setReuseJVM(halvadeConf, reuseJVM);
-            MyConf.setReadGroup(halvadeConf, "ID:" + RGID + " LB:" + RGLB + " PL:" + RGPL + " PU:" + RGPU + " SM:" + RGSM);  
-            MyConf.setkeepChrSplitPairs(halvadeConf, keepChrSplitPairs);
+                HalvadeConf.setExomeBed(halvadeConf, exomeBedFile);
+            HalvadeConf.setOutDir(halvadeConf, out);
+            HalvadeConf.setKeepFiles(halvadeConf, keepFiles);
+            HalvadeConf.setUseBedTools(halvadeConf, useBedTools);
+            HalvadeConf.clearTaskFiles(halvadeConf);
+            HalvadeConf.setUseIPrep(halvadeConf, useIPrep);
+            HalvadeConf.setUseUnifiedGenotyper(halvadeConf, useGenotyper);
+            HalvadeConf.setReuseJVM(halvadeConf, reuseJVM);
+            HalvadeConf.setReadGroup(halvadeConf, "ID:" + RGID + " LB:" + RGLB + " PL:" + RGPL + " PU:" + RGPU + " SM:" + RGSM);  
+            HalvadeConf.setkeepChrSplitPairs(halvadeConf, keepChrSplitPairs);
+            
+            // find a way to make this easier, one global function somehow?
             // check for custom arguments for all tools
-            if(ca_bwa_aln != null) MyConf.setBwaAlnArgs(halvadeConf, ca_bwa_aln);
-            if(ca_bwa_mem != null) MyConf.setBwaMemArgs(halvadeConf, ca_bwa_mem);
-            if(ca_bwa_samxe != null) MyConf.setBwaSamxeArgs(halvadeConf, ca_bwa_samxe);
-            if(ca_elprep != null) MyConf.setElPrepArgs(halvadeConf, ca_elprep);
-            if(ca_samtools_view != null) MyConf.setSamtoolsViewArgs(halvadeConf, ca_samtools_view);
-            if(ca_bedtools_dbsnp != null) MyConf.setBedToolsDbSnpArgs(halvadeConf, ca_bedtools_dbsnp);
-            if(ca_bedtools_exome != null) MyConf.setBedToolsExomeArgs(halvadeConf, ca_bedtools_exome);
-            if(ca_picard_bai != null) MyConf.setPicardBaiArgs(halvadeConf, ca_picard_bai);
-            if(ca_picard_rg != null) MyConf.setPicardAddReadGroupArgs(halvadeConf, ca_picard_rg);
-            if(ca_picard_dedup != null) MyConf.setPicardMarkDupArgs(halvadeConf, ca_picard_dedup);
-            if(ca_picard_clean != null) MyConf.setPicardCleanSamArgs(halvadeConf, ca_picard_clean);
-            if(ca_gatk_rtc != null) MyConf.setGatkRealignerTargetCreatorArgs(halvadeConf, ca_gatk_rtc);
-            if(ca_gatk_ir != null) MyConf.setGatkIndelRealignerArgs(halvadeConf, ca_gatk_ir);
-            if(ca_gatk_br != null) MyConf.setGatkBaseRecalibratorArgs(halvadeConf, ca_gatk_br);
-            if(ca_gatk_pr != null) MyConf.setGatkPrintReadsArgs(halvadeConf, ca_gatk_pr);
-            if(ca_gatk_cv != null) MyConf.setGatkCombineVariantsArgs(halvadeConf, ca_gatk_cv);
-            if(ca_gatk_vc != null) MyConf.setGatkVariantCallerArgs(halvadeConf, ca_gatk_vc);
+            if(ca_bwa_aln != null) HalvadeConf.setBwaAlnArgs(halvadeConf, ca_bwa_aln);
+            if(ca_bwa_mem != null) HalvadeConf.setBwaMemArgs(halvadeConf, ca_bwa_mem);
+            if(ca_bwa_samxe != null) HalvadeConf.setBwaSamxeArgs(halvadeConf, ca_bwa_samxe);
+            if(ca_elprep != null) HalvadeConf.setElPrepArgs(halvadeConf, ca_elprep);
+            if(ca_samtools_view != null) HalvadeConf.setSamtoolsViewArgs(halvadeConf, ca_samtools_view);
+            if(ca_bedtools_dbsnp != null) HalvadeConf.setBedToolsDbSnpArgs(halvadeConf, ca_bedtools_dbsnp);
+            if(ca_bedtools_exome != null) HalvadeConf.setBedToolsExomeArgs(halvadeConf, ca_bedtools_exome);
+            if(ca_picard_bai != null) HalvadeConf.setPicardBaiArgs(halvadeConf, ca_picard_bai);
+            if(ca_picard_rg != null) HalvadeConf.setPicardAddReadGroupArgs(halvadeConf, ca_picard_rg);
+            if(ca_picard_dedup != null) HalvadeConf.setPicardMarkDupArgs(halvadeConf, ca_picard_dedup);
+            if(ca_picard_clean != null) HalvadeConf.setPicardCleanSamArgs(halvadeConf, ca_picard_clean);
+            if(ca_gatk_rtc != null) HalvadeConf.setGatkRealignerTargetCreatorArgs(halvadeConf, ca_gatk_rtc);
+            if(ca_gatk_ir != null) HalvadeConf.setGatkIndelRealignerArgs(halvadeConf, ca_gatk_ir);
+            if(ca_gatk_br != null) HalvadeConf.setGatkBaseRecalibratorArgs(halvadeConf, ca_gatk_br);
+            if(ca_gatk_pr != null) HalvadeConf.setGatkPrintReadsArgs(halvadeConf, ca_gatk_pr);
+            if(ca_gatk_cv != null) HalvadeConf.setGatkCombineVariantsArgs(halvadeConf, ca_gatk_cv);
+            if(ca_gatk_vc != null) HalvadeConf.setGatkVariantCallerArgs(halvadeConf, ca_gatk_vc);
             
             if(chr != null )
-                MyConf.setChrList(halvadeConf, chr);
+                HalvadeConf.setChrList(halvadeConf, chr);
             if(java != null)
-                MyConf.setJava(halvadeConf, java);
+                HalvadeConf.setJava(halvadeConf, java);
                     
             if(stand_call_conf > 0) 
-                MyConf.setSCC(halvadeConf, stand_call_conf);
+                HalvadeConf.setSCC(halvadeConf, stand_call_conf);
             if(stand_emit_conf > 0) 
-                MyConf.setSEC(halvadeConf, stand_emit_conf);
-            // check if output is cleared
+                HalvadeConf.setSEC(halvadeConf, stand_emit_conf);
+            
             FileSystem fs = FileSystem.get(new URI(out), halvadeConf);
             if (fs.exists(new Path(out)) && !justCombine) {
                 Logger.INFO("The output directory \'" + out + "\' already exists.");
@@ -177,15 +174,11 @@ public class HalvadeOptions {
 //                System.err.println("Please remove this directory before trying again.");
 //                System.exit(-2);
             }
-            // prepare the sequence dictionary for the reducer:
-            parseANNFile(halvadeConf);
-            setKeysPerChromosome();
-            MyConf.setMinChrLength(halvadeConf, minChrLength);
-            MyConf.setMultiplier(halvadeConf, multiplier);
-            getNumberOfRegions(halvadeConf);
-                       
-            if(!halvadeDir.endsWith("/"))
-                halvadeDir += "/";
+            parseDictFile(halvadeConf);
+            ChromosomeSplitter splitter = new ChromosomeSplitter(dict, chr, reducers);
+            HalvadeConf.setMinChrLength(halvadeConf, splitter.getRegionSize());
+            reducers = splitter.getRegionCount();
+            HalvadeConf.setReducers(halvadeConf, reducers);
             
         } catch (ParseException e) {
             // automatically generate the help statement
@@ -198,94 +191,12 @@ public class HalvadeOptions {
         }
         return 0;
     }
-    
-    private String[] getChromosomeNames(SAMSequenceDictionary dict) {
-        String[] chrs = new String[dict.size()];
-        for(int i = 0; i < dict.size(); i++) 
-            chrs[i] = dict.getSequence(i).getSequenceName();
-        return chrs;
-    }
-    
-    private void setKeysPerChromosome() {
-        int maxChrLength = dict.getSequence(0).getSequenceLength();
-        int minRegions = 0;
-        String[] chrs;
-        if(chr == null) 
-            chrs = getChromosomeNames(dict);
-        else
-            chrs = chr.split(",");
-        
-        for(String chr_ : chrs)
-            if(dict.getSequence(chr_).getSequenceLength() > maxChrLength)
-                maxChrLength = dict.getSequence(chr_).getSequenceLength();
-        minChrLength = maxChrLength;
-        for(String chr_ : chrs)
-            if(dict.getSequence(chr_).getSequenceLength() < minChrLength &&
-                    (100.0*dict.getSequence(chr_).getSequenceLength() / maxChrLength) > 25.0)
-                minChrLength = dict.getSequence(chr_).getSequenceLength();     
-        
-        for(String chr_ : chrs)
-            if(dict.getSequence(chr_).getSequenceLength() > minChrLength)
-                minRegions += (int)Math.ceil((double)dict.getSequence(chr_).getSequenceLength() / minChrLength);
-        double restChr = 0;
-        for(String chr_ : chrs)
-            if(dict.getSequence(chr_).getSequenceLength() < minChrLength)
-                restChr += (double)dict.getSequence(chr_).getSequenceLength() / minChrLength;
-        minRegions += (int)Math.ceil(restChr / 1.0);
-        multiplier = 1;
-        while(multiplier * minRegions < reducers) 
-            multiplier++;
-        minChrLength = minChrLength / multiplier;
-    }
-        
-    protected boolean removeLocalFile(String filename) {
-        File f = new File(filename);
-        return f.exists() && f.delete();
-    } 
-    
-    private int getNumberOfRegions(Configuration conf) {
-        // use keysPerChromosome
-        int regions = 0;
-        String[] chrs;
-        if(chr == null) 
-            chrs = getChromosomeNames(dict);
-        else
-            chrs = chr.split(",");
-        
-        Logger.DEBUG("min chr length to be splittable: " + minChrLength, 3);
-        for(String chr_ : chrs) {
-            if(dict.getSequence(chr_).getSequenceLength() >= minChrLength) {
-                int count =  (int)Math.ceil((double)dict.getSequence(chr_).getSequenceLength() / minChrLength);
-                Logger.DEBUG(dict.getSequence(chr_).getSequenceName() + ": " + count + 
-                    " regions [" + (dict.getSequence(chr_).getSequenceLength() / count + 1) + "].", 3);
-                regions += count;
-            }
-        }
-        double restChr = 0;
-        for(String chr_ : chrs) {
-            if(dict.getSequence(chr_).getSequenceLength() < minChrLength) {
-                restChr += (double)dict.getSequence(chr_).getSequenceLength() / minChrLength;
-                Logger.DEBUG("shared chromosome: " + dict.getSequence(chr_).getSequenceName() 
-                        + " [" + dict.getSequence(chr_).getSequenceLength() + "].", 3);
-            }
-        }
-        Logger.DEBUG("Regions with collection of chromosomes: " + (int)Math.ceil(restChr / 1.0));
-        regions += (int)Math.ceil(restChr / 1.0);
-        be.ugent.intec.halvade.utils.Logger.DEBUG("Total regions: " + regions);
-        // set random shuffled regions
-        reducers = regions;
-        MyConf.setReducers(conf, reducers);
-        
-        return regions;
-    }
-    
-    
     private static final int MEM_MAP_TASK = 15;
     private static final int MEM_REDUCE_TASK = 15;
     private static final int VCORES_MAP_TASK = 8;
     private static final int VCORES_REDUCE_TASK = 8;
     private static final int SWAP_EXTRA = 20;
-    private static final double REDUCE_TASKS_FACTOR = 0.42;
+    private static final double REDUCE_TASKS_FACTOR = 0.42 * 60;
     
     private void getBestDistribution(Configuration conf) {
         if (mapsPerContainer == -1) mapsPerContainer = Math.min(Math.max(vcores / VCORES_MAP_TASK,1), Math.max(mem / MEM_MAP_TASK,1));
@@ -310,49 +221,35 @@ public class HalvadeOptions {
         conf.set("mapreduce.job.reduce.slowstart.completedmaps", "" + 1.0);
         
         // experimental - need more data
-        reducers = (int) (coverage * REDUCE_TASKS_FACTOR * nodes * reducersPerContainer);
-        
+        reducers = (int) (coverage * REDUCE_TASKS_FACTOR);        
     }
 
-    private void parseANNFile(Configuration conf) {
-        be.ugent.intec.halvade.utils.Logger.DEBUG("parsing ANN file...");
+    private static final String DICT_SUFFIX = ".dict";
+    private void parseDictFile(Configuration conf) {
+        be.ugent.intec.halvade.utils.Logger.DEBUG("parsing dictionary file...");
         try {
-            // seq data is stored in ${ref}.ann file
-            FileSystem fs = FileSystem.get(new URI(ref + ".ann"), conf);
-            FSDataInputStream stream = fs.open(new Path(ref + ".ann"));
-            String line = getLine(stream);
-            // skip first line, has 3 numbers: length nseq seed 
+            FileSystem fs = FileSystem.get(new URI(ref + DICT_SUFFIX), conf);
+            FSDataInputStream stream = fs.open(new Path(ref + DICT_SUFFIX));
+            String line = getLine(stream); // header
             dict = new SAMSequenceDictionary();
+            line = getLine(stream);
             while(line != null) {
-                // read first line of new sequence: gi (number) name(string) (either to end of file or a space)
-                line = getLine(stream);
-                if(line != null) {
-                    // extract data: 
-                    String seqName = line.substring(line.indexOf(' ') + 1);
-                    int nextidx = seqName.indexOf(' ');
-                    if(nextidx != -1) seqName = seqName.substring(0, nextidx);
-                    // read next line:
-                    line = getLine(stream);
-                    if (line != null) {
-                        int idx1 = line.indexOf(' ') + 1;
-                        int idx2 = line.indexOf(' ', idx1); 
-                        int seqLength = 0;
-                        try {
-                            seqLength = Integer.parseInt(line.substring(idx1, idx2));
-                        } catch(NumberFormatException ex) {
-                            be.ugent.intec.halvade.utils.Logger.EXCEPTION(ex);
-                        }
-                        SAMSequenceRecord seq = new SAMSequenceRecord(seqName, seqLength);
-//                        Logger.DEBUG("name: " + seq.getSequenceName() + " length: " + 
-//                                seq.getSequenceLength());
-                        dict.addSequence(seq);  
-                    }                  
+                // @SQ	SN:chrM	LN:16571
+                String[] lineData = line.split("\\s+");
+                String seqName = lineData[1].substring(lineData[1].indexOf(':') + 1);
+                int seqLength = 0;
+                try {
+                    seqLength = Integer.parseInt(lineData[2].substring(lineData[2].indexOf(':') + 1));
+                } catch(NumberFormatException ex) {
+                    be.ugent.intec.halvade.utils.Logger.EXCEPTION(ex);
                 }
+                SAMSequenceRecord seq = new SAMSequenceRecord(seqName, seqLength);
+//                Logger.DEBUG("name: " + seq.getSequenceName() + " length: " + seq.getSequenceLength());
+                dict.addSequence(seq);  
+                line = getLine(stream);
             }
-            MyConf.setSequenceDictionary(conf, dict);
-        } catch (URISyntaxException ex) {
-            be.ugent.intec.halvade.utils.Logger.EXCEPTION(ex);
-        } catch (IOException ex) {
+            HalvadeConf.setSequenceDictionary(conf, dict);
+        } catch (URISyntaxException | IOException ex) {
             be.ugent.intec.halvade.utils.Logger.EXCEPTION(ex);
         }
         
@@ -384,16 +281,21 @@ public class HalvadeOptions {
                                 .isRequired(true)
                                 .withDescription(  "Output directory on hdfs." )
                                 .create( "O" );
-        Option optBin = OptionBuilder.withArgName( "binary directory" )
+        Option optBin = OptionBuilder.withArgName( "binary file" )
                                 .hasArg()
                                 .isRequired(true)
-                                .withDescription(  "The directory where the BWA binary file is located on HDFS [/halvade/]." )
+                                .withDescription(  "The tarred file where all binary files are located on HDFS [/halvade/]." )
                                 .create( "B" );
         Option optRef = OptionBuilder.withArgName( "reference.fa" )
                                 .hasArg()
                                 .isRequired(true)
                                 .withDescription(  "Name of the fastq file name of the reference. Make sure the index has the same prefix." )
                                 .create( "R" );
+        Option optStarGenome = OptionBuilder.withArgName( "/star/genome/" )
+                                .hasArg()
+                                .isRequired(true)
+                                .withDescription(  "Directory on hdfs containing all STAR genome files" )
+                                .create( "SG" );
         Option optSites = OptionBuilder.withArgName( "dbsnps" )
                                 .hasArg()
                                 .isRequired(true)
@@ -417,9 +319,6 @@ public class HalvadeOptions {
                                 .hasArg()
                                 .withDescription(  "Set location of java binary to use [must be 1.7+]." )
                                 .create( "J" );
-        Option optPut = OptionBuilder.withArgName( "put" )
-                                .withDescription(  "Just puts the data on HDFS and doesn't run the hadoop job." )
-                                .create( "p" );
         Option optCombine = OptionBuilder.withArgName( "combine" )
                                 .withDescription(  "Just Combines the vcf on HDFS [out dir] and doesn't run the hadoop job." )
                                 .create( "c" );
@@ -456,12 +355,18 @@ public class HalvadeOptions {
         Option optJustAlign = OptionBuilder.withArgName( "justalign" )
                                 .withDescription(  "Only align the reads." )
                                 .create( "justalign" );
+        Option optSmt = OptionBuilder.withArgName( "smt" )
+                                .withDescription(  "Enable simultaneous multithreading." )
+                                .create( "smt" );
         Option optKeep = OptionBuilder.withArgName( "keep tmp files" )
                                 .withDescription(  "Keep intermediate files." )
                                 .create( "keep" );
         Option optHap = OptionBuilder.withArgName( "use haplotypecaller" )
                                 .withDescription(  "Use HaplotypeCaller instead of UnifiedGenotyper for Variant Detection." )
                                 .create( "hc" );
+        Option optRna = OptionBuilder.withArgName( "rna pipeline" )
+                                .withDescription(  "Run the RNA Best Practices pipeline by Broad [default is DNA pipeline]." )
+                                .create( "rna" );
         Option optCov = OptionBuilder.withArgName( "coverage" )
                                 .hasArg()
                                 .withDescription(  "Sets the coverage to better distribute the tasks.")
@@ -602,7 +507,6 @@ public class HalvadeOptions {
         options.addOption(optSingle);
         options.addOption(optBmem);
         options.addOption(optMan);
-        options.addOption(optPut);
         options.addOption(optID);
         options.addOption(optLB);
         options.addOption(optPL);
@@ -629,6 +533,9 @@ public class HalvadeOptions {
         options.addOption(optDry);
         options.addOption(optDrop);
         options.addOption(optReportAll);
+        options.addOption(optSmt);
+        options.addOption(optRna);
+        options.addOption(optStarGenome);
         
         // custom arguments
         options.addOption(optCABwaAln);
@@ -657,6 +564,7 @@ public class HalvadeOptions {
         in = line.getOptionValue("I");
         out = line.getOptionValue("O");
         ref = line.getOptionValue("R");
+        STARGenome = line.getOptionValue("SG");
         sites = line.getOptionValue("D");
         hdfsSites = sites.split(",");
         if(line.hasOption("tmp"))
@@ -666,6 +574,10 @@ public class HalvadeOptions {
             nodes = Integer.parseInt(line.getOptionValue("nodes"));
         if(line.hasOption("vcores"))
             vcores = Integer.parseInt(line.getOptionValue("vcores"));
+        if(line.hasOption("smt"))
+            vcores *= 2;
+        if(line.hasOption("rna"))
+            rnaPipeline = true;
         if(line.hasOption("mem"))
             mem = Integer.parseInt(line.getOptionValue("mem"));
         if(line.hasOption("mpn"))
@@ -674,7 +586,7 @@ public class HalvadeOptions {
             reducersPerContainer = Integer.parseInt(line.getOptionValue("rpn"));
         
         if(line.hasOption("B")){
-            halvadeDir = line.getOptionValue("B");
+            halvadeBinaries = line.getOptionValue("B");
         }
         if(line.hasOption("scc"))
             stand_call_conf = Integer.parseInt(line.getOptionValue("scc"));
@@ -692,14 +604,10 @@ public class HalvadeOptions {
             reuseJVM = true;
         if(line.hasOption("bwamem"))
             aln = false;
-        if(line.hasOption("r"))
-            regionSize = Integer.parseInt(line.getOptionValue("r"));
         if(line.hasOption("J"))
             java = line.getOptionValue("J");
         if(line.hasOption("M"))
             manifest = line.getOptionValue("M");
-        if(line.hasOption("p"))
-            justPut = true;
         if(line.hasOption("exome")) {
             exomeBedFile = line.getOptionValue("exome");
             coverage = EXOME_COV;

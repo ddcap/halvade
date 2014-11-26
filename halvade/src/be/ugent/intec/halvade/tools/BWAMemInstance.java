@@ -52,7 +52,7 @@ public class BWAMemInstance extends AlignerInstance {
     @Override
     protected void startAligner(Mapper.Context context) throws IOException, InterruptedException {
         // make command
-        String customArgs = MyConf.getBwaMemArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getBwaMemArgs(context.getConfiguration());
         String[] command = CommandGenerator.bwaMem(bin, ref, null, null, isPaired, true, threads, customArgs);
         pbw = new ProcessBuilderWrapper(command, bin);
         // run command

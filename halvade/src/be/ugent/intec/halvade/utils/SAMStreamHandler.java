@@ -65,7 +65,7 @@ public class SAMStreamHandler extends Thread {
         mReader = new BufferedLineReader(this.is);
         samRecordFactory = new DefaultSAMRecordFactory();
         this.context = context;
-        isPaired = MyConf.getIsPaired(context.getConfiguration());
+        isPaired = HalvadeConf.getIsPaired(context.getConfiguration());
     }
     
     @Override

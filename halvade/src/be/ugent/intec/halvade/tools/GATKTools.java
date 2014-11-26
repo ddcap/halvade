@@ -23,9 +23,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import be.ugent.intec.halvade.utils.ProcessBuilderWrapper;
 import be.ugent.intec.halvade.utils.Logger;
-import be.ugent.intec.halvade.utils.MyConf;
+import be.ugent.intec.halvade.utils.HalvadeConf;
 import java.text.DecimalFormat;
-import java.util.List;
 import org.apache.hadoop.mapreduce.Reducer;
 
 /**
@@ -39,24 +38,11 @@ public class GATKTools {
     String gatk;
     String java;
     String mem = "-Xmx2g";
-    String[] variantCaller = {
-        "HaplotypeCaller",
-        "UnifiedGenotyper"};
     int threadingType = 0; // 0 = data multithreading, 1 = cpu multithreading
     int[] threadsPerType = {1 ,1}; // 0 = data multithreading, 1 = cpu multithreading
     String[] multiThreadingTypes = {"-nt", "-nct"};
     DecimalFormat onedec;
     Reducer.Context context;
-    
-    
-    public GATKTools(String reference, String bin, int threadingType) {
-        this.reference = reference;
-        this.bin = bin;
-        this.java = "java";
-        this.gatk = bin + "/GenomeAnalysisTK.jar" ;
-        this.threadingType = threadingType % 2;
-        onedec = new DecimalFormat("###0.0");
-    }
     
     public void setThreadsPerType(int dataThreads, int cpuThreads) {
         threadsPerType[0] = dataThreads;
@@ -90,6 +76,10 @@ public class GATKTools {
 
     public void setJava(String java) {
         this.java = java;
+    }  
+    
+    public String roundOneDecimal(double val) {
+        return onedec.format(val);
     }
     
     private static String[] AddCustomArguments(String[] command, String customArgs) {
@@ -122,7 +112,7 @@ public class GATKTools {
             -o recal_data.table
          */
 
-        ArrayList<String> command = new ArrayList<String>();
+        ArrayList<String> command = new ArrayList<>();
         String[] covString = {
             "-cov", "ReadGroupCovariate",
             "-cov", "QualityScoreCovariate",
@@ -136,12 +126,13 @@ public class GATKTools {
             "-o", table,
             "-L", region};
         command.addAll(Arrays.asList(gatkcmd));
+        command.addAll(Arrays.asList(covString));
         for(String knownSite : knownSites) {
             command.add("-knownSites");
             command.add(knownSite);
         }
 //        command.addAll(Arrays.asList(covString));
-        String customArgs = MyConf.getGatkBaseRecalibratorArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getGatkBaseRecalibratorArgs(context.getConfiguration());
         command = CommandGenerator.addToCommand(command, customArgs);   
         Object[] objectList = command.toArray();
         long estimatedTime = runProcessAndWait("GATK BaseRecalibrator", Arrays.copyOf(objectList,objectList.length,String[].class));
@@ -167,11 +158,106 @@ public class GATKTools {
             "-I", input,
             "-o", targets,
             "-L", region};
-        String customArgs = MyConf.getGatkRealignerTargetCreatorArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getGatkRealignerTargetCreatorArgs(context.getConfiguration());
         long estimatedTime = runProcessAndWait("GATK RealignerTargetCreator", AddCustomArguments(command, customArgs));    
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_TARGET_CREATOR).increment(estimatedTime);
     }
+
+    public void runSplitNCigarReads(String input, String output, String ref, String region, int newMaxQualScore) throws InterruptedException {
+        /**
+         * example: 
+         * java -Xmx4g -jar GenomeAnalysisTK.jar 
+         * -T SplitNCigarReads 
+         * -R ref.fasta 
+         * -I dedupped.bam 
+         * -o split.bam 
+         * -rf ReassignOneMappingQuality 
+         * -RMQF 255 
+         * -RMQT 60 
+         * -U ALLOW_N_CIGAR_READS  
+         * 
+         */
+        String[] command = {
+            java, mem, "-jar", gatk,
+            "-T", "SplitNCigarReads",
+            "-R", ref,
+            "-I", input,
+            "-o", output,
+            "-rf", "ReassignOneMappingQuality",
+            "-RMQF", "255",
+            "-RMQT", "" + newMaxQualScore,
+            "-U", "ALLOW_N_CIGAR_READS",
+            "-L", region};
+        String customArgs = HalvadeConf.getGatkSplitNTrimArgs(context.getConfiguration());
+        long estimatedTime = runProcessAndWait("GATK SplitNCigarReads", AddCustomArguments(command, customArgs));   
+        if(context != null)
+            context.getCounter(HalvadeCounters.TIME_GATK_INDEL_REALN).increment(estimatedTime);   
+        
+    }
+    
+    public void runVariantFiltration(String input, String output, String ref, int window, int cluster, double minFS, double maxQD) throws InterruptedException {
+        /**
+         * example: 
+         * java -Xmx4g -jar GenomeAnalysisTK.jar 
+         * -T VariantFiltration 
+         * -R hg_19.fasta 
+         * -V input.vcf 
+         * -o output.vcf 
+         * -window 35 
+         * -cluster 3 
+         * -filterName FS 
+         * -filter "FS > 30.0" 
+         * -filterName QD 
+         * -filter "QD < 2.0" 
+         * 
+         */
+        String[] command = {
+            java, mem, "-jar", gatk,
+            "-T", "VariantFiltration",
+            "-R", ref,
+            "-V", input,
+            "-o", output,
+            "-window", "" + window,
+            "-cluster", "" + cluster,
+            "-filterName", "FS",
+            "-filter", "FS > " + roundOneDecimal(minFS),
+            "-filterName", "QD",
+            "-filter", "QD < " + roundOneDecimal(maxQD)};
+        String customArgs = HalvadeConf.getGatkVariantFiltrationArgs(context.getConfiguration());
+        long estimatedTime = runProcessAndWait("GATK VariantFiltration", AddCustomArguments(command, customArgs));   
+        if(context != null)
+            context.getCounter(HalvadeCounters.TIME_GATK_INDEL_REALN).increment(estimatedTime);   
+        
+    } 
+    
+    public void runVariantAnnotator(String input, String output, String ref) throws InterruptedException {
+        /**
+         * example: 
+         * java -Xmx4g -jar GenomeAnalysisTK.jar 
+         * -R ref.fasta \
+         * -T VariantAnnotator \
+         * -I input.bam \
+         * -o output.vcf \
+         * 
+         * -A Coverage \
+         * --variant input.vcf \
+         * -L input.vcf \
+         * --dbsnp dbsnp.vcf
+         * 
+         */
+        String[] command = {
+            java, mem, "-jar", gatk,
+            "-T", "VariantAnnotator",
+            multiThreadingTypes[0], "" + threadsPerType[0], 
+            "-R", ref,
+            "-V", input,
+            "-o", output};
+        String customArgs = HalvadeConf.getGatkVariantFiltrationArgs(context.getConfiguration());
+        long estimatedTime = runProcessAndWait("GATK VariantAnnotator", AddCustomArguments(command, customArgs));   
+        if(context != null)
+            context.getCounter(HalvadeCounters.TIME_GATK_INDEL_REALN).increment(estimatedTime);
+    } 
 
     public void runIndelRealigner(String input, String targets, String output, String ref, String region) throws InterruptedException {
         /**
@@ -194,7 +280,7 @@ public class GATKTools {
             "-targetIntervals", targets,
             "-o", output,
             "-L", region};
-        String customArgs = MyConf.getGatkIndelRealignerArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getGatkIndelRealignerArgs(context.getConfiguration());
         long estimatedTime = runProcessAndWait("GATK IndelRealigner", AddCustomArguments(command, customArgs));   
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_INDEL_REALN).increment(estimatedTime);    
@@ -204,7 +290,9 @@ public class GATKTools {
         /**
          * example:
          * -I input.bam -o recalibrated.bam -T TableRecalibration -recalFile recal.csv -R ref
-         * Not using multi-threading, tests show best performance is single thread
+         ***************************************************************************
+         * Not using multi-threading, tests show best performance is single thread *
+         ***************************************************************************
          */
         String[] command = {
             java, mem, "-jar", gatk,
@@ -214,16 +302,12 @@ public class GATKTools {
             "-o", output,
             "-BQSR", table,
             "-L", region};
-        String customArgs = MyConf.getGatkPrintReadsArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getGatkPrintReadsArgs(context.getConfiguration());
         long estimatedTime = runProcessAndWait("GATK PrintReads", AddCustomArguments(command, customArgs));  
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_PRINT_READS).increment(estimatedTime);        
     }
-    
-    public String roundOneDecimal(double val) {
-        return onedec.format(val);
-    }
-    
+
     public void runCombineVariants(String[] inputs, String output, String ref) throws InterruptedException {
         /**
          *  java -Xmx2g -jar GenomeAnalysisTK.jar \
@@ -239,7 +323,7 @@ public class GATKTools {
         String[] gatkcmd = {
             java, mem, "-jar", gatk,
             "-T", "CombineVariants",
-            multiThreadingTypes[0], "" + threadsPerType[0], // supports both nt and nct
+            multiThreadingTypes[0], "" + threadsPerType[0],
             "-R", ref,
             "-o", output, "-sites_only",
             "-genotypeMergeOptions", "UNIQUIFY"};
@@ -250,7 +334,7 @@ public class GATKTools {
                 command.add(input);
             }
         }
-        String customArgs = MyConf.getGatkCombineVariantsArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getGatkCombineVariantsArgs(context.getConfiguration());
         command = CommandGenerator.addToCommand(command, customArgs);   
         Object[] objectList = command.toArray();
         long estimatedTime = runProcessAndWait("GATK CombineVariants", Arrays.copyOf(objectList,objectList.length,String[].class));
@@ -258,26 +342,18 @@ public class GATKTools {
             context.getCounter(HalvadeCounters.TIME_GATK_COMBINE_VCF).increment(estimatedTime);
     }
 
-    public void runVariantCaller(String input, String output, boolean useUnifiedGenotyper, 
-            double scc, double sec, String ref, String[] knownSites, String region) throws InterruptedException {
+    public void runUnifiedGenotyper(String input, String output, double scc, double sec, String ref, 
+            String[] knownSites, String region) throws InterruptedException {
         /**
          * example:
          * -I recalibrated.bam -T UnifiedGenotyper -o output.vcf -R ref
          */
-        ArrayList<String> command = new ArrayList<String>();
-        String VC = variantCaller[0];
-        String theadtype = multiThreadingTypes[1];
-        int threadsToUse = threadsPerType[1];
-        if(useUnifiedGenotyper) {
-            VC = variantCaller[1];
-            theadtype = multiThreadingTypes[threadingType];
-            threadsToUse = threadsPerType[threadingType];
-        }
+        ArrayList<String> command = new ArrayList<String>();            
         
         String[] gatkcmd = {
             java, mem, "-jar", gatk,
-            "-T", VC,
-            theadtype, "" + threadsToUse, // supports both nt and nct
+            "-T", "UnifiedGenotyper",
+            multiThreadingTypes[threadingType], "" + threadsPerType[threadingType], 
             "-R", ref,
             "-I", input,
             "-o", output,
@@ -286,21 +362,53 @@ public class GATKTools {
             "-L", region,
             "--no_cmdline_in_header"};
         command.addAll(Arrays.asList(gatkcmd));
-//        if(useUnifiedGenotyper && threadingType == 0 && (threadsPerType[1] /  threadsPerType[0]) >= 2) {
-//            // add cpu threads per data threads
-//            command.add(multiThreadingTypes[1]);
-//            command.add("" + Math.max(1, (threadsPerType[1] /  threadsPerType[0])));
-//        }
         if(knownSites != null) {
             for(String knownSite : knownSites) {
                 command.add("-dbsnp");
                 command.add(knownSite);
             }
         }
-        String customArgs = MyConf.getGatkVariantCallerArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getGatkVariantCallerArgs(context.getConfiguration());
         command = CommandGenerator.addToCommand(command, customArgs);   
         Object[] objectList = command.toArray();
-        long estimatedTime = runProcessAndWait("GATK " + VC, Arrays.copyOf(objectList,objectList.length,String[].class));   
+        long estimatedTime = runProcessAndWait("GATK UnifiedGenotyper", Arrays.copyOf(objectList,objectList.length,String[].class));   
+        if(context != null)
+            context.getCounter(HalvadeCounters.TIME_GATK_VARIANT_CALLER).increment(estimatedTime);
+    }
+
+    public void runHaplotypeCaller(String input, String output, boolean disableSoftClipping, 
+            double scc, double sec, String ref, String[] knownSites, String region) throws InterruptedException {
+        /**
+         * example:
+         * -I recalibrated.bam -T UnifiedGenotyper -o output.vcf -R ref
+         */
+        ArrayList<String> command = new ArrayList<String>();
+        
+        String[] gatkcmd = {
+            java, mem, "-jar", gatk,
+            "-T", "HaplotypeCaller",
+            multiThreadingTypes[1], "" + threadsPerType[1], 
+            "-R", ref,
+            "-I", input,
+            "-o", output,
+            "-stand_call_conf", roundOneDecimal(scc),
+            "-stand_emit_conf", roundOneDecimal(sec),
+            "-L", region,
+            "--no_cmdline_in_header"};
+        command.addAll(Arrays.asList(gatkcmd));
+        if(disableSoftClipping) {
+            command.add("-dontUseSoftClippedBases");
+        }
+        if(knownSites != null) {
+            for(String knownSite : knownSites) {
+                command.add("-dbsnp");
+                command.add(knownSite);
+            }
+        }
+        String customArgs = HalvadeConf.getGatkVariantCallerArgs(context.getConfiguration());
+        command = CommandGenerator.addToCommand(command, customArgs);   
+        Object[] objectList = command.toArray();
+        long estimatedTime = runProcessAndWait("GATK HaplotypeCaller", Arrays.copyOf(objectList,objectList.length,String[].class));   
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_VARIANT_CALLER).increment(estimatedTime);
     }

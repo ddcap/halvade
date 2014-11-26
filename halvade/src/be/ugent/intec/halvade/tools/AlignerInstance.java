@@ -19,17 +19,17 @@ package be.ugent.intec.halvade.tools;
 
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import be.ugent.intec.halvade.hadoop.mapreduce.HalvadeCounters;
+import be.ugent.intec.halvade.utils.ChromosomeSplitter;
 import be.ugent.intec.halvade.utils.Logger;
-import be.ugent.intec.halvade.utils.MyConf;
+import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.ProcessBuilderWrapper;
 import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMSequenceDictionary;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.mapreduce.Mapper;
 
 /**
@@ -49,93 +49,31 @@ public abstract class AlignerInstance {
 //    protected static TaskInputOutputContext<LongWritable, Text, ChromosomeRegion, SAMRecordWritable> context;
     protected static Mapper.Context context;
     protected boolean isPaired = true;
-    protected int[] regionsPerChr;
-    protected int[] regionSizePerChr;
-    protected int[] chromosomeStartKey;
-    protected int[] chromosomeSizes;
     protected String chr;
-    protected int multiplier, minChrLength, reducers;
+    protected int minChrLength, reducers;
     protected boolean keepChrSplitPairs;
+    private boolean keep = false;
+    protected ChromosomeSplitter splitter;
     
     
     protected AlignerInstance(Mapper.Context context, String bin) throws IOException {
         header = null;
         writableRecord = new SAMRecordWritable();
         writableRegion = new ChromosomeRegion();
-        minChrLength = MyConf.getMinChrLength(context.getConfiguration());
-        multiplier = MyConf.getMultiplier(context.getConfiguration());
-        minChrLength = minChrLength / multiplier;
-        chr = MyConf.getChrList(context.getConfiguration());
-        reducers = MyConf.getReducers(context.getConfiguration());
+        minChrLength = HalvadeConf.getMinChrLength(context.getConfiguration());
+        chr = HalvadeConf.getChrList(context.getConfiguration());
+        reducers = HalvadeConf.getReducers(context.getConfiguration());
         
-        tmpdir = MyConf.getScratchTempDir(context.getConfiguration());
-        ref = MyConf.getRefOnScratch(context.getConfiguration());
+        tmpdir = HalvadeConf.getScratchTempDir(context.getConfiguration());
+        if(!tmpdir.endsWith("/")) tmpdir = tmpdir + "/";
         this.bin = bin;
-        threads = MyConf.getNumThreads(context.getConfiguration());
-        isPaired = MyConf.getIsPaired(context.getConfiguration());
+        threads = HalvadeConf.getNumThreads(context.getConfiguration());
+        isPaired = HalvadeConf.getIsPaired(context.getConfiguration());
         Logger.DEBUG("paired? " + isPaired);
-        Logger.DEBUG("called BWAInstance constructor");
-        calculateRegionsPerChromosome(context.getConfiguration());
-        keepChrSplitPairs = MyConf.getkeepChrSplitPairs(context.getConfiguration());
+        splitter = new ChromosomeSplitter(HalvadeConf.getSequenceDictionary(context.getConfiguration()), minChrLength, chr);
+        keepChrSplitPairs = HalvadeConf.getkeepChrSplitPairs(context.getConfiguration());
+        keep = HalvadeConf.getKeepFiles(context.getConfiguration());
     }
-    
-    private String[] getChromosomeNames(SAMSequenceDictionary dict) {
-        String[] chrs = new String[dict.size()];
-        for(int i = 0; i < dict.size(); i++) 
-            chrs[i] = dict.getSequence(i).getSequenceName();
-        return chrs;
-    }
-    
-    private void calculateRegionsPerChromosome(Configuration conf) throws IOException {
-        SAMSequenceDictionary dict = MyConf.getSequenceDictionary(conf);
-        regionsPerChr = new int[dict.size()];
-        regionSizePerChr = new int[dict.size()];
-        chromosomeStartKey = new int[dict.size()];
-        chromosomeSizes = new int[dict.size()];
-        int currentKey = 0;
-        String[] chrs;
-        if(chr == null) 
-            chrs = getChromosomeNames(dict);
-        else
-            chrs = chr.split(",");
-        
-        // chr bigger than 
-        int i = 0;
-        for(String chr_ : chrs) {
-            int seqlen = dict.getSequence(chr_).getSequenceLength();
-            chromosomeSizes[i] = seqlen;
-            if(seqlen >= minChrLength) {
-                regionsPerChr[i] = (int)Math.ceil((double)seqlen / minChrLength);
-                regionSizePerChr[i] = seqlen / regionsPerChr[i] + 1;
-                chromosomeStartKey[i] = currentKey;
-                currentKey += regionsPerChr[i];
-            }
-            i++;
-        }
-        
-        // combine small chr
-        int currentKeySize = 0;
-        i = 0;
-        for(String chr_ : chrs) {
-            int seqlen = dict.getSequence(chr_).getSequenceLength();
-            if(seqlen < minChrLength) {
-                regionsPerChr[i] = 1;
-                regionSizePerChr[i] = seqlen + 1;
-                chromosomeStartKey[i] = currentKey;
-                currentKeySize += seqlen;
-                if(currentKeySize > minChrLength) {
-                    currentKey++;
-                    currentKeySize = 0;
-                }
-                
-            }
-            i++;
-        }
-        for(i = 0; i < chromosomeStartKey.length; i++)
-            Logger.DEBUG(dict.getSequence(i).getSequenceName() + "[" + dict.getSequence(i).getSequenceLength() + 
-                    "]: starts with key " + chromosomeStartKey[i] + " with " + regionsPerChr[i] + " regions of size " + regionSizePerChr[i]);
-    }
-    
     
     protected int feedLine(String line, ProcessBuilderWrapper proc) throws IOException  {
         if (proc.getState() != 1) {
@@ -146,14 +84,20 @@ public abstract class AlignerInstance {
         proc.getSTDINWriter().newLine();
         return 0;
     }
-        
-    int getKey(int region, int chromosome) {
-        return (int) (chromosomeStartKey[chromosome] + region);
+    
+    protected boolean removeLocalFile(String filename, Mapper.Context context, HalvadeCounters counter) {
+        if(keep) return false;
+        File f = new File(filename);
+        if(f.exists()) context.getCounter(counter).increment(f.length());
+        return f.exists() && f.delete();
     }
     
-    int getRegion(int position, int chromosome) {
-        return position / regionSizePerChr[chromosome];
-    }
+    protected boolean removeLocalDir(String filename, Mapper.Context context, HalvadeCounters counter) {
+        if(keep) return false;
+        File f = new File(filename);
+        if(f.exists()) context.getCounter(counter).increment(f.length());
+        return f.exists() && f.delete();
+    } 
     
     public int writePairedSAMRecordToContext(SAMRecord sam) throws IOException, InterruptedException {
         int count = 0;
@@ -166,15 +110,15 @@ public abstract class AlignerInstance {
             int readLength = sam.getReadLength();
             int beginpos1 = sam.getAlignmentStart();
             int beginpos2 = sam.getMateAlignmentStart();
-            keys[0] = getKey(getRegion(beginpos1, read1Ref), read1Ref);
-            if(beginpos1 + readLength < chromosomeSizes[read1Ref]) // check if it goes out the chr range
-                keys[1] = getKey(getRegion(beginpos1 + readLength, read1Ref), read1Ref);
+            keys[0] = splitter.getKey(splitter.getRegion(beginpos1, read1Ref), read1Ref);
+            if(splitter.checkUpperBound(beginpos1 + readLength, read1Ref)) // check if it goes out the chr range
+                keys[1] = splitter.getKey(splitter.getRegion(beginpos1 + readLength, read1Ref), read1Ref);
             else 
                 keys[1] = keys[0];
             
-            keys[2] = getKey(getRegion(beginpos2, read2Ref), read2Ref);
-            if(beginpos2 + readLength < chromosomeSizes[read2Ref]) // check if it goes out the chr range
-                keys[3] = getKey(getRegion(beginpos2 + readLength, read2Ref), read2Ref);
+            keys[2] = splitter.getKey(splitter.getRegion(beginpos2, read2Ref), read2Ref);
+            if(splitter.checkUpperBound(beginpos2 + readLength, read2Ref)) // check if it goes out the chr range
+                keys[3] = splitter.getKey(splitter.getRegion(beginpos2 + readLength, read2Ref), read2Ref);
             else 
                 keys[3] = keys[2];
             Arrays.sort(keys);
@@ -206,16 +150,16 @@ public abstract class AlignerInstance {
             writableRecord.set(sam);            
             int beginpos = sam.getAlignmentStart();
             int endpos = sam.getAlignmentEnd();
-            int beginregion = getRegion(beginpos, sam.getReferenceIndex());
-            int endregion = getRegion(endpos, sam.getReferenceIndex());
+            int beginregion = splitter.getRegion(beginpos, sam.getReferenceIndex());
+            int endregion = splitter.getRegion(endpos, sam.getReferenceIndex());
             writableRegion.setChromosomeRegion(sam.getReferenceIndex(),  
-                    sam.getAlignmentStart(), getKey(beginregion, sam.getReferenceIndex()));
+                    sam.getAlignmentStart(), splitter.getKey(beginregion, sam.getReferenceIndex()));
             context.write(writableRegion, writableRecord);
             count++;
             if(beginregion != endregion) {
                 context.getCounter(HalvadeCounters.OUT_OVERLAPPING_READS).increment(1);
                 writableRegion.setChromosomeRegion(sam.getReferenceIndex(),  
-                        sam.getAlignmentStart(), getKey(endregion, sam.getReferenceIndex()));
+                        sam.getAlignmentStart(), splitter.getKey(endregion, sam.getReferenceIndex()));
                 context.write(writableRegion, writableRecord);
                 count++;
             }

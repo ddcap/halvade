@@ -21,7 +21,7 @@ import be.ugent.intec.halvade.hadoop.mapreduce.HalvadeCounters;
 import be.ugent.intec.halvade.utils.CommandGenerator;
 import be.ugent.intec.halvade.utils.HDFSFileIO;
 import be.ugent.intec.halvade.utils.Logger;
-import be.ugent.intec.halvade.utils.MyConf;
+import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.ProcessBuilderWrapper;
 import be.ugent.intec.halvade.utils.SAMStreamHandler;
 import java.io.BufferedWriter;
@@ -46,14 +46,12 @@ public class BWAAlnInstance extends AlignerInstance {
     private BufferedWriter fastqFile1;
     private BufferedWriter fastqFile2;
     private String taskId;
-    private boolean keep = false;
     
     private BWAAlnInstance(Mapper.Context context, String bin) throws IOException, URISyntaxException {
         super(context, bin);  
         taskId = context.getTaskAttemptID().toString();
         taskId = taskId.substring(taskId.indexOf("m_"));
-        ref = HDFSFileIO.downloadBWAIndex(context, taskId); 
-        keep = MyConf.getKeepFiles(context.getConfiguration());
+        ref = HDFSFileIO.downloadBWAIndex(context, taskId);
     }
     
     public int feedLine(String line, int read) throws IOException, InterruptedException  {
@@ -91,7 +89,7 @@ public class BWAAlnInstance extends AlignerInstance {
         // use half the threads if paired reads ( 2 instances of aln will run)
         int threadsToUse = threads;
         if (isPaired && threadsToUse > 1 ) threadsToUse /= 2;
-        String customArgs = MyConf.getBwaAlnArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getBwaAlnArgs(context.getConfiguration());
         String[] command1 = CommandGenerator.bwaAln(bin, ref, "/dev/stdin", getFileName(tmpdir, taskId, true, 1), threadsToUse, customArgs);
         reads1 = new ProcessBuilderWrapper(command1, bin);
         reads1.setThreads(threadsToUse);
@@ -161,7 +159,7 @@ public class BWAAlnInstance extends AlignerInstance {
     }
     
     private void startBWASamXe() throws InterruptedException { 
-        String customArgs = MyConf.getBwaSamxeArgs(context.getConfiguration());  
+        String customArgs = HalvadeConf.getBwaSamxeArgs(context.getConfiguration());  
         String[] command = CommandGenerator.bwaSamXe(bin, ref,
                 getFileName(tmpdir, taskId, true, 1), 
                 getFileName(tmpdir, taskId, false, 1), 
@@ -198,13 +196,6 @@ public class BWAAlnInstance extends AlignerInstance {
         removeLocalFile(getFileName(tmpdir, taskId, false, 2), context, HalvadeCounters.FOUT_BWA_TMP);
         instance = null;
     }
-    
-    protected boolean removeLocalFile(String filename, Mapper.Context context, HalvadeCounters counter) {
-        if(keep) return false;
-        File f = new File(filename);
-        if(f.exists()) context.getCounter(counter).increment(f.length());
-        return f.exists() && f.delete();
-    } 
     
     static public BWAAlnInstance getBWAInstance(Mapper.Context context, String bin) throws IOException, InterruptedException, URISyntaxException {
         if(instance == null) {

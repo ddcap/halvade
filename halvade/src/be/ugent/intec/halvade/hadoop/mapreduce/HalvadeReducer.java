@@ -10,7 +10,7 @@ import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import be.ugent.intec.halvade.tools.GATKTools;
 import be.ugent.intec.halvade.utils.HDFSFileIO;
 import be.ugent.intec.halvade.utils.Logger;
-import be.ugent.intec.halvade.utils.MyConf;
+import be.ugent.intec.halvade.utils.HalvadeConf;
 import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import fi.tkk.ics.hadoop.bam.VariantContextWritable;
 import java.io.File;
@@ -20,6 +20,7 @@ import java.net.URISyntaxException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.logging.Level;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMReadGroupRecord;
 import net.sf.samtools.SAMSequenceDictionary;
@@ -60,7 +61,7 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
         super.cleanup(context);
         Logger.DEBUG("count: " + count);
         String output = null;
-        String outputdir = MyConf.getOutDir(context.getConfiguration());   
+        String outputdir = HalvadeConf.getOutDir(context.getConfiguration());   
         if(variantFiles.size() > 1) { // should not happen -> multiple keys per reducer
             GATKTools gatk = new GATKTools(ref, bin);
             gatk.setThreadsPerType(dataThreads, cpuThreads);
@@ -101,19 +102,18 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
 
     @Override
     protected void reduce(ChromosomeRegion key, Iterable<SAMRecordWritable> values, Context context) throws IOException, InterruptedException {
-        tmpFileBase = tmp + taskId + key;
+        tmpFileBase = tmp + context.getTaskAttemptID().toString() + key;
     }
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
-        keepTmpFiles = MyConf.getKeepFiles(context.getConfiguration());
-        java = MyConf.getJava(context.getConfiguration());
-        tmp = MyConf.getScratchTempDir(context.getConfiguration());
-        ref = MyConf.findRefOnScratch(context.getConfiguration());
-        dataThreads = MyConf.getGATKNumDataThreads(context.getConfiguration());
-        cpuThreads = MyConf.getGATKNumCPUThreads(context.getConfiguration());
-        dict = MyConf.getSequenceDictionary(context.getConfiguration());
+        keepTmpFiles = HalvadeConf.getKeepFiles(context.getConfiguration());
+        java = HalvadeConf.getJava(context.getConfiguration());
+        tmp = HalvadeConf.getScratchTempDir(context.getConfiguration());
+        dataThreads = HalvadeConf.getGATKNumDataThreads(context.getConfiguration());
+        cpuThreads = HalvadeConf.getGATKNumCPUThreads(context.getConfiguration());
+        dict = HalvadeConf.getSequenceDictionary(context.getConfiguration());
         getReadGroupData(context.getConfiguration());
         taskId = context.getTaskAttemptID().toString();
         taskId = taskId.substring(taskId.indexOf("r_"));
@@ -122,7 +122,12 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
         count = 0;
         variantFiles = new ArrayList<>();
         bin  = checkBinaries(context);
-        
+        try {
+            ref = HDFSFileIO.downloadGATKIndex(context, taskId);
+        } catch (URISyntaxException ex) {
+            Logger.EXCEPTION(ex);
+            throw new InterruptedException();
+        }
     }
     
     protected boolean removeLocalFile(String filename) {
@@ -139,7 +144,7 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
     }
     
     protected void getReadGroupData(Configuration conf) {
-        String readGroup = MyConf.getReadGroup(conf);
+        String readGroup = HalvadeConf.getReadGroup(conf);
         String[] elements = readGroup.split(" ");
         for(String ele : elements) {
             String[] val = ele.split(":");
@@ -190,14 +195,12 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
     
     protected String checkBinaries(Reducer.Context context) throws IOException {
         Logger.DEBUG("Checking for binaries...");
-        String binDir = MyConf.getBinDir(context.getConfiguration());
-        if(binDir != null) {
-            return binDir;
-        }
-        Path[] localPath = context.getLocalCacheArchives();
-        for(int i = 0; i < localPath.length; i++ ) {
-            if(localPath[i].getName().equals("bin.tar.gz")) {
-                binDir = localPath[i] + "/bin/";
+        String binDir = null;
+        URI[] localPaths = context.getCacheArchives();
+        for(int i = 0; i < localPaths.length; i++ ) {
+            Path path = new Path(localPaths[i].getPath());
+            if(path.getName().endsWith(".tar.gz")) {
+                binDir = "./" + path.getName() + "/bin/";
             }
         }
         printDirectoryTree(new File(binDir), 0);

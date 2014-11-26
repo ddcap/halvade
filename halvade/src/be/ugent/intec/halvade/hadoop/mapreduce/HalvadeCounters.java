@@ -1,5 +1,4 @@
-/*
- * Copyright (C) 2014 ddecap
+ /* Copyright (C) 2014 ddecap
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,7 +24,8 @@ public enum HalvadeCounters {
     TIME_BWA_ALN,
     TIME_BWA_MEM,
     TIME_BWA_SAMPE,
-    TIME_IPREP,
+    TIME_STAR,
+    TIME_ELPREP,
     TIME_BEDTOOLS,
     TIME_SAMTOBAM,
     TIME_HADOOP_SAMTOBAM,
@@ -41,21 +41,23 @@ public enum HalvadeCounters {
     TIME_GATK_VARIANT_CALLER,
     
     IN_BWA_READS,
+    IN_PREP_READS,
     
     OUT_BWA_READS,
-    OUT_PREP_READS,
     OUT_VCF_FILES,
     OUT_UNMAPPED_READS,
     OUT_DIFF_CHR_READS,
     OUT_OVERLAPPING_READS,
     
     FOUT_BWA_TMP,
+    FOUT_STAR_TMP,
     FOUT_GATK_TMP,
     FOUT_GATK_VCF,
     FOUT_TO_HDFS,
     
     FIN_FROM_HDFS,
     
-    TOOLS_GATK
+    TOOLS_GATK,
     
+    STILL_RUNNING_HEARTBEAT
 }

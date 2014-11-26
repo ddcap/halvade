@@ -30,7 +30,7 @@ import be.ugent.intec.halvade.tools.ProcessException;
 import be.ugent.intec.halvade.tools.QualityException;
 import be.ugent.intec.halvade.utils.ChromosomeRange;
 import be.ugent.intec.halvade.utils.HDFSFileIO;
-import be.ugent.intec.halvade.utils.MyConf;
+import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.Logger;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -39,63 +39,57 @@ import java.net.URISyntaxException;
  *
  * @author ddecap
  */
-public class GATKReducer extends HalvadeReducer {
+public abstract class GATKReducer extends HalvadeReducer {
 
-    private boolean useBedTools;
-    private boolean useUnifiedGenotyper;
-    private double sec, scc;
-    private String exomeBedFile;    
+    protected boolean useBedTools;
+    protected boolean useUnifiedGenotyper;
+    protected double sec, scc;
+    protected String exomeBedFile;   
+    protected int newMaxQualScore = 60;
+    protected int windows, cluster;
+    protected double minFS, maxQD;
     
     @Override
     protected void reduce(ChromosomeRegion key, Iterable<SAMRecordWritable> values, Context context) throws IOException, InterruptedException {
         super.reduce(key, values, context);
         try {
-            processAlignments(key, values, context);
-        } catch (URISyntaxException ex) {
+            Logger.DEBUG("Processing key: " + key);        
+            // wrappers to call external programs
+            PreprocessingTools tools = new PreprocessingTools(bin);
+            GATKTools gatk = new GATKTools(ref, bin);
+            gatk.setContext(context);
+            tools.setContext(context);
+            gatk.setThreadsPerType(dataThreads, cpuThreads);
+            if(java !=null) {
+                gatk.setJava(java);
+                tools.setJava(java);
+            }
+            processAlignments(values, context, tools, gatk);
+        } catch (URISyntaxException | QualityException | ProcessException ex) {
             Logger.EXCEPTION(ex);
             throw new InterruptedException();
-        } catch (QualityException ex) {
-            Logger.EXCEPTION(ex);
-        } catch (ProcessException ex) {
-        throw new InterruptedException(ex.toString());
         }
     }
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
-        scc = MyConf.getSCC(context.getConfiguration());
-        sec = MyConf.getSEC(context.getConfiguration());
-        exomeBedFile = MyConf.getExomeBed(context.getConfiguration());
-        useBedTools = MyConf.getUseBedTools(context.getConfiguration());
-        useUnifiedGenotyper = MyConf.getUseUnifiedGenotyper(context.getConfiguration());
+        scc = HalvadeConf.getSCC(context.getConfiguration());
+        sec = HalvadeConf.getSEC(context.getConfiguration());
+        exomeBedFile = HalvadeConf.getExomeBed(context.getConfiguration());
+        useBedTools = HalvadeConf.getUseBedTools(context.getConfiguration());
+        useUnifiedGenotyper = HalvadeConf.getUseUnifiedGenotyper(context.getConfiguration());
     }
     
-    private void processAlignments(ChromosomeRegion key, Iterable<SAMRecordWritable> values, Context context) throws IOException, InterruptedException, URISyntaxException, QualityException {
-        Logger.DEBUG("Processing key: " + key);
-        long startTime = System.currentTimeMillis();
-        boolean useIPrep = MyConf.getUseIPrep(context.getConfiguration());
-        ChromosomeRange r = new ChromosomeRange();
-        SAMRecordIterator SAMit = new SAMRecordIterator(values.iterator(), header, r);
-        if(useIPrep)
-            elPrepPreprocess(context, SAMit);
-        else 
-            PicardPreprocess(context, SAMit);
-        
-        runGATK(context, r);
-        
-        long estimatedTime = System.currentTimeMillis() - startTime;
-        Logger.DEBUG("total estimated time: " + estimatedTime / 1000);
-    }
-        
-    private void elPrepPreprocess(Context context, SAMRecordIterator SAMit) throws InterruptedException, IOException, QualityException {
-        String dictF = ref.substring(0, ref.lastIndexOf(".fa")) + ".dict";
-        PreprocessingTools tools = new PreprocessingTools(bin);
-        tools.setContext(context);
+    protected abstract void processAlignments(Iterable<SAMRecordWritable> values, Context context, PreprocessingTools tools, GATKTools gatk) 
+            throws IOException, InterruptedException, URISyntaxException, QualityException;
+
+    
+    protected void elPrepPreprocess(Context context, PreprocessingTools tools, SAMRecordIterator input, String output) throws InterruptedException, IOException, QualityException {
+        String dictF = ref.substring(0, ref.lastIndexOf('.')) + ".dict";
         String rg = createReadGroupRecordString(RGID, RGLB, RGPL, RGPU, RGSM);
-        String preSamOut = tmpFileBase + "_.sam";
-        String samOut = tmpFileBase + ".sam";
-        String bamOut = tmpFileBase + ".bam";
+        String preSamOut = tmpFileBase + "-p1.sam";
+        String samOut = tmpFileBase + "-p2.sam";
         
         outHeader = header.clone();
         outHeader.setSortOrder(SAMFileHeader.SortOrder.coordinate);
@@ -104,53 +98,49 @@ public class GATKReducer extends HalvadeReducer {
         context.setStatus("call elPrep");
         int reads;
         if(keepTmpFiles) 
-            reads = tools.callElPrep(preSamOut, samOut, rg, dataThreads, SAMit, outHeader, dictF);
+            reads = tools.callElPrep(preSamOut, samOut, rg, dataThreads, input, outHeader, dictF);
         else
-            reads = tools.streamElPrep(context, samOut, rg, dataThreads, SAMit, outHeader, dictF);
+            reads = tools.streamElPrep(context, samOut, rg, dataThreads, input, outHeader, dictF);
         
         Logger.DEBUG(reads + " reads processed in elPrep");
-        context.getCounter(HalvadeCounters.OUT_PREP_READS).increment(reads);
+        context.getCounter(HalvadeCounters.IN_PREP_READS).increment(reads);
         context.setStatus("convert SAM to BAM");
         Logger.DEBUG("convert SAM to BAM");
-        tools.callSAMToBAM(samOut, bamOut);
+        tools.callSAMToBAM(samOut, output);
         context.setStatus("build bam index");
         Logger.DEBUG("build bam index");
-        tools.runBuildBamIndex(bamOut);
+        tools.runBuildBamIndex(output);
         // remove temporary files
         removeLocalFile(preSamOut, context, HalvadeCounters.FOUT_GATK_TMP);
         removeLocalFile(samOut, context, HalvadeCounters.FOUT_GATK_TMP);
     }
     
-    private void PicardPreprocess(Context context, SAMRecordIterator SAMit) throws InterruptedException, QualityException {
+    protected void PicardPreprocess(Context context, PreprocessingTools tools, SAMRecordIterator input, String output) throws InterruptedException, QualityException {
         outHeader = header.clone();
         outHeader.setSortOrder(SAMFileHeader.SortOrder.coordinate);
         // tmp files
-        String tmpOut1 = tmpFileBase + "-1.bam";
-        String tmpOut2 = tmpFileBase + "-2.bam";
-        String tmpOut3 = tmpFileBase + "-3.bam";
-        String tmpMetrics = tmpFileBase + "-metrics.txt";
-        String bamOut = tmpFileBase + ".bam";
+        String tmpOut1 = tmpFileBase + "-p1.bam";
+        String tmpOut2 = tmpFileBase + "-p2.bam";
+        String tmpOut3 = tmpFileBase + "-p3.bam";
+        String tmpMetrics = tmpFileBase + "-p3-metrics.txt";
         SAMFileWriterFactory factory = new SAMFileWriterFactory();
         SAMFileWriter writer = factory.makeBAMWriter(outHeader, true, new File(tmpOut1));
         
         long startTime = System.currentTimeMillis();
         
         SAMRecord sam;
-        while(SAMit.hasNext()) {
-            sam = SAMit.next();
+        while(input.hasNext()) {
+            sam = input.next();
             writer.addAlignment(sam);
         }
-        int reads = SAMit.getCount();
+        int reads = input.getCount();
         writer.close();
         
-        context.getCounter(HalvadeCounters.OUT_PREP_READS).increment(reads);
+        context.getCounter(HalvadeCounters.IN_PREP_READS).increment(reads);
         long estimatedTime = System.currentTimeMillis() - startTime;
         context.getCounter(HalvadeCounters.TIME_HADOOP_SAMTOBAM).increment(estimatedTime);
         
         //preprocess steps of iprep
-        PreprocessingTools tools = new PreprocessingTools(bin);
-        if(java !=null) tools.setJava(java);
-        tools.setContext(context);
         Logger.DEBUG("clean sam");
         context.setStatus("clean sam");
         tools.runCleanSam(tmpOut1, tmpOut2);
@@ -159,10 +149,10 @@ public class GATKReducer extends HalvadeReducer {
         tools.runMarkDuplicates(tmpOut2, tmpOut3, tmpMetrics);
         Logger.DEBUG("add read-group");
         context.setStatus("add read-group");
-        tools.runAddOrReplaceReadGroups(tmpOut3, bamOut, RGID, RGLB, RGPL, RGPU, RGSM);
+        tools.runAddOrReplaceReadGroups(tmpOut3, output, RGID, RGLB, RGPL, RGPU, RGSM);
         Logger.DEBUG("build bam index");
         context.setStatus("build bam index");
-        tools.runBuildBamIndex(bamOut);
+        tools.runBuildBamIndex(output);
         
         estimatedTime = System.currentTimeMillis() - startTime;
         Logger.DEBUG("estimated time: " + estimatedTime / 1000);
@@ -173,27 +163,8 @@ public class GATKReducer extends HalvadeReducer {
         removeLocalFile(tmpOut2, context, HalvadeCounters.FOUT_GATK_TMP);
         removeLocalFile(tmpOut3, context, HalvadeCounters.FOUT_GATK_TMP);       
     }
-    
-    private void runGATK(Context context, ChromosomeRange r) throws IOException, InterruptedException, URISyntaxException {
-        // get some ref seq and known snps
-        String[] snpslocal = HDFSFileIO.downloadSites(context, taskId);
-        // wrappers to call external programs
-        PreprocessingTools tools = new PreprocessingTools(bin);
-        GATKTools gatk = new GATKTools(ref, bin);
-        gatk.setContext(context);
-        tools.setContext(context);
-        gatk.setThreadsPerType(dataThreads, cpuThreads);
-        if(java !=null) gatk.setJava(java);
-        
-        // temporary files
-        String region = tmpFileBase + "-region.intervals";
-        String preprocess = tmpFileBase + ".bam";
-        String table = tmpFileBase + ".table";
-        String tmpFile1 = tmpFileBase + "-2.bam";
-        String tmpFile2 = tmpFileBase + "-3.bam";
-        String targets = tmpFileBase + ".intervals";
-        String snps = tmpFileBase + ".vcf";
-        
+
+    protected String makeRegionFile(Context context, ChromosomeRange r, PreprocessingTools tools, String region) throws URISyntaxException, IOException, InterruptedException {        
         // download exomebed 
         if(exomeBedFile != null) {
             String exomebed = tmpFileBase  + "exome.bed";
@@ -206,11 +177,37 @@ public class GATKReducer extends HalvadeReducer {
             region = tools.filterExomeBed(exomebed, r);
             if(region == null) {
                 Logger.DEBUG("empty region file, no vcf results!!");
-                return;
+                return null;
             }
         } else 
             r.writeToPicardRegionFile(region);
+        return region;
+    }
+
+    protected void indelRealignment(Context context, String region, GATKTools gatk, String input, String output) throws InterruptedException {
+        String targets = tmpFileBase + ".intervals";
         
+        Logger.DEBUG("run RealignerTargetCreator");
+        context.setStatus("run RealignerTargetCreator");
+        context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
+        gatk.runRealignerTargetCreator(input, targets, ref, region);
+        
+        Logger.DEBUG("run IndelRealigner");
+        context.setStatus("run IndelRealigner");
+        context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
+        gatk.runIndelRealigner(input, targets, output, ref, region);
+        
+        removeLocalFile(input, context, HalvadeCounters.FOUT_GATK_TMP);
+        removeLocalFile(input.replaceAll(".bam", ".bai"));
+        removeLocalFile(targets, context, HalvadeCounters.FOUT_GATK_TMP);
+    }
+    
+    protected void baseQualityScoreRecalibration(Context context, String region, ChromosomeRange r, PreprocessingTools tools, GATKTools gatk, 
+            String input, String output) throws InterruptedException, IOException, URISyntaxException {
+        String table = tmpFileBase + ".table";
+        
+        // get snp database(s)
+        String[] snpslocal = HDFSFileIO.downloadSites(context, taskId);
         String[] newKnownSites = new String[snpslocal.length];
         for(int i = 0 ; i < snpslocal.length; i++) {
             if(useBedTools) newKnownSites[i] = tools.filterDBSnps(snpslocal[i], r); 
@@ -219,56 +216,87 @@ public class GATKReducer extends HalvadeReducer {
                 newKnownSites[i] = HDFSFileIO.Unzip(newKnownSites[i]);
         }
         
-        // run GATK
-        Logger.DEBUG("run RealignerTargetCreator");
-        context.setStatus("run RealignerTargetCreator");
-        context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
-        gatk.runRealignerTargetCreator(preprocess, targets, ref, region);
-        Logger.DEBUG("run IndelRealigner");
-        context.setStatus("run IndelRealigner");
-        context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
-        gatk.runIndelRealigner(preprocess, targets, tmpFile1, ref, region);
         // should be created automatically by GATK if v3.x
 //        Logger.DEBUG("build bam index");
 //        context.setStatus("build bam index");
 //        tools.runBuildBamIndex(tmpFile1); 
         Logger.DEBUG("run baseRecalibrator");
         context.setStatus("run baseRecalibrator");
-//        try {
         context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
-        gatk.runBaseRecalibrator(tmpFile1, table, ref, newKnownSites, region);
-//        } catch (InterruptedException ie) {
-//            Logger.DEBUG("Caught BaseRecalibrator Exception");
-//            Logger.DEBUG("\tCan happen when the recalibration table is empty.");
-//            Logger.DEBUG("\tCaught in order to continue with other keys.");
-//            return;
-//        }
+        gatk.runBaseRecalibrator(input, table, ref, newKnownSites, region);
+        
         Logger.DEBUG("run printReads");
         context.setStatus("run printReads");
         context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
-        gatk.runPrintReads(tmpFile1, tmpFile2, ref, table, region);
+        gatk.runPrintReads(input, output, ref, table, region);
+        
+        removeLocalFile(input, context, HalvadeCounters.FOUT_GATK_TMP);
+        removeLocalFile(input.replaceAll(".bam", ".bai"));
+        removeLocalFile(table, context, HalvadeCounters.FOUT_GATK_TMP);
+        for(int i = 0 ; i < newKnownSites.length; i++) {
+            if(useBedTools) removeLocalFile(newKnownSites[i], context, HalvadeCounters.FOUT_GATK_TMP);
+        }
+    }
+
+    protected void DnaVariantCalling(Context context, String region, GATKTools gatk, String input, String output) throws InterruptedException {
         // choose between unifiendgenotyper vs haplotypegenotyper
         Logger.DEBUG("run variantCaller");
         context.setStatus("run variantCaller");
         context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
-        gatk.runVariantCaller(tmpFile2, snps, useUnifiedGenotyper, scc, sec, 
-                              ref, null, region);
+        if(useUnifiedGenotyper) 
+            gatk.runUnifiedGenotyper(input, output, scc, sec, ref, null, region);
+        else
+            gatk.runHaplotypeCaller(input, output, false, scc, sec, ref, null, region);
                 
         context.setStatus("cleanup");
         context.getCounter(HalvadeCounters.OUT_VCF_FILES).increment(1);
-        // remove all temporary files now!
-        removeLocalFile(preprocess, context, HalvadeCounters.FOUT_GATK_TMP);
-        removeLocalFile(table, context, HalvadeCounters.FOUT_GATK_TMP);
-        removeLocalFile(tmpFile1, context, HalvadeCounters.FOUT_GATK_TMP);
-        removeLocalFile(tmpFile2, context, HalvadeCounters.FOUT_GATK_TMP);
-        removeLocalFile(targets, context, HalvadeCounters.FOUT_GATK_TMP);
-        removeLocalFile(region);
-        removeLocalFile(tmpFileBase + ".bai");
-        removeLocalFile(tmpFileBase + "-2.bai");
-        removeLocalFile(tmpFileBase + "-3.bai");
-        variantFiles.add(snps);
-        for(int i = 0 ; i < newKnownSites.length; i++) {
-            if(useBedTools) removeLocalFile(newKnownSites[i], context, HalvadeCounters.FOUT_GATK_TMP);
-        }
+        
+        removeLocalFile(input, context, HalvadeCounters.FOUT_GATK_TMP);
+        removeLocalFile(input.replaceAll(".bam", ".bai"));
+    }
+    
+    protected void RnaVariantCalling(Context context, String region, GATKTools gatk, String input, String output) throws InterruptedException {
+        // choose between unifiendgenotyper vs haplotypegenotyper
+        Logger.DEBUG("run variantCaller");
+        context.setStatus("run variantCaller");
+        context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
+        //TODO set scc and sec to 20 by default for RNA
+        gatk.runHaplotypeCaller(input, output, true, scc, sec, ref, null, region);
+                
+        context.setStatus("cleanup");
+        context.getCounter(HalvadeCounters.OUT_VCF_FILES).increment(1);
+        
+        removeLocalFile(input, context, HalvadeCounters.FOUT_GATK_TMP);
+        removeLocalFile(input.replaceAll(".bam", ".bai"));
+    }
+
+    protected void splitNTrim(Context context, String region, GATKTools gatk, String input, String output) throws InterruptedException {        
+        Logger.DEBUG("run SplitNCigarReads");
+        context.setStatus("run SplitNCigarReads");
+        context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
+        gatk.runSplitNCigarReads(input, output, ref, region, newMaxQualScore);
+        
+        removeLocalFile(input, context, HalvadeCounters.FOUT_GATK_TMP);
+        removeLocalFile(input.replaceAll(".bam", ".bai"));
+    }
+    
+    // TODO improve annotate/filter
+    protected void filterVariants(Context context, GATKTools gatk, String input, String output) throws InterruptedException {      
+        Logger.DEBUG("run VariantFiltration");
+        context.setStatus("run VariantFiltration");
+        context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
+        gatk.runVariantFiltration(input, output, ref, windows, cluster, minFS, maxQD);
+        
+        removeLocalFile(input, context, HalvadeCounters.FOUT_GATK_TMP);
+    }
+    
+    protected void annotateVariants(Context context, String region, GATKTools gatk, String input, String output) throws InterruptedException { 
+        Logger.DEBUG("run VariantAnnotator");
+        context.setStatus("run VariantAnnotator");
+        context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
+        gatk.runVariantAnnotator(input, output, ref);
+        
+        removeLocalFile(input, context, HalvadeCounters.FOUT_GATK_TMP);
+        
     }
 }

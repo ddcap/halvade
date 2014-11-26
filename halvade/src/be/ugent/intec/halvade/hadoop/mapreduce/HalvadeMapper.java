@@ -9,10 +9,11 @@ package be.ugent.intec.halvade.hadoop.mapreduce;
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import be.ugent.intec.halvade.tools.AlignerInstance;
 import be.ugent.intec.halvade.utils.Logger;
-import be.ugent.intec.halvade.utils.MyConf;
+import be.ugent.intec.halvade.utils.HalvadeConf;
 import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import java.io.File;
 import java.io.IOException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
@@ -34,8 +35,8 @@ public class HalvadeMapper extends Mapper<LongWritable, Text, ChromosomeRegion, 
         try {
             // check if its the last on this node, if so close it:
             // assumes the jvm is reused fully (mapred.job.reuse.jvm.num.tasks = -1)
-            if (!reuseJVM || MyConf.allTasksCompleted(context.getConfiguration())) {
-                Logger.DEBUG("closing BWA");
+            if (!reuseJVM || HalvadeConf.allTasksCompleted(context.getConfiguration())) {
+                Logger.DEBUG("closing aligner");
                 // also runs the sampe/samse in this function!
                 // needs context to write output!
                 instance.closeAligner();
@@ -61,13 +62,13 @@ public class HalvadeMapper extends Mapper<LongWritable, Text, ChromosomeRegion, 
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
         try {
-            reuseJVM = MyConf.getReuseJVM(context.getConfiguration());  
+            reuseJVM = HalvadeConf.getReuseJVM(context.getConfiguration());  
             count = 0;
             readcount = 0;
             // add a file to distributed cache representing this task
             String taskId = context.getTaskAttemptID().toString();
             Logger.DEBUG("taskId = " + taskId);
-            MyConf.addTaskRunning(context.getConfiguration(), taskId);
+            HalvadeConf.addTaskRunning(context.getConfiguration(), taskId);
         } catch (URISyntaxException ex) {
             Logger.EXCEPTION(ex);
             throw new InterruptedException();
@@ -76,14 +77,12 @@ public class HalvadeMapper extends Mapper<LongWritable, Text, ChromosomeRegion, 
     
     protected String checkBinaries(Context context) throws IOException {
         Logger.DEBUG("Checking for binaries...");
-        String binDir = MyConf.getBinDir(context.getConfiguration());
-        if(binDir != null) {
-            return binDir;
-        }
-        Path[] localPath = context.getLocalCacheArchives();
-        for(int i = 0; i < localPath.length; i++ ) {
-            if(localPath[i].getName().equals("bin.tar.gz")) {
-                binDir = localPath[i] + "/bin/";
+        String binDir = null;
+        URI[] localPaths = context.getCacheArchives();
+        for(int i = 0; i < localPaths.length; i++ ) {
+            Path path = new Path(localPaths[i].getPath());
+            if(path.getName().endsWith(".tar.gz")) {
+                binDir = "./" + path.getName() + "/bin/";
             }
         }
         printDirectoryTree(new File(binDir), 0);

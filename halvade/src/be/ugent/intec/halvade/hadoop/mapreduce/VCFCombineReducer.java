@@ -18,7 +18,7 @@
 package be.ugent.intec.halvade.hadoop.mapreduce;
 
 import be.ugent.intec.halvade.utils.Logger;
-import be.ugent.intec.halvade.utils.MyConf;
+import be.ugent.intec.halvade.utils.HalvadeConf;
 import fi.tkk.ics.hadoop.bam.KeyIgnoringVCFOutputFormat;
 import fi.tkk.ics.hadoop.bam.VCFFormat;
 import fi.tkk.ics.hadoop.bam.VariantContextWritable;
@@ -78,9 +78,9 @@ public class VCFCombineReducer extends Reducer<LongWritable, VariantContextWrita
         try {
             // read header from input
             outpFormat = new KeyIgnoringVCFOutputFormat(VCFFormat.VCF);
-            String input = MyConf.getInputDir(context.getConfiguration());
-            String output = MyConf.getOutDir(context.getConfiguration());
-            reportBest = MyConf.getReportAllVariant(context.getConfiguration());
+            String input = HalvadeConf.getInputDir(context.getConfiguration());
+            String output = HalvadeConf.getOutDir(context.getConfiguration());
+            reportBest = HalvadeConf.getReportAllVariant(context.getConfiguration());
             FileSystem fs = FileSystem.get(new URI(input), context.getConfiguration());
             Path firstVcfFile = null;
             if (fs.getFileStatus(new Path(input)).isDirectory()) {
