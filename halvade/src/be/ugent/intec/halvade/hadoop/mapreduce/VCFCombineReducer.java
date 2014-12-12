@@ -63,11 +63,9 @@ public class VCFCombineReducer extends Reducer<LongWritable, VariantContextWrita
                 if(bestVar.get().getPhredScaledQual() < tmpVar.get().getPhredScaledQual())
                     bestVar = tmpVar;            
             }
-//            context.write(key, bestVar);
             recordWriter.write(key, bestVar);
         } else {
             while(it.hasNext()){
-//                context.write(key, it.next());   
                 recordWriter.write(key, it.next());
             }
         }

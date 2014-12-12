@@ -52,8 +52,8 @@ public class MapReduceRunner extends Configured implements Tool  {
         try {
             Configuration halvadeConf = getConf();
             halvadeOpts = new HalvadeOptions();
-            int optR = halvadeOpts.GetOptions(strings, halvadeConf);
-            if (optR != 0) return optR;
+            int optReturn = halvadeOpts.GetOptions(strings, halvadeConf);
+            if (optReturn != 0) return optReturn;
             // initialise MapReduce - copy ref to each node??
             
             
@@ -106,7 +106,6 @@ public class MapReduceRunner extends Configured implements Tool  {
             
             if(halvadeOpts.dryRun) 
                 return 0;
-            
             Timer timer = new Timer();
             timer.start();
             ret = halvadeJob.waitForCompletion(true) ? 0 : 1;
@@ -114,7 +113,7 @@ public class MapReduceRunner extends Configured implements Tool  {
             Logger.DEBUG("Running time of Halvade Job: " + timer);
             
             
-            if(halvadeOpts.combineVcf && ret == 0) {
+            if(!halvadeOpts.justAlign && (halvadeOpts.combineVcf && ret == 0)) {
                 Logger.DEBUG("combining output");
                 Configuration combineConf = getConf();
                 if(!halvadeOpts.out.endsWith("/")) halvadeOpts.out += "/";  

@@ -20,7 +20,6 @@ import java.net.URISyntaxException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.logging.Level;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMReadGroupRecord;
 import net.sf.samtools.SAMSequenceDictionary;
@@ -51,7 +50,7 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
     protected String RGPL = "ILLUMINA";
     protected String RGPU = "UNIT1";
     protected String RGSM = "SAMPLE1";
-    protected int dataThreads, cpuThreads;
+    protected int threads;
     protected String referenceName;
     protected SAMFileHeader outHeader;
     protected boolean keepTmpFiles = false;
@@ -64,7 +63,7 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
         String outputdir = HalvadeConf.getOutDir(context.getConfiguration());   
         if(variantFiles.size() > 1) { // should not happen -> multiple keys per reducer
             GATKTools gatk = new GATKTools(ref, bin);
-            gatk.setThreadsPerType(dataThreads, cpuThreads);
+            gatk.setThreads(threads);
             gatk.setContext(context);
             if(java !=null) gatk.setJava(java);
             output = tmp + context.getTaskAttemptID().toString() + ".vcf";
@@ -111,8 +110,7 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
         keepTmpFiles = HalvadeConf.getKeepFiles(context.getConfiguration());
         java = HalvadeConf.getJava(context.getConfiguration());
         tmp = HalvadeConf.getScratchTempDir(context.getConfiguration());
-        dataThreads = HalvadeConf.getGATKNumDataThreads(context.getConfiguration());
-        cpuThreads = HalvadeConf.getGATKNumCPUThreads(context.getConfiguration());
+        threads = HalvadeConf.getReducerThreads(context.getConfiguration());
         dict = HalvadeConf.getSequenceDictionary(context.getConfiguration());
         getReadGroupData(context.getConfiguration());
         taskId = context.getTaskAttemptID().toString();

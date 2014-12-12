@@ -24,28 +24,38 @@ import java.util.zip.GZIPOutputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.compress.CompressionCodec;
 
 /**
  *
  * @author ddecap
  */
 public class HDFSInterleaveFiles extends BaseInterleaveFiles {
-    FileSystem fs; // HDFS
+    protected FileSystem fs; // HDFS or others (lustre,gpfs)
+    protected CompressionCodec codec;
     
-    public HDFSInterleaveFiles(String paired, String single, long maxFileSize, FileSystem fs) {
-        super(paired, single, maxFileSize);
+    public HDFSInterleaveFiles(String base, long maxFileSize, FileSystem fs, int thread, CompressionCodec codec) {
+        super(base, maxFileSize, thread);
         this.fs = fs;
         this.fsName = "HDFS";
+        this.codec = codec;
+        if(codec != null)
+            useHadoopCompression = true;
     }
 
     @Override
     protected OutputStream getNewDataStream(int part, String prefix) throws IOException {
-       return fs.create(new Path(prefix + part + ".fq.gz"),true);
+       return fs.create(new Path(prefix + part +
+                (useHadoopCompression ? ".fq" + codec.getDefaultExtension() : ".fq.gz")),true);
     }
 
     @Override
-    protected BufferedOutputStream getNewGZIPStream(OutputStream dataStream) throws IOException {
-        return new BufferedOutputStream(new GZIPOutputStream(dataStream), BUFFERSIZE);
+    protected BufferedOutputStream getNewCompressedStream(OutputStream dataStream) throws IOException {
+        return new BufferedOutputStream(
+                useHadoopCompression ? 
+                        codec.createOutputStream(dataStream):
+                        new GZIPOutputStream(dataStream), 
+                BUFFERSIZE);
     }
 
     @Override

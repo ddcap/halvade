@@ -27,7 +27,7 @@ import java.util.Arrays;
 public class CommandGenerator {
     
     public static ArrayList<String> addToCommand(ArrayList<String> command, String args) {
-        if(args.isEmpty()) return command;
+        if(args == null || args.isEmpty()) return command;
         command.addAll(Arrays.asList(args.split("\\s+")));
         return command;
     }
@@ -206,7 +206,8 @@ public class CommandGenerator {
         command.add(starOptions[6]);
         command.add("" + overhang);
         command.add(starOptions[7]);
-        command.add("SAM");        
+        command.add("SAM");
+        command.add("Unsorted");
         if(readsFile1.endsWith(".gz")) {
             command.add(starOptions[8]);
             command.add("zcat");

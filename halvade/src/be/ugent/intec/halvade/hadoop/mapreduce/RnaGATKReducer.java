@@ -34,7 +34,7 @@ public class RnaGATKReducer extends GATKReducer {
         String tmpFile3 = tmpFileBase + "-4.bam";
         String snps = tmpFileBase + ".vcf";    
 //        String filteredSnps = tmpFileBase + "-filtered.vcf";    
-//        String annotatedSnps = tmpFileBase + "-annotated.vcf";   
+//        String annotatedSnps = tmpFileBase + "-annotated.vcf";
         
         boolean useElPrep = HalvadeConf.getUseIPrep(context.getConfiguration());
         ChromosomeRange r = new ChromosomeRange();

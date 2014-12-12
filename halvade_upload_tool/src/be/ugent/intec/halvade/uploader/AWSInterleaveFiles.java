@@ -23,18 +23,23 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.zip.GZIPOutputStream;
+import org.apache.hadoop.io.compress.CompressionCodec;
 
 /**
  *
  * @author ddecap
  */
 public class AWSInterleaveFiles extends BaseInterleaveFiles {
-    AWSUploader upl; // S3
+    protected AWSUploader upl; // S3
+    protected CompressionCodec codec;
     
-    public AWSInterleaveFiles(String paired, String single, long maxFileSize, AWSUploader upl) {
-        super(paired, single, maxFileSize);
+    public AWSInterleaveFiles(String base, long maxFileSize, AWSUploader upl, int thread, CompressionCodec codec) {
+        super(base, maxFileSize, thread);
         this.upl = upl;
         this.fsName = "S3";
+        this.codec = codec;
+        if(codec != null)
+            useHadoopCompression = true;
     }
 
     @Override
@@ -43,9 +48,13 @@ public class AWSInterleaveFiles extends BaseInterleaveFiles {
     }
 
     @Override
-    protected BufferedOutputStream getNewGZIPStream(OutputStream dataStream) throws IOException {
+    protected BufferedOutputStream getNewCompressedStream(OutputStream dataStream) throws IOException {
         ((ByteArrayOutputStream)dataStream).reset();
-        return new BufferedOutputStream(new GZIPOutputStream(dataStream), BUFFERSIZE);
+        return new BufferedOutputStream(
+                useHadoopCompression ? 
+                        codec.createOutputStream(dataStream):
+                        new GZIPOutputStream(dataStream), 
+                BUFFERSIZE);
     }
 
     @Override
@@ -58,7 +67,7 @@ public class AWSInterleaveFiles extends BaseInterleaveFiles {
         ByteArrayOutputStream byteStream = (ByteArrayOutputStream) dataStream;
         try {
             Logger.DEBUG("uploading part " + part + ": " + byteStream.size());
-            upl.Upload(pairedBase + part + ".fq.gz", new ByteArrayInputStream(byteStream.toByteArray()), byteStream.size());
+            upl.Upload(fileBase + part + (useHadoopCompression ? ".fq" + codec.getDefaultExtension() : ".fq.gz"), new ByteArrayInputStream(byteStream.toByteArray()), byteStream.size());
             gzipStream.close();
         } catch (InterruptedException ex) {
             Logger.DEBUG("failed to upload part to AWS...");

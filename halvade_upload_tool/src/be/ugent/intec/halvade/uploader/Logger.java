@@ -47,13 +47,25 @@ public class Logger {
         }
     }
     
+    public static void THROWABLE(Throwable ex){
+        if (LEVEL >= EXCEPTION) {
+            System.err.println("[EXCEPTION] " + ex.getLocalizedMessage());
+            ex.printStackTrace();
+        }
+    }
+    
     public static void DEBUG(String message) {
         if(LEVEL >= DEBUG)
-            System.err.println("[DEBUG] " + message);
+            System.err.println("[" + Timer.getGlobalTime() + " - DEBUG] " + message);
     }
     
     public static void INFO(String message) {
         if(LEVEL >= INFO)
             System.err.println("[INFO] " + message);
+    }
+    
+    public static void DEBUG(String message, int level) {
+        if(LEVEL >= level)
+            System.err.println("[" + Timer.getGlobalTime() + " - DEBUG] " + message);
     }
 }

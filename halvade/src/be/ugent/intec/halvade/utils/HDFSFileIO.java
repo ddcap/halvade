@@ -25,7 +25,6 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.ArrayList;
 import java.util.zip.GZIPInputStream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -177,7 +176,7 @@ public class HDFSFileIO {
     protected static String HALVADE_BWA_SUFFIX = ".bwa_ref";
     protected static String HALVADE_GATK_SUFFIX = ".gatk_ref";
     protected static String HALVADE_STAR_SUFFIX = ".star_ref";
-    protected static String HALVADE_DBSNP_SUFFIX = ".dbsnps";
+    protected static String HALVADE_DBSNP_SUFFIX = ".dbsnp";
     protected static String[] BWA_REF_FILES = 
         {".fasta", ".fasta.amb", ".fasta.ann", ".fasta.bwt", ".fasta.pac", ".fasta.sa", ".fasta.fai", ".dict" }; 
     protected static String[] GATK_REF_FILES =  {".fasta", ".fasta.fai", ".dict" }; 
@@ -193,7 +192,7 @@ public class HDFSFileIO {
             for (File file : dir.listFiles()) {
                 if(file.isDirectory() && recursive) {
                     foundPrefix = findFile(file.getAbsolutePath(), suffix, recursive);
-                } else if (file.getName().endsWith(suffix)) {
+                } else if (file.getAbsolutePath().endsWith(suffix)) {
                     foundPrefix = file.getAbsolutePath().substring(0, file.getAbsolutePath().lastIndexOf('.'));
                     Logger.DEBUG("found existing ref: \"" + foundPrefix + "\"");
                 }

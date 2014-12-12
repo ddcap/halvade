@@ -38,15 +38,14 @@ public class GATKTools {
     String gatk;
     String java;
     String mem = "-Xmx2g";
-    int threadingType = 0; // 0 = data multithreading, 1 = cpu multithreading
-    int[] threadsPerType = {1 ,1}; // 0 = data multithreading, 1 = cpu multithreading
+    int threadingType = 0; // [default] 0 = data multithreading (1 = cpu multithreading)
+    int threads = 1; 
     String[] multiThreadingTypes = {"-nt", "-nct"};
     DecimalFormat onedec;
     Reducer.Context context;
     
-    public void setThreadsPerType(int dataThreads, int cpuThreads) {
-        threadsPerType[0] = dataThreads;
-        threadsPerType[1] = cpuThreads;
+    public void setThreads(int threads) {
+        this.threads = threads;
     }
     
     public void setThreadingType(int threadingType) {
@@ -83,7 +82,7 @@ public class GATKTools {
     }
     
     private static String[] AddCustomArguments(String[] command, String customArgs) {
-        if(customArgs.isEmpty()) return command;
+        if(customArgs == null || customArgs.isEmpty()) return command;
         ArrayList<String> tmp = new ArrayList(Arrays.asList(command));
         tmp = CommandGenerator.addToCommand(tmp, customArgs);  
         Object[] ObjectList = tmp.toArray();
@@ -120,7 +119,7 @@ public class GATKTools {
         String[] gatkcmd = {
             java, mem, "-jar", gatk,
             "-T", "BaseRecalibrator",
-            multiThreadingTypes[1], "" + threadsPerType[1], // only -nct
+            multiThreadingTypes[1], "" + threads, // only -nct
             "-R", ref,
             "-I", input,
             "-o", table,
@@ -132,7 +131,7 @@ public class GATKTools {
             command.add(knownSite);
         }
 //        command.addAll(Arrays.asList(covString));
-        String customArgs = HalvadeConf.getGatkBaseRecalibratorArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "gatk", "baserecalibrator");
         command = CommandGenerator.addToCommand(command, customArgs);   
         Object[] objectList = command.toArray();
         long estimatedTime = runProcessAndWait("GATK BaseRecalibrator", Arrays.copyOf(objectList,objectList.length,String[].class));
@@ -153,12 +152,12 @@ public class GATKTools {
         String[] command = {
             java, mem, "-jar", gatk,
             "-T", "RealignerTargetCreator",
-            multiThreadingTypes[0], "" + threadsPerType[0], // only supports -nt
+            multiThreadingTypes[0], "" + threads, // only supports -nt
             "-R", ref,
             "-I", input,
             "-o", targets,
             "-L", region};
-        String customArgs = HalvadeConf.getGatkRealignerTargetCreatorArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "gatk", "realignertargetcreator");
         long estimatedTime = runProcessAndWait("GATK RealignerTargetCreator", AddCustomArguments(command, customArgs));    
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_TARGET_CREATOR).increment(estimatedTime);
@@ -189,7 +188,7 @@ public class GATKTools {
             "-RMQT", "" + newMaxQualScore,
             "-U", "ALLOW_N_CIGAR_READS",
             "-L", region};
-        String customArgs = HalvadeConf.getGatkSplitNTrimArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "gatk", "splitncigarreads");
         long estimatedTime = runProcessAndWait("GATK SplitNCigarReads", AddCustomArguments(command, customArgs));   
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_INDEL_REALN).increment(estimatedTime);   
@@ -224,7 +223,7 @@ public class GATKTools {
             "-filter", "FS > " + roundOneDecimal(minFS),
             "-filterName", "QD",
             "-filter", "QD < " + roundOneDecimal(maxQD)};
-        String customArgs = HalvadeConf.getGatkVariantFiltrationArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "gatk", "variantfiltration");
         long estimatedTime = runProcessAndWait("GATK VariantFiltration", AddCustomArguments(command, customArgs));   
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_INDEL_REALN).increment(estimatedTime);   
@@ -249,11 +248,11 @@ public class GATKTools {
         String[] command = {
             java, mem, "-jar", gatk,
             "-T", "VariantAnnotator",
-            multiThreadingTypes[0], "" + threadsPerType[0], 
+            multiThreadingTypes[0], "" + threads, 
             "-R", ref,
             "-V", input,
             "-o", output};
-        String customArgs = HalvadeConf.getGatkVariantFiltrationArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "gatk", "variantannotator");
         long estimatedTime = runProcessAndWait("GATK VariantAnnotator", AddCustomArguments(command, customArgs));   
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_INDEL_REALN).increment(estimatedTime);
@@ -280,7 +279,7 @@ public class GATKTools {
             "-targetIntervals", targets,
             "-o", output,
             "-L", region};
-        String customArgs = HalvadeConf.getGatkIndelRealignerArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "gatk", "indelrealigner");
         long estimatedTime = runProcessAndWait("GATK IndelRealigner", AddCustomArguments(command, customArgs));   
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_INDEL_REALN).increment(estimatedTime);    
@@ -302,7 +301,7 @@ public class GATKTools {
             "-o", output,
             "-BQSR", table,
             "-L", region};
-        String customArgs = HalvadeConf.getGatkPrintReadsArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "gatk", "printreads");
         long estimatedTime = runProcessAndWait("GATK PrintReads", AddCustomArguments(command, customArgs));  
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_GATK_PRINT_READS).increment(estimatedTime);        
@@ -323,7 +322,7 @@ public class GATKTools {
         String[] gatkcmd = {
             java, mem, "-jar", gatk,
             "-T", "CombineVariants",
-            multiThreadingTypes[0], "" + threadsPerType[0],
+            multiThreadingTypes[0], "" + threads,
             "-R", ref,
             "-o", output, "-sites_only",
             "-genotypeMergeOptions", "UNIQUIFY"};
@@ -334,7 +333,7 @@ public class GATKTools {
                 command.add(input);
             }
         }
-        String customArgs = HalvadeConf.getGatkCombineVariantsArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "gatk", "combinevariants");
         command = CommandGenerator.addToCommand(command, customArgs);   
         Object[] objectList = command.toArray();
         long estimatedTime = runProcessAndWait("GATK CombineVariants", Arrays.copyOf(objectList,objectList.length,String[].class));
@@ -353,7 +352,7 @@ public class GATKTools {
         String[] gatkcmd = {
             java, mem, "-jar", gatk,
             "-T", "UnifiedGenotyper",
-            multiThreadingTypes[threadingType], "" + threadsPerType[threadingType], 
+            multiThreadingTypes[threadingType], "" + threads, 
             "-R", ref,
             "-I", input,
             "-o", output,
@@ -368,7 +367,7 @@ public class GATKTools {
                 command.add(knownSite);
             }
         }
-        String customArgs = HalvadeConf.getGatkVariantCallerArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "gatk", "variantcaller");
         command = CommandGenerator.addToCommand(command, customArgs);   
         Object[] objectList = command.toArray();
         long estimatedTime = runProcessAndWait("GATK UnifiedGenotyper", Arrays.copyOf(objectList,objectList.length,String[].class));   
@@ -387,7 +386,7 @@ public class GATKTools {
         String[] gatkcmd = {
             java, mem, "-jar", gatk,
             "-T", "HaplotypeCaller",
-            multiThreadingTypes[1], "" + threadsPerType[1], 
+            multiThreadingTypes[1], "" + threads, 
             "-R", ref,
             "-I", input,
             "-o", output,
@@ -405,7 +404,7 @@ public class GATKTools {
                 command.add(knownSite);
             }
         }
-        String customArgs = HalvadeConf.getGatkVariantCallerArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "gatk", "variantcaller");
         command = CommandGenerator.addToCommand(command, customArgs);   
         Object[] objectList = command.toArray();
         long estimatedTime = runProcessAndWait("GATK HaplotypeCaller", Arrays.copyOf(objectList,objectList.length,String[].class));   

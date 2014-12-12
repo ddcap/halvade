@@ -21,6 +21,7 @@ import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import be.ugent.intec.halvade.tools.AlignerInstance;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import net.sf.samtools.*;
 import net.sf.samtools.util.BufferedLineReader;
@@ -94,7 +95,7 @@ public class SAMStreamHandler extends Thread {
                 //advance line even if bad line
                 advanceLine();
             }
-        } catch (Exception ex) {
+        } catch (IOException | InterruptedException ex) {
             Logger.EXCEPTION(ex);
         }
         Logger.DEBUG("ending loop with " + count + " records read");

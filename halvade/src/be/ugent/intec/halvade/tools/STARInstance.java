@@ -132,9 +132,7 @@ public class STARInstance extends AlignerInstance {
         }
         
         // make command
-        String customArgs = HalvadeConf.getBwaMemArgs(context.getConfiguration());
-        // overhang = reandlength -1 
-        // count nreads! -> 
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "star", "");
         String[] command = CommandGenerator.starAlign(bin, ref, starOutDir, starTmpDir, 
                 getFileName(tmpdir, taskId, 1), getFileName(tmpdir, taskId, 2), threads, overhang, nReads, customArgs);
         star = new ProcessBuilderWrapper(command, bin);

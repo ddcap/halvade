@@ -36,29 +36,8 @@ public class HalvadeConf {
     /*
      * Custom configuration
      * helps to set some fixed parameters in shared configuration
-     */
-    // names of variables
-    private static final String tasksDone = "tasksDone/";
-    private static final String scratchTempDirName = "tempdir";
-    private static final String refOnScratchName = "scratchref";
-    private static final String sitesOnHDFSName = "hdfssites";
-    private static final String numberOfSites = "numsites";
-    private static final String refOnHDFSName = "hdfsref";
-    private static final String starDirOnHDFSName = "hdfsSTARref";
-    private static final String dictionarySequenceName = "seqdictionary_";
-    private static final String dictionarySequenceLength = "seqdictionarylength_";
-    private static final String dictionaryCount = "seqcount";
-    private static final String threadcount = "threads";
-    private static final String gatkdatathreadcount = "gatkdatathreads";
-    private static final String gatkcputhreadcount = "gatkcputhreads";
-    private static final String corescount = "cores";
-    private static final String fastqEncoding = "hbam.fastq-input.base-quality-encoding";
-    private static final String readgroup = "readgroup";
-    private static final String refSize = "refsize";
-    private static final long HUMAN_REF_SIZE = 3137161264L; // based on ucsc.hg19.fasta (see gatk bundle)
+     */ 
     
-
-
     private static final String java = "Java";
     public static void setJava(Configuration conf, String val) {
         conf.set(java, val);
@@ -168,6 +147,8 @@ public class HalvadeConf {
         return conf.get(outdir);
     }
     
+    private static final String refSize = "refsize";
+    private static final long HUMAN_REF_SIZE = 3137161264L; // based on ucsc.hg19.fasta (see gatk bundle)
     public static void setRefSize(Configuration conf, long val) {
         conf.setLong(refSize, val);
     }
@@ -175,33 +156,23 @@ public class HalvadeConf {
         return conf.getLong(refSize, HUMAN_REF_SIZE);
     }
     
-    public static void setNumThreads(Configuration conf, int val) {
-        conf.setInt(threadcount, val);
+    private static final String mapThreads = "mapthreads";
+    public static void setMapThreads(Configuration conf, int val) {
+        conf.setInt(mapThreads, val);
     }
-    public static int getNumThreads(Configuration conf) {
-        return conf.getInt(threadcount, 1);
-    }
-    
-    public static void setGATKNumDataThreads(Configuration conf, int val) {
-        conf.setInt(gatkdatathreadcount, val);
-    }
-    public static int getGATKNumDataThreads(Configuration conf) {
-        return conf.getInt(gatkdatathreadcount, 1);
-    }
-    public static void setGATKNumCPUThreads(Configuration conf, int val) {
-        conf.setInt(gatkcputhreadcount, val);
-    }
-    public static int getGATKNumCPUThreads(Configuration conf) {
-        return conf.getInt(gatkcputhreadcount, 1);
-    }
-
-    public static void setNumNodes(Configuration conf, int val) {
-        conf.setInt(corescount, val);
-    }
-    public static int getNumNodes(Configuration conf) {
-        return conf.getInt(corescount, 1);
+    public static int getMapThreads(Configuration conf) {
+        return conf.getInt(mapThreads, 1);
     }
     
+    private static final String reduceThreads = "reducethreads";
+    public static void setReducerThreads(Configuration conf, int val) {
+        conf.setInt(reduceThreads, val);
+    }
+    public static int getReducerThreads(Configuration conf) {
+        return conf.getInt(reduceThreads, 1);
+    }
+    
+    private static final String scratchTempDirName = "tempdir";
     public static void setScratchTempDir(Configuration conf, String val) {
         if(!val.endsWith("/"))
             conf.set(scratchTempDirName, val + "/");
@@ -212,6 +183,7 @@ public class HalvadeConf {
         return conf.get(scratchTempDirName);
     }
     
+    private static final String readgroup = "readgroup";
     public static void setReadGroup(Configuration conf, String val) {
         conf.set(readgroup, val);
     }
@@ -219,6 +191,7 @@ public class HalvadeConf {
         return conf.get(readgroup);
     }
     
+    private static final String refOnScratchName = "scratchref";
     public static void setRefDirOnScratch(Configuration conf, String val) {
         conf.set(refOnScratchName, val);
     }
@@ -226,6 +199,8 @@ public class HalvadeConf {
         return conf.get(refOnScratchName);
     }
     
+    private static final String sitesOnHDFSName = "hdfssites";
+    private static final String numberOfSites = "numsites";
     public static void setKnownSitesOnHDFS(Configuration conf, String[] val) throws IOException, URISyntaxException {
         conf.setInt(numberOfSites, val.length);
         FileSystem fs;
@@ -254,24 +229,7 @@ public class HalvadeConf {
         return sites;
     }
     
-    public static String[] findKnownSitesOnScratch(Configuration conf, String id) {
-        String snpsBase = conf.get(scratchTempDirName) + id + ".dbsnps";
-        File dir  = new File(conf.get(scratchTempDirName));
-        for (File file : dir.listFiles()) {
-            if (file.getName().endsWith(".dbsnps__")) {
-                snpsBase = file.getAbsolutePath().substring(0, file.getAbsolutePath().length() - 2);
-                Logger.DEBUG("found existing snps: \"" + snpsBase + "\"");
-            }
-        }
-        int size = conf.getInt(numberOfSites, 0);
-        String[] sites = new String[size];
-        // number of files starting with base: should be between size + 1 and 2*size + 1 (.idx not needed!)
-        for(int i = 0; i < size; i ++) {
-            sites[i] = snpsBase + i + ".vcf";
-        }
-        return sites;
-    }
-    
+    private static final String tasksDone = "tasksDone/";
     public static void clearTaskFiles(Configuration conf) throws IOException, URISyntaxException {
         String filepath = conf.get(outdir) + tasksDone;
         FileSystem fs = FileSystem.get(new URI(filepath), conf);
@@ -291,7 +249,7 @@ public class HalvadeConf {
         FileSystem fs = FileSystem.get(new URI(filedir), conf);
         FileStatus[] files = fs.listStatus(new Path(filedir));
         for(FileStatus file : files) {
-            if (!file.isDir()) {
+            if (!file.isDirectory()) {
                 tasks++;
             }
         }
@@ -299,6 +257,7 @@ public class HalvadeConf {
         return tasks >= Integer.parseInt(conf.get("mapred.map.tasks"));        
     }
     
+    private static final String refOnHDFSName = "hdfsref";
     public static void setRefOnHDFS(Configuration conf, String val) {
         conf.set(refOnHDFSName, val);
     }    
@@ -306,6 +265,7 @@ public class HalvadeConf {
         return conf.get(refOnHDFSName);
     }
     
+    private static final String starDirOnHDFSName = "hdfsSTARref";
     public static void setStarDirOnHDFS(Configuration conf, String val) {
         conf.set(starDirOnHDFSName, val);
     }    
@@ -317,6 +277,9 @@ public class HalvadeConf {
         return Integer.parseInt(conf.get("mapred.map.tasks"));
     }
     
+    private static final String dictionarySequenceName = "seqdictionary_";
+    private static final String dictionarySequenceLength = "seqdictionarylength_";
+    private static final String dictionaryCount = "seqcount";
     public static void setSequenceDictionary(Configuration conf, SAMSequenceDictionary dict) throws IOException, URISyntaxException {
         int counter = 0;
         for(SAMSequenceRecord seq : dict.getSequences()) {
@@ -339,29 +302,17 @@ public class HalvadeConf {
         return dict;
     }
     
-    private static final String scc = "scc";
-    private static final float DEFAULT_SCC = 30.0f;
-    private static final String sec = "sec";
-    private static final float DEFAULT_SEC = 30.0f;
-    private static final String minChrSize = "minchrSize";
-    private static final int DEFAULT_MIN_CHR_SIZE = 63025520;
-    private static final String chrList = "chrlist";
-    private static final String tasksPerNode = "tpn";
-    private static final String nReducers = "reducersCount";
-    private static final float DEFAULT_TPN = 1f;
     
+    private static final String chrList = "chrlist";
     public static void setChrList(Configuration conf, String val) {
         conf.set(chrList, val);
     }    
     public static String getChrList(Configuration conf) {
         return conf.get(chrList);
     }
-    public static void setReducers(Configuration conf, int val) {
-        conf.setInt(nReducers, val);
-    }    
-    public static int getReducers(Configuration conf) {
-        return conf.getInt(nReducers, 1);
-    }
+    
+    private static final String minChrSize = "minchrSize";
+    private static final int DEFAULT_MIN_CHR_SIZE = 63025520;
     public static void setMinChrLength(Configuration conf, int val) {
         Logger.DEBUG("min chr size set to " + val, 3);
         conf.setInt(minChrSize, val);
@@ -369,24 +320,46 @@ public class HalvadeConf {
     public static int getMinChrLength(Configuration conf) {
         return conf.getInt(minChrSize, DEFAULT_MIN_CHR_SIZE);
     }
+        
+    private static final String rna = "isRNA";
+    public static void setIsRNA(Configuration conf, boolean isRNA) {
+        if(isRNA)
+            conf.set(rna, "true");
+        else 
+            conf.set(rna, "false");
+    }    
+    public static boolean getIsRNA(Configuration conf) {
+        String s = conf.get(rna);
+        if(s.equalsIgnoreCase("true"))
+            return true;
+        else 
+            return false;
+    }
+    
+    private static final String scc = "scc";
+    private static final float DEFAULT_DNA_SCC = 30.0f;
+    private static final float DEFAULT_RNA_SCC = 20.0f;
     public static void setSCC(Configuration conf, double val) {
         conf.setFloat(scc, (float) val);
     }    
-    public static double getSCC(Configuration conf) {
-        return conf.getFloat(scc, DEFAULT_SCC);
+    public static double getSCC(Configuration conf, boolean isRNA) {
+        if(isRNA)
+            return conf.getFloat(scc, DEFAULT_RNA_SCC);
+        else 
+            return conf.getFloat(scc, DEFAULT_DNA_SCC);
     }
+    
+    private static final String sec = "sec";
+    private static final float DEFAULT_DNA_SEC = 30.0f;
+    private static final float DEFAULT_RNA_SEC = 20.0f;
     public static void setSEC(Configuration conf, double val) {
         conf.setFloat(sec, (float)val);
     }    
-    public static double getSEC(Configuration conf) {
-        return conf.getFloat(sec, DEFAULT_SEC);
-    }
-
-    public static void setTasksPerNode(Configuration conf, double val) {
-        conf.setFloat(tasksPerNode, (float)val);
-    }
-    public static double getTasksPerNode(Configuration conf) {
-        return conf.getFloat(tasksPerNode, DEFAULT_TPN);
+    public static double getSEC(Configuration conf, boolean isRNA) {
+        if(isRNA)
+            return conf.getFloat(sec, DEFAULT_RNA_SEC);
+        else 
+            return conf.getFloat(sec, DEFAULT_DNA_SEC);
     }
 
     private static final String exomebed = "exomeBed";
@@ -440,140 +413,11 @@ public class HalvadeConf {
     * Custom Arguments for all commands used in Halvade
     *
     */
-    // Alignment
-    private static final String ca_bwa_aln = "customArgsBwaAln";
-    private static final String ca_bwa_mem = "customArgsBwaMem";
-    private static final String ca_bwa_samxe = "customArgsBwaSamxe";
-    public static void setBwaAlnArgs(Configuration conf, String val) {
-        conf.set(ca_bwa_aln, val);
-    }    
-    public static String getBwaAlnArgs(Configuration conf) {
-        return conf.get(ca_bwa_aln, "");
+    private static final String customArgs = "ca_";
+    public static void setCustomArgs(Configuration conf, String programName, String toolName, String val) {
+        conf.set(customArgs + programName.toLowerCase() + "_" + toolName.toLowerCase(), val);
     }
-    public static void setBwaMemArgs(Configuration conf, String val) {
-        conf.set(ca_bwa_mem, val);
-    }    
-    public static String getBwaMemArgs(Configuration conf) {
-        return conf.get(ca_bwa_mem, "");
-    }
-    public static void setBwaSamxeArgs(Configuration conf, String val) {
-        conf.set(ca_bwa_samxe, val);
-    }    
-    public static String getBwaSamxeArgs(Configuration conf) {
-        return conf.get(ca_bwa_samxe, "");
-    }
-    // Data Preparation
-    private static final String ca_elprep = "customArgsElPrep";
-    private static final String ca_samtools_view = "customArgsSamView";
-    private static final String ca_bedtools_dbsnp = "customArgsBedToolsDbSnp";
-    private static final String ca_bedtools_exome = "customArgsBedToolsExome";
-    private static final String ca_picard_bai = "customArgsPicardBai";
-    private static final String ca_picard_rg = "customArgsPicardReadGroup";
-    private static final String ca_picard_dedup = "customArgsPicardDedup";
-    private static final String ca_picard_clean = "customArgsPicardCleanSam";
-    public static void setElPrepArgs(Configuration conf, String val) {
-        conf.set(ca_elprep, val);
-    }    
-    public static String getElPrepArgs(Configuration conf) {
-        return conf.get(ca_elprep, "");
-    }
-    public static void setSamtoolsViewArgs(Configuration conf, String val) {
-        conf.set(ca_samtools_view, val);
-    }    
-    public static String getSamtoolsViewArgs(Configuration conf) {
-        return conf.get(ca_samtools_view, "");
-    }
-    public static void setBedToolsDbSnpArgs(Configuration conf, String val) {
-        conf.set(ca_bedtools_dbsnp, val);
-    }    
-    public static String getBedToolsDbSnpArgs(Configuration conf) {
-        return conf.get(ca_bedtools_dbsnp, "");
-    }
-    public static void setBedToolsExomeArgs(Configuration conf, String val) {
-        conf.set(ca_bedtools_exome, val);
-    }    
-    public static String getBedToolsExomeArgs(Configuration conf) {
-        return conf.get(ca_bedtools_exome, "");
-    }
-    public static void setPicardBaiArgs(Configuration conf, String val) {
-        conf.set(ca_picard_bai, val);
-    }    
-    public static String getPicardBaiArgs(Configuration conf) {
-        return conf.get(ca_picard_bai, "");
-    }
-    public static void setPicardAddReadGroupArgs(Configuration conf, String val) {
-        conf.set(ca_picard_rg, val);
-    }    
-    public static String getPicardAddReadGroupArgs(Configuration conf) {
-        return conf.get(ca_picard_rg, "");
-    }
-    public static void setPicardMarkDupArgs(Configuration conf, String val) {
-        conf.set(ca_picard_dedup, val);
-    }    
-    public static String getPicardMarkDupArgs(Configuration conf) {
-        return conf.get(ca_picard_dedup, "");
-    }
-    public static void setPicardCleanSamArgs(Configuration conf, String val) {
-        conf.set(ca_picard_clean, val);
-    }    
-    public static String getPicardCleanSamArgs(Configuration conf) {
-        return conf.get(ca_picard_clean, "");
-    }    
-    // GATK tools
-    private static final String ca_gatk_rtc = "customArgsGatkRtc"; //runRealignerTargetCreator
-    private static final String ca_gatk_ir = "customArgsGatkIr"; //runIndelRealigner
-    private static final String ca_gatk_br = "customArgsGatkBr"; //runBaseRecalibrator
-    private static final String ca_gatk_pr = "customArgsGatkPr"; //runPrintReads
-    private static final String ca_gatk_cv = "customArgsGatkCv"; //runCombineVariants
-    private static final String ca_gatk_vc = "customArgsGatkVc"; //runVariantCaller    
-    private static final String ca_gatk_snt = "customArgsGatkSnt"; //SplitNTrimReads 
-    private static final String ca_gatk_vf = "customArgsGatkVf"; //VariantFiltration
-    public static void setGatkRealignerTargetCreatorArgs(Configuration conf, String val) {
-        conf.set(ca_gatk_rtc, val);
-    }    
-    public static String getGatkRealignerTargetCreatorArgs(Configuration conf) {
-        return conf.get(ca_gatk_rtc, "");
-    }
-    public static void setGatkIndelRealignerArgs(Configuration conf, String val) {
-        conf.set(ca_gatk_ir, val);
-    }    
-    public static String getGatkIndelRealignerArgs(Configuration conf) {
-        return conf.get(ca_gatk_ir, "");
-    }
-    public static void setGatkBaseRecalibratorArgs(Configuration conf, String val) {
-        conf.set(ca_gatk_br, val);
-    }    
-    public static String getGatkBaseRecalibratorArgs(Configuration conf) {
-        return conf.get(ca_gatk_br, "");
-    }
-    public static void setGatkPrintReadsArgs(Configuration conf, String val) {
-        conf.set(ca_gatk_pr, val);
-    }    
-    public static String getGatkPrintReadsArgs(Configuration conf) {
-        return conf.get(ca_gatk_pr, "");
-    }
-    public static void setGatkCombineVariantsArgs(Configuration conf, String val) {
-        conf.set(ca_gatk_cv, val);
-    }    
-    public static String getGatkCombineVariantsArgs(Configuration conf) {
-        return conf.get(ca_gatk_cv, "");
-    }
-    public static void setGatkVariantCallerArgs(Configuration conf, String val) {
-        conf.set(ca_gatk_vc, val);
-    }    
-    public static String getGatkVariantCallerArgs(Configuration conf) {
-        return conf.get(ca_gatk_vc, "");
-    }
-    public static void setGatkSplitNTrimArgs(Configuration conf, String val) {
-        conf.set(ca_gatk_snt, val);
-    }    
-    public static String getGatkSplitNTrimArgs(Configuration conf) {
-        return conf.get(ca_gatk_snt, "");
-    }
-    public static void setGatkVariantFiltrationArgs(Configuration conf, String val) {
-        conf.set(ca_gatk_snt, val);
-    }    
-    public static String getGatkVariantFiltrationArgs(Configuration conf) {
-        return conf.get(ca_gatk_snt, "");
+    public static String getCustomArgs(Configuration conf, String programName, String toolName) {
+        return conf.get(customArgs + programName.toLowerCase() + "_" + toolName.toLowerCase());
     }
 }

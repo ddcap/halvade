@@ -17,6 +17,7 @@
 
 package be.ugent.intec.halvade.uploader;
 
+import be.ugent.intec.halvade.uploader.input.FileReaderFactory;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.BufferedReader;
@@ -31,6 +32,8 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.compress.CompressionCodec;
+import org.apache.hadoop.io.compress.CompressionCodecFactory;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 
@@ -41,7 +44,11 @@ import org.apache.hadoop.util.ToolRunner;
 public class HalvadeUploader  extends Configured implements Tool {
     protected Options options = new Options();
     private int mthreads = 1;
+    private boolean isInterleaved = false;
+    private CompressionCodec codec;
     private String manifest;
+    private String file1;
+    private String file2;
     private String outputDir;
     private String credFile;
     private int bestFileSize = 60000000; // <64MB
@@ -68,12 +75,14 @@ public class HalvadeUploader  extends Configured implements Tool {
             // automatically generate the help statement
             System.err.println("Error parsing: " + e.getMessage());
             HelpFormatter formatter = new HelpFormatter();
-            formatter.printHelp( "java -jar HalvadeAWSUploader -M <MANIFEST> -O <OUT> -B <BUCKET> [options]", options );
+            formatter.printHelp( "java -jar HalvadeAWSUploader -1 <MANIFEST> -O <OUT> [options]", options );
+        } catch (Throwable ex) {
+            Logger.THROWABLE(ex);
         }
         return 0;
     }
     
-    private int processFiles() throws IOException, InterruptedException, URISyntaxException {    
+    private int processFiles() throws IOException, InterruptedException, URISyntaxException, Throwable {    
         Timer timer = new Timer();
         timer.start();
         
@@ -84,7 +93,7 @@ public class HalvadeUploader  extends Configured implements Tool {
         if(outputDir.startsWith("s3")) {
             useAWS = true;
             readCredentials();
-            String existingBucketName = outputDir; // TODO: fix this
+            String existingBucketName = outputDir;
             upl = new AWSUploader(existingBucketName, accessKey, secretKey);
         } else {
             Configuration conf = getConf();
@@ -96,8 +105,7 @@ public class HalvadeUploader  extends Configured implements Tool {
             }
         }
         
-        FastQFileReader pairedReader = FastQFileReader.getPairedInstance();
-        FastQFileReader singleReader = FastQFileReader.getSingleInstance();
+        FileReaderFactory factory = FileReaderFactory.getInstance();
         if(manifest != null) {
             Logger.DEBUG("reading input files from " + manifest);
             // read from file
@@ -106,15 +114,26 @@ public class HalvadeUploader  extends Configured implements Tool {
             while ((line = br.readLine()) != null) {
                 String[] files = line.split("\t");
                 if(files.length == 2) {
-                    pairedReader.addFilePair(files[0], files[1]);
-                    File f = new File(files[0]);
-                    f = new File(files[1]);
+                    factory.addReader(files[0], files[1], false);
                 } else if(files.length == 1) {
-                    singleReader.addSingleFile(files[0]);
-                    File f = new File(files[0]);
+                    factory.addReader(files[0], null, isInterleaved);
                 }
             }
+        } else if (file1 != null && file2 != null) {
+            Logger.DEBUG("Paired-end read input in 2 files.");    
+            factory.addReader(file1, file2, false);            
+        } else if (file1 != null) {
+            if(isInterleaved) 
+                Logger.DEBUG("Single-end read input in 1 files.");   
+            else 
+                Logger.DEBUG("Paired-end read input in 1 files.");     
+            factory.addReader(file1, null, isInterleaved);   
+        } else {
+            Logger.DEBUG("Incorrect input, use either a manifest file or give both file1 and file2 as input.");     
         }
+        
+        // start reading
+        (new Thread(factory)).start();
         
         int bestThreads = mthreads;
         long maxFileSize = getBestFileSize(); 
@@ -123,10 +142,9 @@ public class HalvadeUploader  extends Configured implements Tool {
             // start interleaveFile threads
             for(int t = 0; t < bestThreads; t++) {
                 fileThreads[t] = new AWSInterleaveFiles(
-                        outputDir + "pthread" + t + "_",  
-                        outputDir + "sthread" + t + "_", 
+                        outputDir + "halvade_" + t + "_", 
                         maxFileSize, 
-                        upl);
+                        upl, t, codec);
                 fileThreads[t].start();
             }
             for(int t = 0; t < bestThreads; t++)
@@ -139,15 +157,15 @@ public class HalvadeUploader  extends Configured implements Tool {
             // start interleaveFile threads
             for(int t = 0; t < bestThreads; t++) {
                 fileThreads[t] = new HDFSInterleaveFiles(
-                        outputDir + "pthread" + t + "_",  
-                        outputDir + "sthread" + t + "_", 
+                        outputDir + "halvade_" + t + "_", 
                         maxFileSize, 
-                        fs);
+                        fs, t, codec);
                 fileThreads[t].start();
             }
             for(int t = 0; t < bestThreads; t++)
                 fileThreads[t].join();
         }
+        factory.finalize();
         timer.stop();
         Logger.DEBUG("Time to process data: " + timer.getFormattedCurrentTime());     
         return 0;
@@ -168,46 +186,82 @@ public class HalvadeUploader  extends Configured implements Tool {
         Option optOut = OptionBuilder.withArgName( "output" )
                                 .hasArg()
                                 .isRequired(true)
-                                .withDescription(  "Output directory on s3 [s3://bucketname/folder/] or HDFS [/dir/on/hdfs/]." )
+                                .withDescription(  "Output directory on s3 (s3://bucketname/folder/) or HDFS (/dir/on/hdfs/)." )
                                 .create( "O" );
+        Option optFile1 = OptionBuilder.withArgName( "manifest/input1" )
+                                .hasArg()
+                                .isRequired(true)
+                                .withDescription(  "The filename containing the input files to be put on S3/HDFS, must be .manifest. " + 
+                                        "Or the first input file itself (fastq), '-' reads from stdin." )
+                                .create( "1" );
+        Option optFile2 = OptionBuilder.withArgName( "fastq2" )
+                                .hasArg()
+                                .withDescription(  "The second fastq file." )
+                                .create( "2" );
         Option optCred = OptionBuilder.withArgName( "credentials" )
                                 .hasArg()
                                 .withDescription(  "Give the credential file to access AWS." )
                                 .create( "cred" );
-        Option optMan = OptionBuilder.withArgName( "manifest" )
-                                .hasArg()
-                                .isRequired(true)
-                                .withDescription(  "Filename containing the input files to be put on S3/HDFS." )
-                                .create( "M" );
         Option optSize = OptionBuilder.withArgName( "size" )
                                 .hasArg()
                                 .withDescription(  "Sets the maximum filesize of each split in MB." )
-                                .create( "s" );
+                                .create( "size" );
         Option optThreads = OptionBuilder.withArgName( "threads" )
                                 .hasArg()
                                 .withDescription(  "Sets the available threads [1]." )
                                 .create( "t" );
+        Option optInter = OptionBuilder.withArgName( "" )
+                                .withDescription(  "The single file input files contain interleaved paired-end reads." )
+                                .create( "i" );
+        Option optSnappy = OptionBuilder.withArgName( "" )
+                                .withDescription(  "Compress the output files with snappy (faster) instead of gzip. The snappy library needs to be installed in Hadoop." )
+                                .create( "snappy" );
+        Option optLz4 = OptionBuilder.withArgName( "" )
+                                .withDescription(  "Compress the output files with lz4 (faster) instead of gzip. The lz4 library needs to be installed in Hadoop." )
+                                .create( "lz4" );
         
         options.addOption(optOut);
-        options.addOption(optMan);
+        options.addOption(optFile1);
+        options.addOption(optFile2);
         options.addOption(optThreads);
         options.addOption(optCred);
         options.addOption(optSize);
+        options.addOption(optInter);
+        options.addOption(optSnappy);
+        options.addOption(optLz4);
     }
     
     public void parseArguments(String[] args) throws ParseException {
         createOptions();
         CommandLineParser parser = new GnuParser();
         CommandLine line = parser.parse(options, args);
-        manifest = line.getOptionValue("M");
+        manifest = line.getOptionValue("1");
+        if(!manifest.endsWith(".manifest")) {
+            file1 = manifest;
+            manifest = null;
+        }
         outputDir = line.getOptionValue("O");
         if(!outputDir.endsWith("/")) outputDir += "/";
         
+        if (line.hasOption("2"))
+            file2 = line.getOptionValue("2");
         if (line.hasOption("cred"))
             credFile = line.getOptionValue("cred");        
         if(line.hasOption("t"))
             mthreads = Integer.parseInt(line.getOptionValue("t"));
-        if(line.hasOption("s"))
+        if(line.hasOption("i"))
+            isInterleaved = true;
+        if(line.hasOption("snappy")) {       
+            CompressionCodecFactory codecFactory = new CompressionCodecFactory(getConf());
+            codec = codecFactory.getCodecByClassName("org.apache.hadoop.io.compress.SnappyCodec");
+        }
+        if(line.hasOption("lz4")) {       
+            CompressionCodecFactory codecFactory = new CompressionCodecFactory(getConf());
+            codec = codecFactory.getCodecByClassName("org.apache.hadoop.io.compress.Lz4Codec");
+        }
+        if(codec != null)
+            Logger.DEBUG("Hadoop encryption: " + codec.getDefaultExtension().substring(1));
+        if(line.hasOption("size"))
             bestFileSize = Integer.parseInt(line.getOptionValue("s"));
     }
 

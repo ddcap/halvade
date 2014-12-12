@@ -48,6 +48,7 @@ public abstract class GATKReducer extends HalvadeReducer {
     protected int newMaxQualScore = 60;
     protected int windows, cluster;
     protected double minFS, maxQD;
+    protected boolean isRNA;
     
     @Override
     protected void reduce(ChromosomeRegion key, Iterable<SAMRecordWritable> values, Context context) throws IOException, InterruptedException {
@@ -59,7 +60,7 @@ public abstract class GATKReducer extends HalvadeReducer {
             GATKTools gatk = new GATKTools(ref, bin);
             gatk.setContext(context);
             tools.setContext(context);
-            gatk.setThreadsPerType(dataThreads, cpuThreads);
+            gatk.setThreads(threads);
             if(java !=null) {
                 gatk.setJava(java);
                 tools.setJava(java);
@@ -74,8 +75,9 @@ public abstract class GATKReducer extends HalvadeReducer {
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
-        scc = HalvadeConf.getSCC(context.getConfiguration());
-        sec = HalvadeConf.getSEC(context.getConfiguration());
+        isRNA = HalvadeConf.getIsRNA(context.getConfiguration());
+        scc = HalvadeConf.getSCC(context.getConfiguration(), isRNA);
+        sec = HalvadeConf.getSEC(context.getConfiguration(), isRNA);
         exomeBedFile = HalvadeConf.getExomeBed(context.getConfiguration());
         useBedTools = HalvadeConf.getUseBedTools(context.getConfiguration());
         useUnifiedGenotyper = HalvadeConf.getUseUnifiedGenotyper(context.getConfiguration());
@@ -98,9 +100,9 @@ public abstract class GATKReducer extends HalvadeReducer {
         context.setStatus("call elPrep");
         int reads;
         if(keepTmpFiles) 
-            reads = tools.callElPrep(preSamOut, samOut, rg, dataThreads, input, outHeader, dictF);
+            reads = tools.callElPrep(preSamOut, samOut, rg, threads, input, outHeader, dictF);
         else
-            reads = tools.streamElPrep(context, samOut, rg, dataThreads, input, outHeader, dictF);
+            reads = tools.streamElPrep(context, samOut, rg, threads, input, outHeader, dictF);
         
         Logger.DEBUG(reads + " reads processed in elPrep");
         context.getCounter(HalvadeCounters.IN_PREP_READS).increment(reads);
@@ -260,7 +262,6 @@ public abstract class GATKReducer extends HalvadeReducer {
         Logger.DEBUG("run variantCaller");
         context.setStatus("run variantCaller");
         context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
-        //TODO set scc and sec to 20 by default for RNA
         gatk.runHaplotypeCaller(input, output, true, scc, sec, ref, null, region);
                 
         context.setStatus("cleanup");

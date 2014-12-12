@@ -89,7 +89,7 @@ public class BWAAlnInstance extends AlignerInstance {
         // use half the threads if paired reads ( 2 instances of aln will run)
         int threadsToUse = threads;
         if (isPaired && threadsToUse > 1 ) threadsToUse /= 2;
-        String customArgs = HalvadeConf.getBwaAlnArgs(context.getConfiguration());
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "bwa", "aln");
         String[] command1 = CommandGenerator.bwaAln(bin, ref, "/dev/stdin", getFileName(tmpdir, taskId, true, 1), threadsToUse, customArgs);
         reads1 = new ProcessBuilderWrapper(command1, bin);
         reads1.setThreads(threadsToUse);
@@ -159,7 +159,7 @@ public class BWAAlnInstance extends AlignerInstance {
     }
     
     private void startBWASamXe() throws InterruptedException { 
-        String customArgs = HalvadeConf.getBwaSamxeArgs(context.getConfiguration());  
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "bwa", "sampe");  
         String[] command = CommandGenerator.bwaSamXe(bin, ref,
                 getFileName(tmpdir, taskId, true, 1), 
                 getFileName(tmpdir, taskId, false, 1), 

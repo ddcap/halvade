@@ -17,36 +17,34 @@
 
 package be.ugent.intec.halvade.uploader;
 
+import be.ugent.intec.halvade.uploader.input.ReadBlock;
+import be.ugent.intec.halvade.uploader.input.FileReaderFactory;
 import java.io.BufferedOutputStream;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.zip.GZIPOutputStream;
-import org.apache.hadoop.fs.Path;
 
 /**
  *
  * @author ddecap
  */
 abstract class BaseInterleaveFiles extends Thread {
-    protected static final int BUFFERSIZE = 128*1024;
-    protected FastQFileReader pReader;
-    protected FastQFileReader sReader;
-    protected static long MAXFILESIZE = 60000000L; // ~60MB
-    protected String pairedBase;
-    protected String singleBase;
-    protected long read, written;
+    protected static final int BUFFERSIZE = 8*1024;
+    protected static long maxFileSize; // ~60MB
+    protected FileReaderFactory factory;
+    protected String fileBase;
+    protected long read, written, count;
     protected String fsName;
+    protected int thread;
+    protected boolean useHadoopCompression = false;
     
-    public BaseInterleaveFiles(String paired, String single, long maxFileSize) {
-        this.pairedBase = paired;
-        this.singleBase = single;
+    public BaseInterleaveFiles(String base, long maxFileSize, int thread) {
+        this.fileBase = base;
+        this.thread = thread;
         written = 0;
         read = 0;
-        pReader = FastQFileReader.getPairedInstance();
-        sReader = FastQFileReader.getSingleInstance();
-        MAXFILESIZE = maxFileSize;
+        count = 0;
+        factory = FileReaderFactory.getInstance();
+        BaseInterleaveFiles.maxFileSize = maxFileSize;
     }
 
     protected double round(double value) {
@@ -54,7 +52,7 @@ abstract class BaseInterleaveFiles extends Thread {
     }
 
     protected abstract OutputStream getNewDataStream(int part, String prefix) throws IOException;
-    protected abstract BufferedOutputStream getNewGZIPStream(OutputStream dataStream) throws IOException;
+    protected abstract BufferedOutputStream getNewCompressedStream(OutputStream dataStream) throws IOException;
     protected abstract int getSize(OutputStream dataStream);
     protected abstract void writeData(int part, OutputStream dataStream, BufferedOutputStream gzipStream) throws IOException;
     protected abstract OutputStream resetDataStream(int part, String prefix, OutputStream dataStream) throws IOException;
@@ -64,78 +62,69 @@ abstract class BaseInterleaveFiles extends Thread {
     @Override
     public void run() {
         try {
-            Logger.DEBUG("Starting thread to write reads to " + fsName);
-            int part = 0;    
-            int count = 0;
-            OutputStream dataStream = getNewDataStream(part, pairedBase);
-            BufferedOutputStream gzipStream = getNewGZIPStream(dataStream); 
+            Logger.DEBUG("Starting thread " + thread + " to write reads to " + fsName);
             
-            ReadBlock block = new ReadBlock();
-            int fileWritten = 0;
-            int tSize;
-            while(pReader.getNextBlock(block)) {
+            int part = 0, tSize;  
+            long fileWritten = 0;  
+            OutputStream dataStream = getNewDataStream(part, fileBase);
+            BufferedOutputStream gzipStream = getNewCompressedStream(dataStream);
+            
+            Timer t = new Timer();
+            Timer s = new Timer();
+            double retrieveBlockTime = 0;
+            double writeBlockTime = 0;
+            double totalTime = 0;
+            t.start();
+            
+            fileWritten = 0;
+            s.start();
+            ReadBlock block = factory.retrieveBlock();
+            s.stop();
+            retrieveBlockTime += s.getElapsedTime();
+            while(block != null) {
+                s.start();
                 fileWritten += block.write(gzipStream);
-                // check filesize
+                s.stop();
+                writeBlockTime += s.getElapsedTime();
+                count += block.getSize();
                 tSize = getSize(dataStream);
-                if(tSize > MAXFILESIZE) {
+                if(tSize > maxFileSize) {
                     gzipStream.close();
-                    count += block.size / 4;
                     writeData(part, dataStream, gzipStream);
+                    Logger.DEBUG("Thread " + thread + " wrote " + count + " lines to dfs");
                     written += tSize;
                     read += fileWritten;
                     fileWritten = 0;
                     part++;
-                    dataStream = resetDataStream(part, pairedBase, dataStream);
-                    gzipStream = getNewGZIPStream(dataStream);                 
+                    dataStream = resetDataStream(part, fileBase, dataStream);
+                    gzipStream = getNewCompressedStream(dataStream);                 
                 }
+                s.start();
+                block = factory.retrieveBlock();
+                s.stop();
+                retrieveBlockTime += s.getElapsedTime();
             }
             // finish the files          
             gzipStream.close();
             tSize = getSize(dataStream);
             if(tSize == 0 || fileWritten == 0) {
-                deleteFile(pairedBase, part);
+                deleteFile(fileBase, part);
             } else if(fileWritten != 0) {
-                count += block.size / 4;
                 writeData(part, dataStream, gzipStream);
+//                Logger.DEBUG("Thread " + thread + " written " + count + " lines to dfs");
                 written += tSize;
                 read += fileWritten;
             }
+            t.stop();
             
-            // do single reads
-            part = 0;
-            dataStream = resetDataStream(part, singleBase, dataStream);
-            gzipStream = getNewGZIPStream(dataStream);  
-            fileWritten = 0;
-            while(sReader.getNextBlock(block)) {
-                fileWritten += block.write(gzipStream);
-                // check filesize
-                tSize = getSize(dataStream);
-                if(tSize > MAXFILESIZE) {
-                    gzipStream.close();
-                    count += block.size / 4;
-                    writeData(part, dataStream, gzipStream);
-                    written += tSize;
-                    read += fileWritten;
-                    fileWritten = 0;
-                    part++;
-                    dataStream = resetDataStream(part, singleBase, dataStream);
-                    gzipStream = getNewGZIPStream(dataStream);    
-                }
-            }
-            // finish the files
-            gzipStream.close();
-            tSize = getSize(dataStream);
-            if(tSize == 0 || fileWritten == 0) {
-                deleteFile(pairedBase, part);
-            } else if(fileWritten != 0) {
-                count += block.size / 4;
-                writeData(part, dataStream, gzipStream);
-                written += tSize;
-                read += fileWritten;
-            }
-            Logger.DEBUG("number of reads: "+ count);
-            Logger.DEBUG("read " + round(read / (1024*1024)) + "MB");
-            Logger.DEBUG("written " + round(written / (1024*1024)) + "MB");
+            totalTime = t.getElapsedTime();
+            Logger.DEBUG("Thread " + thread + " Retrieve block time: " + round(retrieveBlockTime));
+            Logger.DEBUG("Thread " + thread + " Write block time: " + round(writeBlockTime));
+            Logger.DEBUG("Thread " + thread + " Total time: " + round(totalTime));
+            
+            Logger.DEBUG("Thread " + thread + " read " + count + " lines");
+            Logger.DEBUG("Thread " + thread + " read " + round(read / (1024*1024)) + "MB");
+            Logger.DEBUG("Thread " + thread + " wrote " + round(written / (1024*1024)) + "MB");
             closeStreams(dataStream, gzipStream);
         } catch (IOException ex) {
             Logger.EXCEPTION(ex);

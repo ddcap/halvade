@@ -50,7 +50,7 @@ public abstract class AlignerInstance {
     protected static Mapper.Context context;
     protected boolean isPaired = true;
     protected String chr;
-    protected int minChrLength, reducers;
+    protected int minChrLength;
     protected boolean keepChrSplitPairs;
     private boolean keep = false;
     protected ChromosomeSplitter splitter;
@@ -62,12 +62,11 @@ public abstract class AlignerInstance {
         writableRegion = new ChromosomeRegion();
         minChrLength = HalvadeConf.getMinChrLength(context.getConfiguration());
         chr = HalvadeConf.getChrList(context.getConfiguration());
-        reducers = HalvadeConf.getReducers(context.getConfiguration());
         
         tmpdir = HalvadeConf.getScratchTempDir(context.getConfiguration());
         if(!tmpdir.endsWith("/")) tmpdir = tmpdir + "/";
         this.bin = bin;
-        threads = HalvadeConf.getNumThreads(context.getConfiguration());
+        threads = HalvadeConf.getMapThreads(context.getConfiguration());
         isPaired = HalvadeConf.getIsPaired(context.getConfiguration());
         Logger.DEBUG("paired? " + isPaired);
         splitter = new ChromosomeSplitter(HalvadeConf.getSequenceDictionary(context.getConfiguration()), minChrLength, chr);
