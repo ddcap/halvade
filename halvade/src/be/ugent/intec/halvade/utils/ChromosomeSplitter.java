@@ -94,7 +94,7 @@ public class ChromosomeSplitter {
         for(String chr_ : chrs)
             if(dict.getSequence(chr_).getSequenceLength() < regionLength)
         minRegions += (int)Math.ceil(restChr / 1.0);
-        int multiplier = 1;
+        multiplier = 1;
         while(multiplier * minRegions < minCount) 
             multiplier++;
         regionLength = regionLength / multiplier;
@@ -114,8 +114,35 @@ public class ChromosomeSplitter {
             chrs = chr.split(",");
         
         Logger.DEBUG("min chr length to be splittable: " + regionLength, 3);
-        // chr bigger than 
         int i = 0;
+        
+        // combine small chr
+        int currentKeySize = 0;
+        for(String chr_ : chrs) {
+            int seqlen = dict.getSequence(chr_).getSequenceLength();
+            if(seqlen < regionLength) {
+                Logger.DEBUG("shared chromosome: " + dict.getSequence(chr_).getSequenceName(), 3);
+                regionsPerChr[i] = 1;
+                regionSizePerChr[i] = seqlen + 1;
+                chromosomeStartKey[i] = currentKey;
+                currentKeySize += seqlen;
+                if(currentKeySize > regionLength) {
+                    Logger.DEBUG("shared chromosome: [" + currentKeySize + "].", 3);
+                    currentKey++;
+                    currentKeySize = 0;
+                    regionCount++;
+                }
+                
+            }
+            i++;
+        }
+        if(currentKeySize > 0 ) {
+            Logger.DEBUG("shared chromosome: [" + currentKeySize + "].", 3);
+            currentKey++;
+            regionCount++; 
+        }
+        // chr bigger than regionlength
+        i = 0;
         for(String chr_ : chrs) {
             int seqlen = dict.getSequence(chr_).getSequenceLength();
             chromosomeSizes[i] = seqlen;
@@ -129,29 +156,6 @@ public class ChromosomeSplitter {
                 regionSizePerChr[i] = seqlen / regionsPerChr[i] + 1;
                 chromosomeStartKey[i] = currentKey;
                 currentKey += regionsPerChr[i];
-            }
-            i++;
-        }
-        
-        // combine small chr
-        int currentKeySize = 0;
-        i = 0;
-        regionCount++; // for first group
-        for(String chr_ : chrs) {
-            int seqlen = dict.getSequence(chr_).getSequenceLength();
-            if(seqlen < regionLength) {
-                 Logger.DEBUG("shared chromosome: " + dict.getSequence(chr_).getSequenceName() 
-                        + " [" + dict.getSequence(chr_).getSequenceLength() + "].", 3);
-                regionsPerChr[i] = 1;
-                regionSizePerChr[i] = seqlen + 1;
-                chromosomeStartKey[i] = currentKey;
-                currentKeySize += seqlen;
-                if(currentKeySize > regionLength) {
-                    currentKey++;
-                    currentKeySize = 0;
-                    regionCount++;
-                }
-                
             }
             i++;
         }

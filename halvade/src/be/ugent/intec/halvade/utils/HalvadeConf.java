@@ -420,4 +420,19 @@ public class HalvadeConf {
     public static String getCustomArgs(Configuration conf, String programName, String toolName) {
         return conf.get(customArgs + programName.toLowerCase() + "_" + toolName.toLowerCase());
     }
+
+    private static final String starPass2 = "starPass2";
+    public static void setIsPass2(Configuration conf, boolean val) {
+        if(val)
+            conf.set(starPass2, "true");
+        else 
+            conf.set(starPass2, "false");
+    }    
+    public static boolean getIsPass2(Configuration conf) {
+        String s = conf.get(starPass2);
+        if(s.equalsIgnoreCase("true"))
+            return true;
+        else 
+            return false;
+    }
 }

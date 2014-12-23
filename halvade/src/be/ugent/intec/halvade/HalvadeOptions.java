@@ -88,7 +88,7 @@ public class HalvadeOptions {
     protected boolean rnaPipeline = false;
     protected boolean reportAll = false;
     protected static final int EXOME_COV = 6;
-    protected boolean enableProfiling = true;
+    protected boolean useSharedMemory = false;
     
     public int GetOptions(String[] args, Configuration hConf) throws IOException, URISyntaxException {
         try {
@@ -138,24 +138,16 @@ public class HalvadeOptions {
             FileSystem fs = FileSystem.get(new URI(out), hConf);
             if (fs.exists(new Path(out)) && !justCombine) {
                 Logger.INFO("The output directory \'" + out + "\' already exists.");
-                Logger.INFO("WARNING: Deleting the previous output directory!");
-                fs.delete(new Path(out), true);
-//                System.err.println("Please remove this directory before trying again.");
-//                System.exit(-2);
+//                Logger.INFO("WARNING: Deleting the previous output directory!");
+//                fs.delete(new Path(out), true);
+                Logger.INFO("ERROR: Please remove this directory before trying again.");
+                System.exit(-2);
             }
             parseDictFile(hConf);
             ChromosomeSplitter splitter = new ChromosomeSplitter(dict, chr, reducers);
             HalvadeConf.setMinChrLength(hConf, splitter.getRegionSize());
             reducers = splitter.getRegionCount();
             
-            if(enableProfiling) {
-                Logger.DEBUG("Enabling profiling options");
-                hConf.setBoolean("mapreduce.task.profile", true);
-                hConf.set("mapreduce.task.profile.params", "-agentlib:hprof=cpu=samples," +
-                            "heap=sites,depth=6,force=n,thread=y,verbose=n,file=%s");
-                hConf.set("mapreduce.task.profile.maps", "0-2");
-                hConf.set("mapreduce.task.profile.reduces", "0-2");
-            }
             
         } catch (ParseException e) {
             Logger.DEBUG(e.getMessage());
@@ -167,31 +159,45 @@ public class HalvadeOptions {
         }
         return 0;
     }
-    private static final int MEM_MAP_TASK = 15;
-    private static final int MEM_REDUCE_TASK = 15;
+    private static final int RNA_MEM_MAP_TASK = 35;
+    private static final int RNA_MEM_REDUCE_TASK = 14;
+    private static final int DNA_MEM_MAP_TASK = 14;
+    private static final int DNA_MEM_REDUCE_TASK = 14;
+    private static int MEM_MAP_TASK;
+    private static int MEM_REDUCE_TASK ;
     private static final int VCORES_MAP_TASK = 8;
-    private static final int VCORES_REDUCE_TASK = 8;
-    private static final int SWAP_EXTRA_GB = 8; // give some extra to reducers in form of swap (usually not needed) 
-    private static final double REDUCE_TASKS_FACTOR = 0.42 * 60;
+    private static final int VCORES_REDUCE_TASK = 4;
+    private static final double REDUCE_TASKS_FACTOR = 1.68*15;
     
     private void getBestDistribution(Configuration conf) {
+        if(rnaPipeline) {
+            MEM_MAP_TASK = RNA_MEM_MAP_TASK;
+            MEM_REDUCE_TASK = RNA_MEM_REDUCE_TASK;
+        } else {
+            MEM_MAP_TASK = DNA_MEM_MAP_TASK;
+            MEM_REDUCE_TASK = DNA_MEM_REDUCE_TASK;
+        }
         if (mapsPerContainer == -1) mapsPerContainer = Math.min(Math.max(vcores / VCORES_MAP_TASK,1), Math.max(mem / MEM_MAP_TASK,1));
         if (reducersPerContainer == -1) reducersPerContainer = Math.min(Math.max(vcores / VCORES_REDUCE_TASK, 1), Math.max(mem / MEM_REDUCE_TASK,1));
         
-        mappers = Math.max(1,nodes*mapsPerContainer);        
+        mappers = Math.max(1,nodes*mapsPerContainer);
         mthreads = Math.max(1,vcores/mapsPerContainer);
         rthreads = Math.max(1,vcores/reducersPerContainer);
-        int mmem = mem*1024/mapsPerContainer;
-        int rmem = Math.min(mem*1024,((SWAP_EXTRA_GB + mem)*1024/reducersPerContainer));
+        Logger.DEBUG(conf.toString());
+        int mem_reserved_for_am = Integer.parseInt(conf.get("yarn.app.mapreduce.am.resource.mb", "2048")) / 1024;
+        Logger.DEBUG("mem reserved for am: " + mem_reserved_for_am);
+        int tmpmem = mem - mem_reserved_for_am;
+        int mmem = Math.min(tmpmem*1024,tmpmem*1024/mapsPerContainer);
+        int rmem = Math.min(tmpmem*1024,tmpmem*1024/reducersPerContainer);
         
         be.ugent.intec.halvade.utils.Logger.DEBUG("using " + mapsPerContainer + " maps [" 
                 + mthreads + " cpu , " + mmem + " mb] per node and " 
                 + reducersPerContainer + " reducers ["
                 + rthreads + " cpu, " + rmem + " mb] per node");
         
-        conf.set("mapreduce.map.cpu.vcores", "" + mthreads);
+        conf.set("mapreduce.map.cpu.vcores", "" + (mthreads - 1));
         conf.set("mapreduce.map.memory.mb", "" + mmem); 
-        conf.set("mapreduce.reduce.cpu.vcores", "" + rthreads);
+        conf.set("mapreduce.reduce.cpu.vcores", "" + (rthreads - 1));
         conf.set("mapreduce.reduce.memory.mb", "" + rmem); 
         conf.set("mapreduce.job.reduce.slowstart.completedmaps", "" + 1.0);
         
@@ -280,7 +286,7 @@ public class HalvadeOptions {
                                 .hasArg()                
                                 .isRequired(true)
                                 .withDescription(  "Sets the available memory [in GB] per node in this cluster." )
-                                .create( "mem" );  
+                                .create( "mem" );
         Option optSites = OptionBuilder.withArgName( "snpDBa,snpDBb" )
                                 .hasArg()
                                 .isRequired(true)
@@ -390,8 +396,8 @@ public class HalvadeOptions {
                                 .create( "drop" );
         Option optReportAll= OptionBuilder.withDescription(  "Reports all variants at the same location when combining variants.")
                                 .create( "report_all" );
-        Option optHelp= OptionBuilder.withDescription(  "Print this help message and exit.")
-                                .create( "h" );   
+        Option optShmem= OptionBuilder.withDescription(  "Use shared memory in tools where supported. Currently only supports STAR aligner.")
+                                .create( "shmem" );
         
         
         options.addOption(optIn);
@@ -432,7 +438,7 @@ public class HalvadeOptions {
         options.addOption(optSmt);
         options.addOption(optRna);
         options.addOption(optStarGenome);
-        options.addOption(optHelp);
+        options.addOption(optShmem);
         options.addOption(optCustomArgs);
     }
     
@@ -465,6 +471,8 @@ public class HalvadeOptions {
             vcores = Integer.parseInt(line.getOptionValue("vcores"));
         if(line.hasOption("smt"))
             vcores *= 2;
+        if(line.hasOption("shmem"))
+            useSharedMemory = true;
         if(line.hasOption("mem"))
             mem = Integer.parseInt(line.getOptionValue("mem"));
         if(line.hasOption("mpn"))

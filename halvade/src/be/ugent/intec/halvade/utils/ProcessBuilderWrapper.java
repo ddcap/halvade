@@ -68,18 +68,10 @@ public class ProcessBuilderWrapper {
         this.threads = threads;
     }
     
-    /**
-     * starts a process without redirecting stdout and stderr
-     */
     public void startProcess() throws InterruptedException {
         startProcess(null, null);
     }
     
-    /**
-     * 
-     * @param redirectStreams decides whether to redirect the 
-     * stdout and stderr of the process to stdout and stderr of this java program
-     */
     public void startProcess(boolean redirectStreams) throws InterruptedException {
         if(redirectStreams) {
             startProcess(System.out, System.err);
@@ -88,11 +80,6 @@ public class ProcessBuilderWrapper {
         }
     }
     
-    /**
-     * 
-     * @param stdout redirects output to this PrintStream
-     * @param stderr redirects error to this PrintStream
-     */
     public void startProcess(PrintStream stdout_, PrintStream stderr_) throws InterruptedException {
         try {
             Logger.DEBUG("running command " + Arrays.toString(command));            
@@ -102,7 +89,6 @@ public class ProcessBuilderWrapper {
                         "LD_LIBRARY_PATH",
                         "$LD_LIBRARY_PATH:" + libdir);
                 builder.environment().put("CILK_NWORKERS", "" + threads);
-//                System.err.println("added " + libdir + " to path of libraries");
             }
             p = builder.start();
             mon = new ProcMon(p);
@@ -114,7 +100,7 @@ public class ProcessBuilderWrapper {
                 this.stdout.start();
             }  
             if(stderr_ != null) {
-                this.stderr = new StreamGobbler(p.getErrorStream(), stderr_, "[BWA_ERR] ");
+                this.stderr = new StreamGobbler(p.getErrorStream(), stderr_, "[PROCESS_ERR] ");
                 this.stderr.start();
             } 
             stdin = new BufferedWriter(new OutputStreamWriter(p.getOutputStream()));

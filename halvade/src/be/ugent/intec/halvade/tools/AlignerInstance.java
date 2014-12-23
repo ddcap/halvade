@@ -65,13 +65,18 @@ public abstract class AlignerInstance {
         
         tmpdir = HalvadeConf.getScratchTempDir(context.getConfiguration());
         if(!tmpdir.endsWith("/")) tmpdir = tmpdir + "/";
-        this.bin = bin;
+        File tmp = new File(tmpdir);
+        tmp.mkdirs();   
+        AlignerInstance.bin = bin;
         threads = HalvadeConf.getMapThreads(context.getConfiguration());
         isPaired = HalvadeConf.getIsPaired(context.getConfiguration());
         Logger.DEBUG("paired? " + isPaired);
         splitter = new ChromosomeSplitter(HalvadeConf.getSequenceDictionary(context.getConfiguration()), minChrLength, chr);
         keepChrSplitPairs = HalvadeConf.getkeepChrSplitPairs(context.getConfiguration());
         keep = HalvadeConf.getKeepFiles(context.getConfiguration());
+    }
+    
+    protected void createTmpDirectory() {             
     }
     
     protected int feedLine(String line, ProcessBuilderWrapper proc) throws IOException  {

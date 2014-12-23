@@ -71,12 +71,14 @@ public class HDFSInterleaveFiles extends BaseInterleaveFiles {
     
     @Override
     protected OutputStream resetDataStream(int part, String prefix, OutputStream dataStream) throws IOException {
-        return fs.create(new Path(prefix + part + ".fq.gz"),true);
+        return fs.create(new Path(prefix + part + 
+                (useHadoopCompression ? ".fq" + codec.getDefaultExtension() : ".fq.gz")),true);
     }
     
     @Override
     protected void deleteFile(String prefix, int part) throws IOException {
-        fs.delete(new Path(prefix + part + ".fq.gz"), true);
+        fs.delete(new Path(prefix + part + 
+                (useHadoopCompression ? ".fq" + codec.getDefaultExtension() : ".fq.gz")), true);
     }
     
     @Override

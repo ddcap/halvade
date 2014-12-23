@@ -61,4 +61,8 @@ public class Logger {
         if(LEVEL >= level)
             System.err.println("[" + Timer.getGlobalTime() + " - DEBUG] " + message);
     }
+    
+    public static void PROFILE(String message) {
+        System.err.println("[PROFILE] [" + Timer.getGlobalTime() + "] " + message);
+    }
 }

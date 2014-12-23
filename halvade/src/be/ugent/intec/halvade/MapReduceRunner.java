@@ -20,6 +20,7 @@ package be.ugent.intec.halvade;
 import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import fi.tkk.ics.hadoop.bam.VariantContextWritable;
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
+import be.ugent.intec.halvade.hadoop.mapreduce.HalvadeTextInputFormat;
 import be.ugent.intec.halvade.hadoop.partitioners.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
@@ -34,10 +35,11 @@ import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.Timer;
 import fi.tkk.ics.hadoop.bam.VCFInputFormat;
+import java.io.IOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 
 /**
  *
@@ -55,11 +57,53 @@ public class MapReduceRunner extends Configured implements Tool  {
             int optReturn = halvadeOpts.GetOptions(strings, halvadeConf);
             if (optReturn != 0) return optReturn;
             // initialise MapReduce - copy ref to each node??
-            
-            
+            if(halvadeOpts.useSharedMemory) {
+                Logger.DEBUG("Running STAR aligner first pass.");
+                HalvadeConf.setIsPass2(halvadeConf, false);
+                Job halvadeJob = Job.getInstance(halvadeConf, "Halvade-pass1");
+                halvadeJob.addCacheArchive(new URI(halvadeOpts.halvadeBinaries));
+                halvadeJob.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.HalvadeMapper.class);
+                FileSystem fs = FileSystem.get(new URI(halvadeOpts.in), halvadeConf);
+                try {
+                    if (fs.getFileStatus(new Path(halvadeOpts.in)).isDirectory()) {
+                        // add every file in directory
+                        FileStatus[] files = fs.listStatus(new Path(halvadeOpts.in));
+                        for(FileStatus file : files) {
+                            if (!file.isDirectory()) {
+                                FileInputFormat.addInputPath(halvadeJob, file.getPath());
+                            }
+                        }
+                    } else {
+                        FileInputFormat.addInputPath(halvadeJob, new Path(halvadeOpts.in));
+                    }
+
+                } catch (IOException | IllegalArgumentException e) {
+                    Logger.EXCEPTION(e);
+                }
+                FileOutputFormat.setOutputPath(halvadeJob, new Path(halvadeOpts.out + "/pass1"));
+                halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.StarAlignPassXMapper.class);
+                
+                halvadeJob.setInputFormatClass(HalvadeTextInputFormat.class);
+                halvadeJob.setMapOutputKeyClass(LongWritable.class);
+                halvadeJob.setMapOutputValueClass(Text.class);
+
+                halvadeJob.setNumReduceTasks(1); 
+                halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.RebuildStarGenomeReducer.class);          
+                halvadeJob.setOutputKeyClass(LongWritable.class);
+                halvadeJob.setOutputValueClass(Text.class);
+
+                if(halvadeOpts.dryRun) 
+                    return 0;
+                Timer timer = new Timer();
+                timer.start();
+                ret = halvadeJob.waitForCompletion(true) ? 0 : 1;
+                timer.stop();
+                Logger.DEBUG("Running time of Halvade pass 1 Job: " + timer);
+                System.exit(0);
+                
+            }
             Job halvadeJob = Job.getInstance(halvadeConf, "Halvade");
             halvadeJob.addCacheArchive(new URI(halvadeOpts.halvadeBinaries));
-            
             
             halvadeJob.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.HalvadeMapper.class);
             FileSystem fs = FileSystem.get(new URI(halvadeOpts.in), halvadeConf);
@@ -76,19 +120,24 @@ public class MapReduceRunner extends Configured implements Tool  {
                     FileInputFormat.addInputPath(halvadeJob, new Path(halvadeOpts.in));
                 }
                 
-            } catch (Exception e) {
+            } catch (IOException | IllegalArgumentException e) {
                 Logger.EXCEPTION(e);
             }
-            FileOutputFormat.setOutputPath(halvadeJob, new Path(halvadeOpts.out));
+            FileOutputFormat.setOutputPath(halvadeJob, new Path(halvadeOpts.out + "/halvade"));
             
-            if(halvadeOpts.rnaPipeline) 
-                halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.StarAlignMapper.class);
-            else {
+            if(halvadeOpts.rnaPipeline)  {
+                if(halvadeOpts.useSharedMemory) {
+                    HalvadeConf.setIsPass2(halvadeConf, true);
+                    halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.StarAlignPassXMapper.class);
+                } else 
+                    halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.StarAlignMapper.class);
+            } else {
                 if (halvadeOpts.aln) halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.BWAAlnMapper.class);
-                else halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.BWAMemMapper.class);            }
+                else halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.BWAMemMapper.class);
+            }
             halvadeJob.setMapOutputKeyClass(ChromosomeRegion.class);
             halvadeJob.setMapOutputValueClass(SAMRecordWritable.class);
-            halvadeJob.setInputFormatClass(TextInputFormat.class);             
+            halvadeJob.setInputFormatClass(HalvadeTextInputFormat.class);
             halvadeJob.setPartitionerClass(ChrRgPartitioner.class);
             halvadeJob.setSortComparatorClass(ChrRgPositionComparator.class);
             halvadeJob.setGroupingComparatorClass(ChrRgRegionComparator.class);
@@ -137,7 +186,7 @@ public class MapReduceRunner extends Configured implements Tool  {
                 } catch (Exception e) {
                     Logger.EXCEPTION(e);
                 }
-                FileOutputFormat.setOutputPath(combineJob, new Path(halvadeOpts.out + "combinedVCF/"));
+                FileOutputFormat.setOutputPath(combineJob, new Path(halvadeOpts.out + "merge/"));
 
                 combineJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
                 combineJob.setMapOutputKeyClass(LongWritable.class);
@@ -158,7 +207,7 @@ public class MapReduceRunner extends Configured implements Tool  {
             }
             
             
-        } catch (Exception e) {
+        } catch (IOException | ClassNotFoundException | IllegalArgumentException | IllegalStateException | InterruptedException | URISyntaxException e) {
             Logger.EXCEPTION(e);
         }
         return ret;

@@ -17,8 +17,10 @@
 
 package be.ugent.intec.halvade.hadoop.mapreduce;
 
+import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import be.ugent.intec.halvade.tools.STARInstance;
 import be.ugent.intec.halvade.utils.Logger;
+import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import org.apache.hadoop.io.LongWritable;
@@ -28,7 +30,7 @@ import org.apache.hadoop.io.Text;
  *
  * @author ddecap
  */
-public class StarAlignMapper extends HalvadeMapper {
+public class StarAlignMapper extends HalvadeMapper<ChromosomeRegion, SAMRecordWritable> {
 
     @Override
     protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
@@ -41,7 +43,7 @@ public class StarAlignMapper extends HalvadeMapper {
         super.setup(context);
         try {
             String binDir = checkBinaries(context);
-            instance = STARInstance.getSTARInstance(context, binDir);      
+            instance = STARInstance.getSTARInstance(context, binDir, STARInstance.PASS1AND2);      
          } catch (URISyntaxException ex) {
             Logger.EXCEPTION(ex);
             throw new InterruptedException();

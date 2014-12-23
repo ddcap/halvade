@@ -17,10 +17,12 @@
 
 package be.ugent.intec.halvade.hadoop.mapreduce;
 
+import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import be.ugent.intec.halvade.tools.BWAAlnInstance;
 import java.io.IOException;
 import org.apache.hadoop.io.Text;
 import be.ugent.intec.halvade.utils.Logger;
+import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import java.net.URISyntaxException;
 import org.apache.hadoop.io.LongWritable;
 
@@ -29,8 +31,9 @@ import org.apache.hadoop.io.LongWritable;
  * @author ddecap
  */
 
-public class BWAAlnMapper extends HalvadeMapper {
+public class BWAAlnMapper extends HalvadeMapper<ChromosomeRegion, SAMRecordWritable> {
 
+    
     @Override
     protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
         super.map(key, value, context);
@@ -42,8 +45,8 @@ public class BWAAlnMapper extends HalvadeMapper {
         super.setup(context);
         try {
             String binDir = checkBinaries(context);
-            instance = BWAAlnInstance.getBWAInstance(context, binDir);      
-         } catch (URISyntaxException ex) {
+            instance = BWAAlnInstance.getBWAInstance(context, binDir);
+        } catch (URISyntaxException ex) {
             Logger.EXCEPTION(ex);
             throw new InterruptedException();
         }

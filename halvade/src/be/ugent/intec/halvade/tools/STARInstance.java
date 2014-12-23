@@ -26,12 +26,16 @@ import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.ProcessBuilderWrapper;
 import be.ugent.intec.halvade.utils.SAMStreamHandler;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 
 /**
@@ -39,22 +43,26 @@ import org.apache.hadoop.mapreduce.Mapper;
  * @author ddecap
  */
 public class STARInstance extends AlignerInstance {
+    public static int PASS1 = 1;
+    public static int PASS2 = 2;
+    public static int PASS1AND2 = 3;
     private static STARInstance instance;
     private ProcessBuilderWrapper star;
     private SAMStreamHandler ssh;
     private BufferedWriter fastqFile1;
     private BufferedWriter fastqFile2;
     private String taskId;
-    private String starTmpDir;
     private String starOutDir;
     private int overhang, nReads;
+    private boolean makeLocalCopy;
+    private int starType;
     
-    private STARInstance(Mapper.Context context, String bin) throws IOException, URISyntaxException {
-        super(context, bin);  
+    private STARInstance(Mapper.Context context, String bin, int starType) throws IOException, URISyntaxException {
+        super(context, bin);
+        this.starType = starType;
         taskId = context.getTaskAttemptID().toString();
         taskId = taskId.substring(taskId.indexOf("m_"));
-        ref = HDFSFileIO.downloadSTARIndex(context, taskId);
-        starTmpDir = tmpdir + taskId + "-STARtmp/";
+        ref = HDFSFileIO.downloadSTARIndex(context, taskId, makeLocalCopy);
         starOutDir = tmpdir + taskId + "-STARout/";
         nReads = 0;
         overhang = 0;
@@ -87,9 +95,9 @@ public class STARInstance extends AlignerInstance {
         return outFile;
     }
 
-    public static AlignerInstance getSTARInstance(Mapper.Context context, String bin) throws URISyntaxException, IOException, InterruptedException {
+    public static AlignerInstance getSTARInstance(Mapper.Context context, String bin, int starType) throws URISyntaxException, IOException, InterruptedException {
         if(instance == null) {
-            instance = new STARInstance(context, bin);
+            instance = new STARInstance(context, bin, starType);
             instance.startAligner(context);
         }
         BWAAlnInstance.context = context;
@@ -133,39 +141,69 @@ public class STARInstance extends AlignerInstance {
         
         // make command
         String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "star", "");
-        String[] command = CommandGenerator.starAlign(bin, ref, starOutDir, starTmpDir, 
-                getFileName(tmpdir, taskId, 1), getFileName(tmpdir, taskId, 2), threads, overhang, nReads, customArgs);
+        String[] command = CommandGenerator.starAlign(bin, starType, ref, starOutDir,  
+                getFileName(tmpdir, taskId, 1), getFileName(tmpdir, taskId, 2), 
+                threads, overhang, nReads / 4, customArgs);
         star = new ProcessBuilderWrapper(command, bin);
         // run command
         // needs to be streamed to output otherwise the process blocks ...
         star.startProcess(null, System.err);
-        // check if alive.
+        // check if alive
         if(!star.isAlive())
             throw new ProcessException("STAR aligner", star.getExitState());
-        star.getSTDINWriter();
-        // make a SAMstream handler
-        ssh = new SAMStreamHandler(instance, context);
-        ssh.start();
+        if(starType == PASS2 || starType == PASS1AND2) {
+            // make a SAMstream handler
+            ssh = new SAMStreamHandler(instance, context);
+            ssh.start();
+        }
         
         // send a heartbeat every min its still running -> avoid timeout
         HalvadeHeartBeat hhb = new HalvadeHeartBeat(context);
         hhb.start();
         
-        ssh.join();
+        if(starType == PASS2 || starType == PASS1AND2)
+            ssh.join();
         int error = star.waitForCompletion();
         hhb.jobFinished();
         hhb.join();
         if(error != 0)
             throw new ProcessException("STAR aligner", error);
         context.getCounter(HalvadeCounters.TIME_STAR).increment(star.getExecutionTime());
-        
+        if (starType == PASS1) {
+            emitJSFile(starOutDir, context);
+        }
         //remove all temporary fastq/sai files
         removeLocalFile(getFileName(tmpdir, taskId, 1), context, HalvadeCounters.FOUT_STAR_TMP);
         removeLocalFile(getFileName(tmpdir, taskId, 2), context, HalvadeCounters.FOUT_STAR_TMP);
         // delete star tmp/out dirs
-        removeLocalDir(starTmpDir, context, HalvadeCounters.FOUT_STAR_TMP);
         removeLocalDir(starOutDir, context, HalvadeCounters.FOUT_STAR_TMP);
         instance = null;
+    }
+
+    protected Text val;
+    protected LongWritable key;
+    private void emitJSFile(String starOutDir, Mapper.Context context) {
+        BufferedReader br = null;
+        val = new Text();
+        key = new LongWritable();
+        try {
+            br = new BufferedReader(new FileReader(starOutDir + "/SJ.out.tab"));
+            String line = br.readLine();
+            while (line != null) {
+                val.set(line);
+                key.set(0);
+                context.write(key, val);
+                line = br.readLine();
+            }
+        } catch (IOException | InterruptedException ex) {
+            Logger.EXCEPTION(ex);
+        } finally {
+            try {
+                br.close();
+            } catch (IOException ex) {
+            Logger.EXCEPTION(ex);
+            }
+        }
     }
 
     @Override
@@ -187,4 +225,22 @@ public class STARInstance extends AlignerInstance {
         starOut.mkdir();
     }
     
+    
+    public void loadSharedMemoryReference(boolean unload) throws InterruptedException {
+        if(unload)  Logger.DEBUG("Remove ref from shared memory.");
+        else Logger.DEBUG("Load ref to shared memory");
+        String[] command = CommandGenerator.starGenomeLoad(bin, ref, unload);
+        star = new ProcessBuilderWrapper(command, bin);
+        star.startProcess(System.out, System.err);
+        if(!star.isAlive())
+            throw new ProcessException("STAR aligner load", star.getExitState());
+        HalvadeHeartBeat hhb = new HalvadeHeartBeat(context);
+        hhb.start();
+        int error = star.waitForCompletion();
+        hhb.jobFinished();
+        hhb.join();
+        if(error != 0)
+            throw new ProcessException("STAR aligner load", error);
+        context.getCounter(HalvadeCounters.TIME_STAR_REF).increment(star.getExecutionTime());
+    }
 }

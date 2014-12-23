@@ -25,6 +25,7 @@ public enum HalvadeCounters {
     TIME_BWA_MEM,
     TIME_BWA_SAMPE,
     TIME_STAR,
+    TIME_STAR_REF,
     TIME_ELPREP,
     TIME_BEDTOOLS,
     TIME_SAMTOBAM,

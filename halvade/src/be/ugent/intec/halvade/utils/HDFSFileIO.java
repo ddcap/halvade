@@ -183,19 +183,24 @@ public class HDFSFileIO {
     protected static String[] STAR_REF_FILES = 
         {"chrLength.txt", "chrNameLength.txt", "chrName.txt", "chrStart.txt", 
          "Genome", "genomeParameters.txt", "SA", "SAindex"};
+    protected static String[] STAR_REF_OPTIONAL_FILES =  {"sjdbInfo.txt", "sjdbList.out.tab"};
         
         
     protected static String findFile(String directory, String suffix, boolean recursive) {
         File dir  = new File(directory);
-        if(dir != null && dir.listFiles() != null) {
+        if(dir.isDirectory() && dir.listFiles() != null) {
             String foundPrefix = null;
-            for (File file : dir.listFiles()) {
+            int i = 0;
+            File[] files = dir.listFiles();
+            while (foundPrefix == null && i < files.length) {
+                File file = files[i];
                 if(file.isDirectory() && recursive) {
                     foundPrefix = findFile(file.getAbsolutePath(), suffix, recursive);
                 } else if (file.getAbsolutePath().endsWith(suffix)) {
                     foundPrefix = file.getAbsolutePath().substring(0, file.getAbsolutePath().lastIndexOf('.'));
                     Logger.DEBUG("found existing ref: \"" + foundPrefix + "\"");
                 }
+                i++;
             }
             return foundPrefix;
         } else 
@@ -252,7 +257,7 @@ public class HDFSFileIO {
         return refBase + GATK_REF_FILES[0];
     }
     
-    public static String downloadSTARIndex(TaskInputOutputContext context, String id) throws IOException, URISyntaxException {
+    public static String downloadSTARIndex(TaskInputOutputContext context, String id, boolean makeLocalCopy) throws IOException, URISyntaxException {
         Logger.INFO("downloading missing reference index files to local scratch");
         Configuration conf = context.getConfiguration();
         String refDir = HalvadeConf.getRefDirOnScratch(conf);
@@ -272,6 +277,10 @@ public class HDFSFileIO {
         
         for (String suffix : STAR_REF_FILES) {
             attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES);                
+        }
+        for (String suffix : STAR_REF_OPTIONAL_FILES) {
+            if(fs.exists(new Path(HDFSRef + suffix))) 
+                attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES); 
         }
         Logger.INFO("FINISHED downloading the complete reference index to local scratch");
         if(!foundExisting) {

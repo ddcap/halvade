@@ -6,15 +6,16 @@
 
 package be.ugent.intec.halvade.hadoop.mapreduce;
 
-import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import be.ugent.intec.halvade.tools.AlignerInstance;
 import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
-import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import java.io.File;
 import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.channels.FileChannel;
+import java.nio.channels.FileLock;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import org.apache.hadoop.fs.Path;
@@ -22,30 +23,24 @@ import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 
-public class HalvadeMapper extends Mapper<LongWritable, Text, ChromosomeRegion, SAMRecordWritable> {
+//ChromosomeRegion, SAMRecordWritable
+public class HalvadeMapper<T1, T2> extends Mapper<LongWritable, Text, T1, T2> {
     protected int count, readcount;
-    protected boolean reuseJVM;
     protected AlignerInstance instance;
+    protected boolean allTasksHaveStarted;
 
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
         super.cleanup(context);
-        Logger.DEBUG(readcount + " fastq reads processed");
-        Logger.DEBUG("starting cleanup");
         try {
-            // check if its the last on this node, if so close it:
-            // assumes the jvm is reused fully (mapred.job.reuse.jvm.num.tasks = -1)
-            if (!reuseJVM || HalvadeConf.allTasksCompleted(context.getConfiguration())) {
-                Logger.DEBUG("closing aligner");
-                // also runs the sampe/samse in this function!
-                // needs context to write output!
-                instance.closeAligner();
-            }
+            Logger.DEBUG(readcount + " fastq reads processed");
+            allTasksHaveStarted = HalvadeConf.allTasksCompleted(context.getConfiguration());
+            Logger.DEBUG("starting cleanup: closing aligner");
+            instance.closeAligner();
+            Logger.DEBUG("finished cleanup");
         } catch (URISyntaxException ex) {
             Logger.EXCEPTION(ex);
-            throw new InterruptedException();
         }
-        Logger.DEBUG("finished cleanup");
     }
     
 
@@ -62,7 +57,6 @@ public class HalvadeMapper extends Mapper<LongWritable, Text, ChromosomeRegion, 
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
         try {
-            reuseJVM = HalvadeConf.getReuseJVM(context.getConfiguration());  
             count = 0;
             readcount = 0;
             // add a file to distributed cache representing this task
@@ -73,6 +67,28 @@ public class HalvadeMapper extends Mapper<LongWritable, Text, ChromosomeRegion, 
             Logger.EXCEPTION(ex);
             throw new InterruptedException();
         }
+    }
+    
+    protected File lockfile;
+    protected FileChannel f;
+    protected RandomAccessFile file;
+    protected FileLock lock;
+    protected void getLock(String dir, String filename) throws IOException, InterruptedException {
+        lockfile = new File(dir, filename);
+        file = new RandomAccessFile(lockfile, "rw");
+        f = file.getChannel();
+        lock = f.tryLock();  
+        while(lock == null) {
+            Logger.DEBUG("waiting for lock...");
+            Thread.sleep(1000);
+        }
+    }
+    
+    protected void releaseLock() throws IOException {
+        if (lock != null && lock.isValid())
+          lock.release();
+        if (file != null)
+          file.close();
     }
     
     protected String checkBinaries(Context context) throws IOException {

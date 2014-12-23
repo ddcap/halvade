@@ -17,10 +17,12 @@
 
 package be.ugent.intec.halvade.hadoop.mapreduce;
 
+import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import java.io.IOException;
 import org.apache.hadoop.io.Text;
 import be.ugent.intec.halvade.tools.BWAMemInstance;
 import be.ugent.intec.halvade.utils.Logger;
+import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import java.net.URISyntaxException;
 import org.apache.hadoop.io.LongWritable;
 
@@ -28,7 +30,7 @@ import org.apache.hadoop.io.LongWritable;
  *
  * @author ddecap
  */
-public class BWAMemMapper extends HalvadeMapper {
+public class BWAMemMapper extends HalvadeMapper<ChromosomeRegion, SAMRecordWritable> {
 
     @Override
     protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {

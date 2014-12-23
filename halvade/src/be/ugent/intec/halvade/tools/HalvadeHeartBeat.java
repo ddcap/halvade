@@ -16,7 +16,8 @@ import org.apache.hadoop.mapreduce.Mapper.Context;
  * @author ddecap
  */
 public class HalvadeHeartBeat extends Thread {
-    protected int interval = 60000;
+    protected int loop = 60;
+    protected int interval = 1000;
     protected Context context;
     protected boolean stopBeating = false;
 
@@ -32,10 +33,16 @@ public class HalvadeHeartBeat extends Thread {
     @Override
     public void run() {
         try {
+            int i;
             while(!stopBeating) {
-                Thread.sleep(interval);
+                i = 0;
+                while(!stopBeating && i < loop) {
+                    Thread.sleep(interval);
+                    i++;
+                }
                 context.getCounter(HalvadeCounters.STILL_RUNNING_HEARTBEAT).increment(1);
                 context.progress();
+//                Logger.DEBUG("Yes I'm still working...");
             }
         } catch (InterruptedException ex) {
             Logger.EXCEPTION(ex);

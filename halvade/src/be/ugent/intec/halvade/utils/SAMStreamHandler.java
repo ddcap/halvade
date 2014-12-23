@@ -92,6 +92,7 @@ public class SAMStreamHandler extends Thread {
                 
                 if(isPaired) count += instance.writePairedSAMRecordToContext(samrecord);
                 else count += instance.writeSAMRecordToContext(samrecord);
+//                if(count % 50000 == 0) Logger.DEBUG("read this many: " + count);
                 //advance line even if bad line
                 advanceLine();
             }
