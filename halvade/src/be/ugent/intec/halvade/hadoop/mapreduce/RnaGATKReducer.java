@@ -36,7 +36,7 @@ public class RnaGATKReducer extends GATKReducer {
 //        String filteredSnps = tmpFileBase + "-filtered.vcf";    
 //        String annotatedSnps = tmpFileBase + "-annotated.vcf";
         
-        boolean useElPrep = HalvadeConf.getUseIPrep(context.getConfiguration());
+        boolean useElPrep = HalvadeConf.getUseElPrep(context.getConfiguration());
         ChromosomeRange r = new ChromosomeRange();
         SAMRecordIterator SAMit = new SAMRecordIterator(values.iterator(), header, r);
         

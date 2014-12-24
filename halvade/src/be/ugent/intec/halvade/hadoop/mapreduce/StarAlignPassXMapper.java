@@ -33,6 +33,10 @@ public class StarAlignPassXMapper  extends HalvadeMapper<LongWritable, Text> {
             lockfile.deleteOnExit();
             releaseLock();
         }
+        if(!runPass2) {
+            context.write(new LongWritable(1), 
+                    new Text("" + ((STARInstance)instance).getOverhang()));
+        }
     }
     
     @Override

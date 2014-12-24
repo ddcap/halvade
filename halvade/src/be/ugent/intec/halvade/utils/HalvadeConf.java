@@ -98,7 +98,7 @@ public class HalvadeConf {
         else 
             conf.set(useIPrep, "false");
     }
-    public static boolean getUseIPrep(Configuration conf) {
+    public static boolean getUseElPrep(Configuration conf) {
         String s = conf.get(useIPrep);
         if(s.equalsIgnoreCase("true"))
             return true;

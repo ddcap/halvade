@@ -100,7 +100,18 @@ public class CommandGenerator {
         String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
         return StringArray;
     }
+    /*
     
+        "--replace-reference-sequences",
+        "--filter-unmapped-reads",
+        "--replace-read-group",
+        "--mark-duplicates",
+        "--sorting-order",
+        "--clean-sam",
+        "--nr-of-threads",
+        "--gc-on",
+        "--timed"
+    };*/
     public static String[] elPrep(String bin, String input, String output, int threads, boolean filterUnmapped, 
            String readGroup, String refDict, String customArgs) {
         ArrayList<String> command = new ArrayList<String>();

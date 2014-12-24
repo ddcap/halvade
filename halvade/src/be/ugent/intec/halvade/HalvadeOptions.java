@@ -89,6 +89,7 @@ public class HalvadeOptions {
     protected boolean reportAll = false;
     protected static final int EXOME_COV = 6;
     protected boolean useSharedMemory = false;
+    private static final double REDUCE_TASKS_FACTOR = 1.68*15;
     
     public int GetOptions(String[] args, Configuration hConf) throws IOException, URISyntaxException {
         try {
@@ -103,14 +104,11 @@ public class HalvadeOptions {
             // add parameters to configuration:
             if(localRefDir == null)
                 localRefDir = tmpDir;
-            getBestDistribution(hConf);
             HalvadeConf.setScratchTempDir(hConf, tmpDir);
             HalvadeConf.setRefDirOnScratch(hConf, localRefDir);
             HalvadeConf.setRefOnHDFS(hConf, ref);
             if(STARGenome != null) HalvadeConf.setStarDirOnHDFS(hConf, STARGenome);
             HalvadeConf.setKnownSitesOnHDFS(hConf, hdfsSites);
-            HalvadeConf.setMapThreads(hConf, mthreads);
-            HalvadeConf.setReducerThreads(hConf, rthreads);
             HalvadeConf.setIsPaired(hConf, paired);
             HalvadeConf.setIsRNA(hConf, rnaPipeline);
             if(exomeBedFile != null)
@@ -144,6 +142,9 @@ public class HalvadeOptions {
                 System.exit(-2);
             }
             parseDictFile(hConf);
+            
+            // set a minimum first where the real amount is based on
+            reducers = (int) (coverage * REDUCE_TASKS_FACTOR);   
             ChromosomeSplitter splitter = new ChromosomeSplitter(dict, chr, reducers);
             HalvadeConf.setMinChrLength(hConf, splitter.getRegionSize());
             reducers = splitter.getRegionCount();
@@ -158,51 +159,6 @@ public class HalvadeOptions {
             return 1;
         }
         return 0;
-    }
-    private static final int RNA_MEM_MAP_TASK = 35;
-    private static final int RNA_MEM_REDUCE_TASK = 14;
-    private static final int DNA_MEM_MAP_TASK = 14;
-    private static final int DNA_MEM_REDUCE_TASK = 14;
-    private static int MEM_MAP_TASK;
-    private static int MEM_REDUCE_TASK ;
-    private static final int VCORES_MAP_TASK = 8;
-    private static final int VCORES_REDUCE_TASK = 4;
-    private static final double REDUCE_TASKS_FACTOR = 1.68*15;
-    
-    private void getBestDistribution(Configuration conf) {
-        if(rnaPipeline) {
-            MEM_MAP_TASK = RNA_MEM_MAP_TASK;
-            MEM_REDUCE_TASK = RNA_MEM_REDUCE_TASK;
-        } else {
-            MEM_MAP_TASK = DNA_MEM_MAP_TASK;
-            MEM_REDUCE_TASK = DNA_MEM_REDUCE_TASK;
-        }
-        if (mapsPerContainer == -1) mapsPerContainer = Math.min(Math.max(vcores / VCORES_MAP_TASK,1), Math.max(mem / MEM_MAP_TASK,1));
-        if (reducersPerContainer == -1) reducersPerContainer = Math.min(Math.max(vcores / VCORES_REDUCE_TASK, 1), Math.max(mem / MEM_REDUCE_TASK,1));
-        
-        mappers = Math.max(1,nodes*mapsPerContainer);
-        mthreads = Math.max(1,vcores/mapsPerContainer);
-        rthreads = Math.max(1,vcores/reducersPerContainer);
-        Logger.DEBUG(conf.toString());
-        int mem_reserved_for_am = Integer.parseInt(conf.get("yarn.app.mapreduce.am.resource.mb", "2048")) / 1024;
-        Logger.DEBUG("mem reserved for am: " + mem_reserved_for_am);
-        int tmpmem = mem - mem_reserved_for_am;
-        int mmem = Math.min(tmpmem*1024,tmpmem*1024/mapsPerContainer);
-        int rmem = Math.min(tmpmem*1024,tmpmem*1024/reducersPerContainer);
-        
-        be.ugent.intec.halvade.utils.Logger.DEBUG("using " + mapsPerContainer + " maps [" 
-                + mthreads + " cpu , " + mmem + " mb] per node and " 
-                + reducersPerContainer + " reducers ["
-                + rthreads + " cpu, " + rmem + " mb] per node");
-        
-        conf.set("mapreduce.map.cpu.vcores", "" + (mthreads - 1));
-        conf.set("mapreduce.map.memory.mb", "" + mmem); 
-        conf.set("mapreduce.reduce.cpu.vcores", "" + (rthreads - 1));
-        conf.set("mapreduce.reduce.memory.mb", "" + rmem); 
-        conf.set("mapreduce.job.reduce.slowstart.completedmaps", "" + 1.0);
-        
-        // set a minimum first where the real amount is based on
-        reducers = (int) (coverage * REDUCE_TASKS_FACTOR);        
     }
 
     private static final String DICT_SUFFIX = ".dict";

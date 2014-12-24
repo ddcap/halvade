@@ -59,6 +59,7 @@ public class MapReduceRunner extends Configured implements Tool  {
             // initialise MapReduce - copy ref to each node??
             if(halvadeOpts.useSharedMemory) {
                 Logger.DEBUG("Running STAR aligner first pass.");
+                HalvadeResourceManager.setJobResources(halvadeOpts, halvadeConf, HalvadeResourceManager.RNA_SHMEM_PASS1);
                 HalvadeConf.setIsPass2(halvadeConf, false);
                 Job halvadeJob = Job.getInstance(halvadeConf, "Halvade-pass1");
                 halvadeJob.addCacheArchive(new URI(halvadeOpts.halvadeBinaries));
@@ -102,6 +103,16 @@ public class MapReduceRunner extends Configured implements Tool  {
                 System.exit(0);
                 
             }
+            
+            // which job is it?
+            int type = HalvadeResourceManager.DNA;
+            if(halvadeOpts.rnaPipeline) {
+                if(halvadeOpts.useSharedMemory)
+                    type = HalvadeResourceManager.RNA_SHMEM_PASS2;
+                else
+                    type = HalvadeResourceManager.RNA;
+            }
+            HalvadeResourceManager.setJobResources(halvadeOpts, halvadeConf, type);
             Job halvadeJob = Job.getInstance(halvadeConf, "Halvade");
             halvadeJob.addCacheArchive(new URI(halvadeOpts.halvadeBinaries));
             

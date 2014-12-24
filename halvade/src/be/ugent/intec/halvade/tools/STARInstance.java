@@ -85,6 +85,10 @@ public class STARInstance extends AlignerInstance {
         return 0;
     }
     
+    public int getOverhang() {
+        return overhang;
+    }
+    
     protected String getFileName(String dir, String id, int read) {
         String outFile = dir;
         if(read == 1) {
@@ -189,9 +193,9 @@ public class STARInstance extends AlignerInstance {
         try {
             br = new BufferedReader(new FileReader(starOutDir + "/SJ.out.tab"));
             String line = br.readLine();
+            key.set(0);
             while (line != null) {
                 val.set(line);
-                key.set(0);
                 context.write(key, val);
                 line = br.readLine();
             }
@@ -222,7 +226,7 @@ public class STARInstance extends AlignerInstance {
         }
         // make output dir!
         File starOut = new File(starOutDir);
-        starOut.mkdir();
+        starOut.mkdirs();
     }
     
     
@@ -242,5 +246,25 @@ public class STARInstance extends AlignerInstance {
         if(error != 0)
             throw new ProcessException("STAR aligner load", error);
         context.getCounter(HalvadeCounters.TIME_STAR_REF).increment(star.getExecutionTime());
+    }
+    
+    public static long rebuildStarGenome(String bin, String newGenomeDir, String ref, 
+                                         String SJouttab, int sjoverhang, int threads) throws InterruptedException {
+        Logger.DEBUG("Creating new genome in " + newGenomeDir);
+        String[] command = 
+                CommandGenerator.starRebuildGenome(bin, newGenomeDir, ref, SJouttab, sjoverhang, threads);
+        
+        ProcessBuilderWrapper starbuild = new ProcessBuilderWrapper(command, bin);
+        starbuild.startProcess(System.out, System.err);
+        if(!starbuild.isAlive())
+            throw new ProcessException("STAR rebuild genome", starbuild.getExitState());
+        HalvadeHeartBeat hhb = new HalvadeHeartBeat(context);
+        hhb.start();
+        int error = starbuild.waitForCompletion();
+        hhb.jobFinished();
+        hhb.join();
+        if(error != 0)
+            throw new ProcessException("STAR aligner load", error);
+        return starbuild.getExecutionTime();        
     }
 }
