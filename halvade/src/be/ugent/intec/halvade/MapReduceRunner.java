@@ -61,7 +61,7 @@ public class MapReduceRunner extends Configured implements Tool  {
                 Logger.DEBUG("Running STAR aligner first pass.");
                 HalvadeResourceManager.setJobResources(halvadeOpts, halvadeConf, HalvadeResourceManager.RNA_SHMEM_PASS1);
                 HalvadeConf.setIsPass2(halvadeConf, false);
-                Job halvadeJob = Job.getInstance(halvadeConf, "Halvade-pass1");
+                Job halvadeJob = Job.getInstance(halvadeConf, "Halvade pass 1 RNA pipeline");
                 halvadeJob.addCacheArchive(new URI(halvadeOpts.halvadeBinaries));
                 halvadeJob.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.HalvadeMapper.class);
                 FileSystem fs = FileSystem.get(new URI(halvadeOpts.in), halvadeConf);
@@ -77,7 +77,6 @@ public class MapReduceRunner extends Configured implements Tool  {
                     } else {
                         FileInputFormat.addInputPath(halvadeJob, new Path(halvadeOpts.in));
                     }
-
                 } catch (IOException | IllegalArgumentException e) {
                     Logger.EXCEPTION(e);
                 }
@@ -100,20 +99,24 @@ public class MapReduceRunner extends Configured implements Tool  {
                 ret = halvadeJob.waitForCompletion(true) ? 0 : 1;
                 timer.stop();
                 Logger.DEBUG("Running time of Halvade pass 1 Job: " + timer);
-                System.exit(0);
+                //System.exit(0);
                 
             }
             
             // which job is it?
             int type = HalvadeResourceManager.DNA;
+            String pipeline = " DNA pipeline";
             if(halvadeOpts.rnaPipeline) {
-                if(halvadeOpts.useSharedMemory)
+                if(halvadeOpts.useSharedMemory) {
+                    pipeline = " pass 2 RNA pipeline";
                     type = HalvadeResourceManager.RNA_SHMEM_PASS2;
-                else
+                } else {
+                    pipeline = " RNA pipeline";
                     type = HalvadeResourceManager.RNA;
-            }
+                }
+            }                                     
             HalvadeResourceManager.setJobResources(halvadeOpts, halvadeConf, type);
-            Job halvadeJob = Job.getInstance(halvadeConf, "Halvade");
+            Job halvadeJob = Job.getInstance(halvadeConf, "Halvade" + pipeline);
             halvadeJob.addCacheArchive(new URI(halvadeOpts.halvadeBinaries));
             
             halvadeJob.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.HalvadeMapper.class);
