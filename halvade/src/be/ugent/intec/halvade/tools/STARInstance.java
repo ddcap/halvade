@@ -18,10 +18,8 @@
 package be.ugent.intec.halvade.tools;
 
 import be.ugent.intec.halvade.hadoop.mapreduce.HalvadeCounters;
-import static be.ugent.intec.halvade.tools.AlignerInstance.context;
-import static be.ugent.intec.halvade.tools.AlignerInstance.ref;
 import be.ugent.intec.halvade.utils.CommandGenerator;
-import be.ugent.intec.halvade.utils.HDFSFileIO;
+import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.ProcessBuilderWrapper;
@@ -37,6 +35,7 @@ import java.net.URISyntaxException;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.TaskInputOutputContext;
 
 /**
  *
@@ -54,7 +53,6 @@ public class STARInstance extends AlignerInstance {
     private String taskId;
     private String starOutDir;
     private int overhang, nReads;
-    private boolean makeLocalCopy;
     private int starType;
     
     private STARInstance(Mapper.Context context, String bin, int starType) throws IOException, URISyntaxException {
@@ -62,7 +60,7 @@ public class STARInstance extends AlignerInstance {
         this.starType = starType;
         taskId = context.getTaskAttemptID().toString();
         taskId = taskId.substring(taskId.indexOf("m_"));
-        ref = HDFSFileIO.downloadSTARIndex(context, taskId, makeLocalCopy);
+        ref = HalvadeFileUtils.downloadSTARIndex(context, taskId, starType == PASS2);
         starOutDir = tmpdir + taskId + "-STARout/";
         nReads = 0;
         overhang = 0;
@@ -85,6 +83,10 @@ public class STARInstance extends AlignerInstance {
         return 0;
     }
     
+    public String getGenomeDir() {
+        return ref;
+    }
+    
     public int getOverhang() {
         return overhang;
     }
@@ -101,6 +103,7 @@ public class STARInstance extends AlignerInstance {
 
     public static AlignerInstance getSTARInstance(Mapper.Context context, String bin, int starType) throws URISyntaxException, IOException, InterruptedException {
         if(instance == null) {
+            Logger.DEBUG("STAR instance type: " + starType);
             instance = new STARInstance(context, bin, starType);
             instance.startAligner(context);
         }
@@ -177,10 +180,10 @@ public class STARInstance extends AlignerInstance {
             emitJSFile(starOutDir, context);
         }
         //remove all temporary fastq/sai files
-        removeLocalFile(getFileName(tmpdir, taskId, 1), context, HalvadeCounters.FOUT_STAR_TMP);
-        removeLocalFile(getFileName(tmpdir, taskId, 2), context, HalvadeCounters.FOUT_STAR_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, getFileName(tmpdir, taskId, 1), context, HalvadeCounters.FOUT_STAR_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, getFileName(tmpdir, taskId, 2), context, HalvadeCounters.FOUT_STAR_TMP);
         // delete star tmp/out dirs
-        removeLocalDir(starOutDir, context, HalvadeCounters.FOUT_STAR_TMP);
+        HalvadeFileUtils.removeLocalDir(keep, starOutDir, context, HalvadeCounters.FOUT_STAR_TMP);
         instance = null;
     }
 
@@ -229,10 +232,10 @@ public class STARInstance extends AlignerInstance {
         starOut.mkdirs();
     }
     
-    
-    public void loadSharedMemoryReference(boolean unload) throws InterruptedException {
-        if(unload)  Logger.DEBUG("Remove ref from shared memory.");
-        else Logger.DEBUG("Load ref to shared memory");
+    public void loadSharedMemoryReference(String ref, boolean unload) throws InterruptedException {
+        if(ref == null) ref = this.ref;
+        if(unload)  Logger.DEBUG("Remove ref [" + ref + "] from shared memory.");
+        else Logger.DEBUG("Load ref [" + ref + "] to shared memory");
         String[] command = CommandGenerator.starGenomeLoad(bin, ref, unload);
         star = new ProcessBuilderWrapper(command, bin);
         star.startProcess(System.out, System.err);
@@ -243,16 +246,17 @@ public class STARInstance extends AlignerInstance {
         int error = star.waitForCompletion();
         hhb.jobFinished();
         hhb.join();
-        if(error != 0)
+        if(!(error == 0 || error == 105)) // 105 = no ref in memory
             throw new ProcessException("STAR aligner load", error);
         context.getCounter(HalvadeCounters.TIME_STAR_REF).increment(star.getExecutionTime());
     }
     
-    public static long rebuildStarGenome(String bin, String newGenomeDir, String ref, 
-                                         String SJouttab, int sjoverhang, int threads) throws InterruptedException {
+    public static long rebuildStarGenome(TaskInputOutputContext context, String bin, String newGenomeDir, 
+            String ref, String SJouttab, int sjoverhang, int threads, long mem) throws InterruptedException {
         Logger.DEBUG("Creating new genome in " + newGenomeDir);
         String[] command = 
-                CommandGenerator.starRebuildGenome(bin, newGenomeDir, ref, SJouttab, sjoverhang, threads);
+                CommandGenerator.starRebuildGenome(bin, newGenomeDir, ref, SJouttab, 
+                        sjoverhang, threads, mem);
         
         ProcessBuilderWrapper starbuild = new ProcessBuilderWrapper(command, bin);
         starbuild.startProcess(System.out, System.err);

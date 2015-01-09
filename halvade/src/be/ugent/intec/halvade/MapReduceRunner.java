@@ -22,6 +22,7 @@ import fi.tkk.ics.hadoop.bam.VariantContextWritable;
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import be.ugent.intec.halvade.hadoop.mapreduce.HalvadeTextInputFormat;
 import be.ugent.intec.halvade.hadoop.partitioners.*;
+import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileStatus;
@@ -46,184 +47,232 @@ import org.apache.hadoop.mapreduce.Job;
  * @author ddecap
  */
 public class MapReduceRunner extends Configured implements Tool  {
-    HalvadeOptions halvadeOpts;
+    protected final String RNA_PASS2 = " pass 2 RNA job";
+    protected final String RNA = " RNA job";
+    protected final String DNA = " DNA job";
+    protected HalvadeOptions halvadeOpts;
             
     @Override
     public int run(String[] strings) throws Exception {
-        int ret = 1;
+        int ret = 0;
         try {
             Configuration halvadeConf = getConf();
             halvadeOpts = new HalvadeOptions();
             int optReturn = halvadeOpts.GetOptions(strings, halvadeConf);
             if (optReturn != 0) return optReturn;
-            // initialise MapReduce - copy ref to each node??
-            if(halvadeOpts.useSharedMemory) {
-                Logger.DEBUG("Running STAR aligner first pass.");
-                HalvadeResourceManager.setJobResources(halvadeOpts, halvadeConf, HalvadeResourceManager.RNA_SHMEM_PASS1);
-                HalvadeConf.setIsPass2(halvadeConf, false);
-                Job halvadeJob = Job.getInstance(halvadeConf, "Halvade pass 1 RNA pipeline");
-                halvadeJob.addCacheArchive(new URI(halvadeOpts.halvadeBinaries));
-                halvadeJob.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.HalvadeMapper.class);
-                FileSystem fs = FileSystem.get(new URI(halvadeOpts.in), halvadeConf);
-                try {
-                    if (fs.getFileStatus(new Path(halvadeOpts.in)).isDirectory()) {
-                        // add every file in directory
-                        FileStatus[] files = fs.listStatus(new Path(halvadeOpts.in));
-                        for(FileStatus file : files) {
-                            if (!file.isDirectory()) {
-                                FileInputFormat.addInputPath(halvadeJob, file.getPath());
-                            }
+            
+            String halvadeDir = halvadeOpts.out + "/halvade";
+            if(!halvadeOpts.justCombine) {
+                if(halvadeOpts.rnaPipeline) {
+                    if(halvadeOpts.useSharedMemory) {
+                        ret = runPass1RNAJob(halvadeConf, halvadeOpts.out + "/pass1");
+                        if(ret != 0) {
+                            Logger.DEBUG("Halvade pass 1 job failed.");
+                            System.exit(-1);
                         }
+                        HalvadeConf.setIsPass2(halvadeConf, true);
+                        ret = runHalvadeJob(halvadeConf, halvadeDir, HalvadeResourceManager.RNA_SHMEM_PASS2);
                     } else {
-                        FileInputFormat.addInputPath(halvadeJob, new Path(halvadeOpts.in));
-                    }
-                } catch (IOException | IllegalArgumentException e) {
-                    Logger.EXCEPTION(e);
-                }
-                FileOutputFormat.setOutputPath(halvadeJob, new Path(halvadeOpts.out + "/pass1"));
-                halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.StarAlignPassXMapper.class);
-                
-                halvadeJob.setInputFormatClass(HalvadeTextInputFormat.class);
-                halvadeJob.setMapOutputKeyClass(LongWritable.class);
-                halvadeJob.setMapOutputValueClass(Text.class);
-
-                halvadeJob.setNumReduceTasks(1); 
-                halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.RebuildStarGenomeReducer.class);          
-                halvadeJob.setOutputKeyClass(LongWritable.class);
-                halvadeJob.setOutputValueClass(Text.class);
-
-                if(halvadeOpts.dryRun) 
-                    return 0;
-                Timer timer = new Timer();
-                timer.start();
-                ret = halvadeJob.waitForCompletion(true) ? 0 : 1;
-                timer.stop();
-                Logger.DEBUG("Running time of Halvade pass 1 Job: " + timer);
-                //System.exit(0);
-                
-            }
-            
-            // which job is it?
-            int type = HalvadeResourceManager.DNA;
-            String pipeline = " DNA pipeline";
-            if(halvadeOpts.rnaPipeline) {
-                if(halvadeOpts.useSharedMemory) {
-                    pipeline = " pass 2 RNA pipeline";
-                    type = HalvadeResourceManager.RNA_SHMEM_PASS2;
-                } else {
-                    pipeline = " RNA pipeline";
-                    type = HalvadeResourceManager.RNA;
-                }
-            }                                     
-            HalvadeResourceManager.setJobResources(halvadeOpts, halvadeConf, type);
-            Job halvadeJob = Job.getInstance(halvadeConf, "Halvade" + pipeline);
-            halvadeJob.addCacheArchive(new URI(halvadeOpts.halvadeBinaries));
-            
-            halvadeJob.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.HalvadeMapper.class);
-            FileSystem fs = FileSystem.get(new URI(halvadeOpts.in), halvadeConf);
-            try {
-                if (fs.getFileStatus(new Path(halvadeOpts.in)).isDirectory()) {
-                    // add every file in directory
-                    FileStatus[] files = fs.listStatus(new Path(halvadeOpts.in));
-                    for(FileStatus file : files) {
-                        if (!file.isDirectory()) {
-                            FileInputFormat.addInputPath(halvadeJob, file.getPath());
-                        }
+                        ret = runHalvadeJob(halvadeConf, halvadeDir, HalvadeResourceManager.RNA);
                     }
                 } else {
-                    FileInputFormat.addInputPath(halvadeJob, new Path(halvadeOpts.in));
+                    ret = runHalvadeJob(halvadeConf, halvadeDir, HalvadeResourceManager.DNA);
                 }
-                
-            } catch (IOException | IllegalArgumentException e) {
-                Logger.EXCEPTION(e);
-            }
-            FileOutputFormat.setOutputPath(halvadeJob, new Path(halvadeOpts.out + "/halvade"));
-            
-            if(halvadeOpts.rnaPipeline)  {
-                if(halvadeOpts.useSharedMemory) {
-                    HalvadeConf.setIsPass2(halvadeConf, true);
-                    halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.StarAlignPassXMapper.class);
-                } else 
-                    halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.StarAlignMapper.class);
-            } else {
-                if (halvadeOpts.aln) halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.BWAAlnMapper.class);
-                else halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.BWAMemMapper.class);
-            }
-            halvadeJob.setMapOutputKeyClass(ChromosomeRegion.class);
-            halvadeJob.setMapOutputValueClass(SAMRecordWritable.class);
-            halvadeJob.setInputFormatClass(HalvadeTextInputFormat.class);
-            halvadeJob.setPartitionerClass(ChrRgPartitioner.class);
-            halvadeJob.setSortComparatorClass(ChrRgPositionComparator.class);
-            halvadeJob.setGroupingComparatorClass(ChrRgRegionComparator.class);
-            
-            if(halvadeOpts.justAlign)
-                halvadeJob.setNumReduceTasks(0);
-            else
-                halvadeJob.setNumReduceTasks(halvadeOpts.reducers);            
-            if(halvadeOpts.rnaPipeline)
-                halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.RnaGATKReducer.class);
-            else
-                halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.DnaGATKReducer.class);            
-            halvadeJob.setOutputKeyClass(Text.class);
-            halvadeJob.setOutputValueClass(VariantContextWritable.class);
-            
-            if(halvadeOpts.dryRun) 
-                return 0;
-            Timer timer = new Timer();
-            timer.start();
-            ret = halvadeJob.waitForCompletion(true) ? 0 : 1;
-            timer.stop();
-            Logger.DEBUG("Running time of Halvade Job: " + timer);
-            
-            
-            if(!halvadeOpts.justAlign && (halvadeOpts.combineVcf && ret == 0)) {
-                Logger.DEBUG("combining output");
-                Configuration combineConf = getConf();
-                if(!halvadeOpts.out.endsWith("/")) halvadeOpts.out += "/";  
-                HalvadeConf.setInputDir(combineConf, halvadeOpts.out);
-                HalvadeConf.setOutDir(combineConf, halvadeOpts.out + "combinedVCF/");
-                HalvadeConf.setReportAllVariant(combineConf, halvadeOpts.reportAll);
-                Job combineJob = new Job(combineConf, "HalvadeCombineVCF");            
-                combineJob.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
-
-                
-                try {
-                    if (fs.getFileStatus(new Path(halvadeOpts.out)).isDirectory()) {
-                        // add every file in directory
-                        FileStatus[] files = fs.listStatus(new Path(halvadeOpts.out));
-                        for(FileStatus file : files) {
-                            if (!file.isDirectory() && file.getPath().getName().endsWith(".vcf")) {
-                                FileInputFormat.addInputPath(combineJob, file.getPath());
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    Logger.EXCEPTION(e);
+                if(ret != 0) {
+                    Logger.DEBUG("Halvade job failed.");
+                    System.exit(-2);
                 }
-                FileOutputFormat.setOutputPath(combineJob, new Path(halvadeOpts.out + "merge/"));
-
-                combineJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
-                combineJob.setMapOutputKeyClass(LongWritable.class);
-                combineJob.setMapOutputValueClass(VariantContextWritable.class);
-                combineJob.setInputFormatClass(VCFInputFormat.class);
-                combineJob.setNumReduceTasks(1); 
-                combineJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineReducer.class);
-                combineJob.setOutputKeyClass(Text.class);
-                combineJob.setOutputValueClass(VariantContextWritable.class);
-                //            combineJob.setOutputFormatClass(KeyIgnoringVCFOutputFormat.class);
-
-                timer = new Timer();
-                timer.start();
-                ret = combineJob.waitForCompletion(true) ? 0 : 1;
-                timer.stop();
-                Logger.DEBUG("Running time of Combine Job: " + timer);
-            } else {
             }
-            
-            
+            if(halvadeOpts.combineVcf) 
+                runCombineJob(halvadeDir, halvadeOpts.out + "/merge");
         } catch (IOException | ClassNotFoundException | IllegalArgumentException | IllegalStateException | InterruptedException | URISyntaxException e) {
             Logger.EXCEPTION(e);
         }
         return ret;
     }
+    
+    protected int runPass1RNAJob(Configuration pass1Conf, String tmpOutDir) throws IOException, InterruptedException, ClassNotFoundException, URISyntaxException {
+        HalvadeConf.setIsPass2(pass1Conf, false);
+        HalvadeResourceManager.setJobResources(halvadeOpts, pass1Conf, HalvadeResourceManager.RNA_SHMEM_PASS1, false);
+        
+        Job pass1Job = Job.getInstance(pass1Conf, "Halvade pass 1 RNA pipeline");
+        pass1Job.addCacheArchive(new URI(halvadeOpts.halvadeBinaries));
+        pass1Job.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.HalvadeMapper.class);
+        FileSystem fs = FileSystem.get(new URI(halvadeOpts.in), pass1Conf);
+        try {
+            if (fs.getFileStatus(new Path(halvadeOpts.in)).isDirectory()) {
+                // add every file in directory
+                FileStatus[] files = fs.listStatus(new Path(halvadeOpts.in));
+                for(FileStatus file : files) {
+                    if (!file.isDirectory()) {
+                        FileInputFormat.addInputPath(pass1Job, file.getPath());
+                    }
+                }
+            } else {
+                FileInputFormat.addInputPath(pass1Job, new Path(halvadeOpts.in));
+            }
+        } catch (IOException | IllegalArgumentException e) {
+            Logger.EXCEPTION(e);
+        }
+
+        FileSystem outFs = FileSystem.get(new URI(tmpOutDir), pass1Conf);
+        boolean skipPass1 = false;
+        if (outFs.exists(new Path(tmpOutDir))) {
+            // check if genome already exists
+            skipPass1 = outFs.exists(new Path(tmpOutDir + "/_SUCCESS"));
+            if(skipPass1)
+                Logger.DEBUG("pass1 genome already created, skipping pass 1");
+            else {
+                Logger.INFO("The output directory \'" + tmpOutDir + "\' already exists.");
+                Logger.INFO("ERROR: Please remove this directory before trying again.");
+                System.exit(-2);
+            }
+        }
+        if(!skipPass1) {
+            FileOutputFormat.setOutputPath(pass1Job, new Path(tmpOutDir));
+            pass1Job.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.StarAlignPassXMapper.class);
+
+            pass1Job.setInputFormatClass(HalvadeTextInputFormat.class);
+            pass1Job.setMapOutputKeyClass(LongWritable.class);
+            pass1Job.setMapOutputValueClass(Text.class);
+
+            pass1Job.setNumReduceTasks(1); 
+            pass1Job.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.RebuildStarGenomeReducer.class);          
+            pass1Job.setOutputKeyClass(LongWritable.class);
+            pass1Job.setOutputValueClass(Text.class);
+
+            return runTimedJob(pass1Job, "Halvade pass 1 Job");
+        } else
+            return 0;
+    }
+    
+    protected int runHalvadeJob(Configuration halvadeConf, String tmpOutDir, int jobType) throws IOException, URISyntaxException, InterruptedException, ClassNotFoundException {
+        String pipeline = "";
+        if(jobType == HalvadeResourceManager.RNA_SHMEM_PASS2) {
+            HalvadeConf.setIsPass2(halvadeConf, true);
+            HalvadeResourceManager.setJobResources(halvadeOpts, halvadeConf, jobType, false);
+            pipeline = RNA_PASS2;
+        } else if(jobType == HalvadeResourceManager.RNA) {
+            HalvadeResourceManager.setJobResources(halvadeOpts, halvadeConf, jobType, false);
+            pipeline = RNA;
+        } else if(jobType == HalvadeResourceManager.DNA) {
+            HalvadeResourceManager.setJobResources(halvadeOpts, halvadeConf, jobType, false);
+            pipeline = DNA; 
+        }
+        HalvadeConf.setOutDir(halvadeConf, tmpOutDir);
+        FileSystem outFs = FileSystem.get(new URI(tmpOutDir), halvadeConf);
+        if (outFs.exists(new Path(tmpOutDir))) {
+            Logger.INFO("The output directory \'" + tmpOutDir + "\' already exists.");
+            Logger.INFO("ERROR: Please remove this directory before trying again.");
+            System.exit(-2);
+        }
+        
+        Job halvadeJob = Job.getInstance(halvadeConf, "Halvade" + pipeline);
+        halvadeJob.addCacheArchive(new URI(halvadeOpts.halvadeBinaries));
+        halvadeJob.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.HalvadeMapper.class);
+        addInputFiles(halvadeOpts.in, halvadeConf, halvadeJob);
+        FileOutputFormat.setOutputPath(halvadeJob, new Path(tmpOutDir));
+
+        if(jobType == HalvadeResourceManager.RNA_SHMEM_PASS2) {
+            halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.StarAlignPassXMapper.class);
+            halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.RnaGATKReducer.class);
+        } else if(jobType == HalvadeResourceManager.RNA) {
+            halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.StarAlignMapper.class);
+            halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.RnaGATKReducer.class);
+        } else if(jobType == HalvadeResourceManager.DNA){ 
+            if (halvadeOpts.aln) halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.BWAAlnMapper.class);
+            else halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.BWAMemMapper.class);
+            halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.DnaGATKReducer.class);  
+        }
+        
+        if(halvadeOpts.justAlign)
+            halvadeJob.setNumReduceTasks(0);
+        else
+            halvadeJob.setNumReduceTasks(halvadeOpts.reduces);    
+        
+        halvadeJob.setMapOutputKeyClass(ChromosomeRegion.class);
+        halvadeJob.setMapOutputValueClass(SAMRecordWritable.class);
+        halvadeJob.setInputFormatClass(HalvadeTextInputFormat.class);
+        halvadeJob.setPartitionerClass(ChrRgPartitioner.class);
+        halvadeJob.setSortComparatorClass(ChrRgPositionComparator.class);
+        halvadeJob.setGroupingComparatorClass(ChrRgRegionComparator.class);
+        halvadeJob.setOutputKeyClass(Text.class);
+        halvadeJob.setOutputValueClass(VariantContextWritable.class);
+
+        return runTimedJob(halvadeJob, "Halvade Job");
+    }
+    
+    protected int runCombineJob(String halvadeOutDir, String mergeOutDir) throws IOException, URISyntaxException, InterruptedException, ClassNotFoundException {
+        Configuration combineConf = getConf();
+        if(!halvadeOpts.out.endsWith("/")) halvadeOpts.out += "/";  
+        HalvadeConf.setInputDir(combineConf, halvadeOutDir);
+        HalvadeConf.setOutDir(combineConf, mergeOutDir);
+        FileSystem outFs = FileSystem.get(new URI(mergeOutDir), combineConf);
+        if (outFs.exists(new Path(mergeOutDir))) {
+            Logger.INFO("The output directory \'" + mergeOutDir + "\' already exists.");
+            Logger.INFO("ERROR: Please remove this directory before trying again.");
+            System.exit(-2);
+        }
+        HalvadeConf.setReportAllVariant(combineConf, halvadeOpts.reportAll);
+        HalvadeResourceManager.setJobResources(halvadeOpts, combineConf, HalvadeResourceManager.COMBINE, false);
+        Job combineJob = Job.getInstance(combineConf, "HalvadeCombineVCF");            
+        combineJob.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
+
+        addInputFiles(halvadeOutDir, combineConf, combineJob, ".vcf");
+        FileOutputFormat.setOutputPath(combineJob, new Path(mergeOutDir));
+
+        combineJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
+        combineJob.setMapOutputKeyClass(LongWritable.class);
+        combineJob.setMapOutputValueClass(VariantContextWritable.class);
+        combineJob.setInputFormatClass(VCFInputFormat.class);
+        combineJob.setNumReduceTasks(1); 
+        combineJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineReducer.class);
+        combineJob.setOutputKeyClass(Text.class);
+        combineJob.setOutputValueClass(VariantContextWritable.class);
+
+        return runTimedJob(combineJob, "Combine Job");
+    }
+    
+    protected int runTimedJob(Job job, String jobname) throws IOException, InterruptedException, ClassNotFoundException {
+        if(halvadeOpts.dryRun) 
+            return 0;
+        Logger.DEBUG("Started " + jobname);
+        Timer timer = new Timer();
+        timer.start();
+        int ret = job.waitForCompletion(true) ? 0 : 1;
+        timer.stop();
+        Logger.DEBUG("Finished " + jobname + " [runtime: " + timer.getFormattedElapsedTime() + "]");
+        return ret;
+    }
+    
+    protected void addInputFiles(String input, Configuration conf, Job job) throws URISyntaxException, IOException {
+        FileSystem fs = FileSystem.get(new URI(input), conf);
+        if (fs.getFileStatus(new Path(input)).isDirectory()) {
+            // add every file in directory
+            FileStatus[] files = fs.listStatus(new Path(input));
+            for(FileStatus file : files) {
+                if (!file.isDirectory()) {
+                    FileInputFormat.addInputPath(job, file.getPath());
+                }
+            }
+        } else {
+            FileInputFormat.addInputPath(job, new Path(input));
+        }
+    }
+    
+    protected void addInputFiles(String input, Configuration conf, Job job, String filter) throws URISyntaxException, IOException {
+        FileSystem fs = FileSystem.get(new URI(input), conf);
+        if (fs.getFileStatus(new Path(input)).isDirectory()) {
+            // add every file in directory
+            FileStatus[] files = fs.listStatus(new Path(input));
+            for(FileStatus file : files) {
+                if (!file.isDirectory() && file.getPath().getName().endsWith(filter)) {
+                    FileInputFormat.addInputPath(job, file.getPath());
+                }
+            }
+        } else {
+            FileInputFormat.addInputPath(job, new Path(input));
+        }
+    }
+    
 }

@@ -23,6 +23,7 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.text.DecimalFormat;
 import java.util.Enumeration;
 import java.util.Properties;
 import net.sf.samtools.SAMSequenceDictionary;
@@ -37,6 +38,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -54,8 +56,9 @@ public class HalvadeOptions {
     protected String tmpDir = "/tmp/halvade/";
     protected String localRefDir = null; 
     protected String sites;
-    protected int nodes, vcores, mem;
-    protected int mappers = 1, reducers = 1, mthreads = 1, rthreads = 1;
+    protected int nodes, vcores;
+    protected double mem;
+    protected int maps = 1, reduces = 1, mthreads = 1, rthreads = 1;
     protected String[] hdfsSites;
     protected boolean paired = true;
     protected boolean aln = true;
@@ -78,7 +81,7 @@ public class HalvadeOptions {
     protected boolean reuseJVM = false;
     protected boolean justAlign = false;
     protected String exomeBedFile = null;
-    protected int coverage = 50; 
+    protected double coverage = 50; 
     protected String halvadeBinaries;
     protected String bin;
     protected boolean combineVcf = true;
@@ -87,9 +90,12 @@ public class HalvadeOptions {
     protected boolean startupJob = true;
     protected boolean rnaPipeline = false;
     protected boolean reportAll = false;
-    protected static final int EXOME_COV = 6;
     protected boolean useSharedMemory = false;
+    protected boolean setMapContainers = true, setReduceContainers = true;
+    protected DecimalFormat onedec;
     private static final double REDUCE_TASKS_FACTOR = 1.68*15;
+    private static final double DEFAULT_COVERAGE = 50;
+    private static final double DEFAULT_COVERAGE_SIZE = 86;    
     
     public int GetOptions(String[] args, Configuration hConf) throws IOException, URISyntaxException {
         try {
@@ -101,6 +107,7 @@ public class HalvadeOptions {
                         "-R <REF> -D <SITES> -B <BIN> -nodes <nodes> -mem <mem> -vcores <cores> [options]", options);
                 return 1;
             }
+            onedec = new DecimalFormat("###0.0");
             // add parameters to configuration:
             if(localRefDir == null)
                 localRefDir = tmpDir;
@@ -122,6 +129,7 @@ public class HalvadeOptions {
             HalvadeConf.setReuseJVM(hConf, reuseJVM);
             HalvadeConf.setReadGroup(hConf, "ID:" + RGID + " LB:" + RGLB + " PL:" + RGPL + " PU:" + RGPU + " SM:" + RGSM);  
             HalvadeConf.setkeepChrSplitPairs(hConf, keepChrSplitPairs);
+            if(STARGenome != null && useSharedMemory) HalvadeConf.setStarDirPass2HDFS(hConf, out);
                         
             if(chr != null )
                 HalvadeConf.setChrList(hConf, chr);
@@ -133,34 +141,48 @@ public class HalvadeOptions {
             if(stand_emit_conf > 0) 
                 HalvadeConf.setSEC(hConf, stand_emit_conf);
             
-            FileSystem fs = FileSystem.get(new URI(out), hConf);
-            if (fs.exists(new Path(out)) && !justCombine) {
-                Logger.INFO("The output directory \'" + out + "\' already exists.");
-//                Logger.INFO("WARNING: Deleting the previous output directory!");
-//                fs.delete(new Path(out), true);
-                Logger.INFO("ERROR: Please remove this directory before trying again.");
-                System.exit(-2);
-            }
             parseDictFile(hConf);
-            
+            double inputSize = getInputSize(in, hConf);
+            coverage = DEFAULT_COVERAGE * (inputSize / DEFAULT_COVERAGE_SIZE);
+            Logger.DEBUG("Estimated coverage: " + roundOneDecimal(coverage));
             // set a minimum first where the real amount is based on
-            reducers = (int) (coverage * REDUCE_TASKS_FACTOR);   
-            ChromosomeSplitter splitter = new ChromosomeSplitter(dict, chr, reducers);
+            reduces = (int) (coverage * REDUCE_TASKS_FACTOR);
+            ChromosomeSplitter splitter = new ChromosomeSplitter(dict, chr, reduces);
             HalvadeConf.setMinChrLength(hConf, splitter.getRegionSize());
-            reducers = splitter.getRegionCount();
+            reduces = splitter.getRegionCount();
             
             
         } catch (ParseException e) {
             Logger.DEBUG(e.getMessage());
             HelpFormatter formatter = new HelpFormatter();
             formatter.setWidth(80);
-            formatter.printHelp( "hadoop jar HalvadeWithLibs.jar -I <IN> -O <OUT> " +
-                    "-R <REF> -D <SITES> -B <BIN> -nodes <nodes> -mem <mem> -vcores <cores> [options]", options);
+            formatter.printHelp( "hadoop jar HalvadeWithLibs.jar -I <input> -O <output> " +
+                    "-R <ref> -D <dbsnp> -B <bin> -nodes <nodes> -mem <mem> -vcores <cores> [options]", options);
             return 1;
         }
         return 0;
     }
 
+    public String roundOneDecimal(double val) {
+        return onedec.format(val);
+    }
+    protected double getInputSize(String input, Configuration conf) throws URISyntaxException, IOException {
+        double size = 0;
+        FileSystem fs = FileSystem.get(new URI(input), conf);
+        if (fs.getFileStatus(new Path(input)).isDirectory()) {
+            // add every file in directory
+            FileStatus[] files = fs.listStatus(new Path(input));
+            for(FileStatus file : files) {
+                if (!file.isDirectory()) {
+                    size += file.getLen();
+                }
+            }
+        } else {
+            size += fs.getFileStatus(new Path(input)).getLen();
+        }
+        return (size  / (1024*1024*1024));
+    }
+    
     private static final String DICT_SUFFIX = ".dict";
     private void parseDictFile(Configuration conf) {
         be.ugent.intec.halvade.utils.Logger.DEBUG("parsing dictionary file...");
@@ -430,11 +452,15 @@ public class HalvadeOptions {
         if(line.hasOption("shmem"))
             useSharedMemory = true;
         if(line.hasOption("mem"))
-            mem = Integer.parseInt(line.getOptionValue("mem"));
-        if(line.hasOption("mpn"))
+            mem = Double.parseDouble(line.getOptionValue("mem"));
+        if(line.hasOption("mpn")) {
+            setMapContainers = false;
             mapsPerContainer = Integer.parseInt(line.getOptionValue("mpn"));
-        if(line.hasOption("rpn"))
+        }
+        if(line.hasOption("rpn")) {
+            setReduceContainers = false;
             reducersPerContainer = Integer.parseInt(line.getOptionValue("rpn"));
+        }
         if(line.hasOption("scc"))
             stand_call_conf = Integer.parseInt(line.getOptionValue("scc"));
         if(line.hasOption("sec"))
@@ -445,26 +471,30 @@ public class HalvadeOptions {
             keepFiles = true;
         if(line.hasOption("s"))
             paired = false;
-        if(line.hasOption("justalign"))
+        if(line.hasOption("justalign")) {
             justAlign = true;
+            combineVcf = false;
+        }
         if(line.hasOption("rjvm"))
             reuseJVM = true;
         if(line.hasOption("bwamem"))
             aln = false;
         if(line.hasOption("J"))
             java = line.getOptionValue("J");
-        if(line.hasOption("exome")) {
+        if(line.hasOption("exome"))
             exomeBedFile = line.getOptionValue("exome");
-            coverage = EXOME_COV;
-        }
-        if(line.hasOption("dryrun"))
+        if(line.hasOption("dryrun")) {
             dryRun = true;
+            combineVcf = false;
+        }
         if(line.hasOption("drop"))
             keepChrSplitPairs = false;
         if(line.hasOption("cov"))
             coverage = Integer.parseInt(line.getOptionValue("cov"));
-        if(line.hasOption("c"))
+        if(line.hasOption("c")) {
             justCombine = true;
+            combineVcf = true;
+        }
         if(line.hasOption("b"))
             useBedTools = true;
         if(line.hasOption("hc"))

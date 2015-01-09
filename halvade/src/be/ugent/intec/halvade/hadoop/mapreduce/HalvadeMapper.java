@@ -78,9 +78,13 @@ public class HalvadeMapper<T1, T2> extends Mapper<LongWritable, Text, T1, T2> {
         file = new RandomAccessFile(lockfile, "rw");
         f = file.getChannel();
         lock = f.tryLock();  
+        int loop = 60;
+        int i =0;
         while(lock == null) {
-            Logger.DEBUG("waiting for lock...");
+            if (i % loop == 0) Logger.DEBUG("waiting for lock...");
             Thread.sleep(1000);
+            i++;
+            lock = f.tryLock();
         }
     }
     

@@ -8,6 +8,7 @@ package be.ugent.intec.halvade.hadoop.mapreduce;
 
 import be.ugent.intec.halvade.tools.STARInstance;
 import be.ugent.intec.halvade.utils.HalvadeConf;
+import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import be.ugent.intec.halvade.utils.Logger;
 import java.io.IOException;
 import java.net.URISyntaxException;
@@ -23,13 +24,15 @@ public class StarAlignPassXMapper  extends HalvadeMapper<LongWritable, Text> {
     protected String tmpDir;
     protected final String SH_MEM_LOCK = "load_sh_mem.lock";
     protected boolean runPass2;
+    protected static final int PASS1_LOCK_VAL = 1;
+    protected static final int PASS2_LOCK_VAL = 2;
 
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
         super.cleanup(context);
         if(allTasksHaveStarted) {
             getLock(tmpDir, SH_MEM_LOCK);    
-            ((STARInstance)instance).loadSharedMemoryReference(true);
+            ((STARInstance)instance).loadSharedMemoryReference(null, true);
             lockfile.deleteOnExit();
             releaseLock();
         }
@@ -53,14 +56,14 @@ public class StarAlignPassXMapper  extends HalvadeMapper<LongWritable, Text> {
             String binDir = checkBinaries(context);
             runPass2 = HalvadeConf.getIsPass2(context.getConfiguration());
             instance = STARInstance.getSTARInstance(context, binDir, runPass2 ? STARInstance.PASS2 : STARInstance.PASS1);  
-            loadReference();    
+            loadReference(context);    
          } catch (URISyntaxException ex) {
             Logger.EXCEPTION(ex);
             throw new InterruptedException();
         }
     }
     
-    protected void loadReference() throws IOException, InterruptedException {
+    protected void loadReference(Context context) throws IOException, InterruptedException, URISyntaxException {
         try {
             getLock(tmpDir, SH_MEM_LOCK);            
             ByteBuffer bytes = ByteBuffer.allocate(4);
@@ -68,11 +71,25 @@ public class StarAlignPassXMapper  extends HalvadeMapper<LongWritable, Text> {
             if (f.read(bytes) > 0) {
                 bytes.flip();
                 long val = bytes.getInt();
-                Logger.DEBUG("Ref has been loaded into shared memory: " + val);
+                if(val == (runPass2 ? PASS2_LOCK_VAL : PASS1_LOCK_VAL))
+                    Logger.DEBUG("Ref has been loaded into shared memory: " + val);
+                else {
+                    Logger.DEBUG("Pass 1 Ref is still loaded into shared memory, freeing first");
+                    
+                    String taskId = context.getTaskAttemptID().toString();
+                    taskId = taskId.substring(taskId.indexOf("m_"));
+                    String starGen = HalvadeFileUtils.downloadSTARIndex(context, taskId, false);
+                    ((STARInstance)instance).loadSharedMemoryReference(starGen, true); // unload other first
+                    ((STARInstance)instance).loadSharedMemoryReference(null, false);
+                    bytes.clear();
+                    bytes.putInt(runPass2 ? PASS2_LOCK_VAL : PASS1_LOCK_VAL).flip();
+                    f.write(bytes, 0);
+                    f.force(false);
+                }
             } else {
-                ((STARInstance)instance).loadSharedMemoryReference(false);
-                bytes.putInt(1).flip();
-                f.write(bytes);
+                ((STARInstance)instance).loadSharedMemoryReference(null, false);
+                bytes.putInt(runPass2 ? PASS2_LOCK_VAL : PASS1_LOCK_VAL).flip();
+                    f.write(bytes, 0);
                 f.force(false);
             }
         } catch (IOException ex) {

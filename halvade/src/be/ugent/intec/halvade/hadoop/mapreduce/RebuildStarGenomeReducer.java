@@ -7,7 +7,7 @@
 package be.ugent.intec.halvade.hadoop.mapreduce;
 
 import be.ugent.intec.halvade.tools.STARInstance;
-import be.ugent.intec.halvade.utils.HDFSFileIO;
+import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.Logger;
 import java.io.BufferedWriter;
@@ -19,6 +19,8 @@ import java.net.URISyntaxException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.util.Iterator;
+import java.util.logging.Level;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -30,12 +32,15 @@ import org.apache.hadoop.mapreduce.Reducer;
  */
 public class RebuildStarGenomeReducer extends Reducer<LongWritable, Text, LongWritable, Text> {
     protected String tmpDir;
+    protected String refDir;
     protected String mergeJS;
     protected BufferedWriter bw;
     protected int count;
     protected String bin, ref;
     protected String taskId;
     protected int overhang = 101, threads;
+    protected long mem;
+    protected boolean requireUploadToHDFS = false;
 
     @Override
     protected void reduce(LongWritable key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
@@ -48,7 +53,6 @@ public class RebuildStarGenomeReducer extends Reducer<LongWritable, Text, LongWr
         } else if (key.get() == 1) {
             if(it.hasNext()) {
                 String str = it.next().toString();
-                Logger.DEBUG("test: " + str);
                 overhang = Integer.parseInt(str);
                 Logger.DEBUG("set overhang to " + overhang);
             }
@@ -60,17 +64,39 @@ public class RebuildStarGenomeReducer extends Reducer<LongWritable, Text, LongWr
         bw.close();
         Logger.DEBUG("written " + count + " lines to " + mergeJS);
         // build new genome ref
-        String newGenomeDir = tmpDir + taskId + "-newSTARgenome";
+        String newGenomeDir = refDir + taskId + "-newSTARgenome/";
         File starOut = new File(newGenomeDir);
         starOut.mkdirs();
-        long time = STARInstance.rebuildStarGenome(bin, newGenomeDir, ref, mergeJS, 
-                                                    overhang, threads);
+        
+        long time = STARInstance.rebuildStarGenome(context, bin, newGenomeDir, ref, mergeJS, 
+                                                    overhang, threads, mem);
         context.getCounter(HalvadeCounters.TIME_STAR_BUILD).increment(time);
+        
+        //upload to outputdir
+        String out = HalvadeConf.getOutDir(context.getConfiguration());
+        String pass2GenDir = HalvadeConf.getStarDirPass2HDFS(context.getConfiguration());
+        File pass2check = new File(newGenomeDir + HalvadeFileUtils.HALVADE_STAR_SUFFIX_P2);
+        pass2check.createNewFile();
+        if(requireUploadToHDFS) {
+            try {
+                FileSystem fs = FileSystem.get(new URI(out), context.getConfiguration());
+                fs.mkdirs(new Path(pass2GenDir));
+                File[] genFiles = starOut.listFiles();
+                for(File gen : genFiles) {
+                    HalvadeFileUtils.uploadFileToHDFS(context, fs, gen.getAbsolutePath(), pass2GenDir + gen.getName());
+                }
+                Logger.DEBUG("Finished uploading new reference to " + pass2GenDir);
+            } catch (URISyntaxException ex) {
+                java.util.logging.Logger.getLogger(RebuildStarGenomeReducer.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+        HalvadeFileUtils.removeLocalFile(mergeJS);
     }
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         tmpDir = HalvadeConf.getScratchTempDir(context.getConfiguration());
+        refDir = HalvadeConf.getRefDirOnScratch(context.getConfiguration());
         taskId = context.getTaskAttemptID().toString();
         taskId = taskId.substring(taskId.indexOf("r_"));
         mergeJS = tmpDir + taskId + "-SJ.out.tab";
@@ -82,9 +108,14 @@ public class RebuildStarGenomeReducer extends Reducer<LongWritable, Text, LongWr
         Logger.DEBUG("opened file write for " + mergeJS);
         
         threads = HalvadeConf.getReducerThreads(context.getConfiguration());
+        try {
+            mem = Long.parseLong(context.getConfiguration().get("mapreduce.reduce.memory.mb"));
+        } catch (NumberFormatException ex) {
+            mem = 0;
+        }
         bin = checkBinaries(context);
         try {
-            ref = HDFSFileIO.downloadGATKIndex(context, taskId);
+            ref = HalvadeFileUtils.downloadGATKIndex(context, taskId);
         } catch (URISyntaxException ex) {
             Logger.EXCEPTION(ex);
             throw new InterruptedException();

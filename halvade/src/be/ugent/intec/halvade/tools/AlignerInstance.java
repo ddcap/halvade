@@ -37,22 +37,22 @@ import org.apache.hadoop.mapreduce.Mapper;
  * @author ddecap
  */
 public abstract class AlignerInstance {
-    protected static SAMFileHeader header;
-    protected static SAMRecordWritable writableRecord;
-    protected static ChromosomeRegion writableRegion;
-    protected static String read1File = "reads1_";
-    protected static String read2File = "reads2_";
-    protected static String tmpdir;
-    protected static String ref;
-    protected static String bin;
-    protected static int threads;
+    protected SAMFileHeader header;
+    protected SAMRecordWritable writableRecord;
+    protected ChromosomeRegion writableRegion;
+    protected String read1File = "reads1_";
+    protected String read2File = "reads2_";
+    protected String tmpdir;
+    protected String ref;
+    protected String bin;
+    protected int threads;
 //    protected static TaskInputOutputContext<LongWritable, Text, ChromosomeRegion, SAMRecordWritable> context;
     protected static Mapper.Context context;
     protected boolean isPaired = true;
     protected String chr;
     protected int minChrLength;
     protected boolean keepChrSplitPairs;
-    private boolean keep = false;
+    protected boolean keep = false;
     protected ChromosomeSplitter splitter;
     
     
@@ -67,7 +67,7 @@ public abstract class AlignerInstance {
         if(!tmpdir.endsWith("/")) tmpdir = tmpdir + "/";
         File tmp = new File(tmpdir);
         tmp.mkdirs();   
-        AlignerInstance.bin = bin;
+        this.bin = bin;
         threads = HalvadeConf.getMapThreads(context.getConfiguration());
         isPaired = HalvadeConf.getIsPaired(context.getConfiguration());
         Logger.DEBUG("paired? " + isPaired);
@@ -87,34 +87,6 @@ public abstract class AlignerInstance {
         proc.getSTDINWriter().write(line, 0, line.length());
         proc.getSTDINWriter().newLine();
         return 0;
-    }
-    
-    protected boolean removeLocalFile(String filename, Mapper.Context context, HalvadeCounters counter) {
-        if(keep) return false;
-        File f = new File(filename);
-        if(f.exists()) context.getCounter(counter).increment(f.length());
-        return f.exists() && f.delete();
-    }
-    
-    protected boolean removeLocalDir(String filename, Mapper.Context context, HalvadeCounters counter) {
-        if(keep) return false;
-        File f = new File(filename);
-        if(f.exists()) context.getCounter(counter).increment(f.length());
-        return f.exists() && deleteDir(f); // f.delete();
-    } 
-    protected boolean deleteDir(File dir) {
-    	if(dir.exists()) {
-    		File[] files = dir.listFiles();
-    		if(files != null) {
-    			for ( int i = 0; i < files.length; i++) {
-    				if(files[i].isDirectory()) 
-    					deleteDir(files[i]);
-    				else
-    					files[i].delete();
-    			}
-    		}
-    	}
-    	return dir.delete();
     }
     
     public int writePairedSAMRecordToContext(SAMRecord sam) throws IOException, InterruptedException {

@@ -14,6 +14,8 @@ import net.sf.samtools.SAMSequenceDictionary;
  * @author ddecap
  */
 public class ChromosomeSplitter {
+    protected static final String[] SPECIAL_CHR = {"M", "_"}; // 
+    protected static final int[] SPECIAL_FACTOR = {4000, 2};
     protected int[] regionsPerChr;
     protected int[] regionSizePerChr;
     protected int[] chromosomeStartKey;
@@ -65,6 +67,16 @@ public class ChromosomeSplitter {
         return chrs;
     }
     
+    private int checkSpecialChromsome(String chr_) {
+        int factor = 1, s = 0;
+        while(factor == 1 && s < SPECIAL_CHR.length){
+            if(chr_.contains(SPECIAL_CHR[s]))
+                factor = SPECIAL_FACTOR[s];
+            s++;
+        }
+        return factor;
+    }
+    
     private int getMinRegionLength(int minCount) {
         int maxChrLength = dict.getSequence(0).getSequenceLength();
         int minRegions = 0;
@@ -85,19 +97,20 @@ public class ChromosomeSplitter {
         
         double restChr = 0;
         for(String chr_ : chrs) {
-            if(dict.getSequence(chr_).getSequenceLength() > regionLength)
-                minRegions += (int)Math.ceil((double)dict.getSequence(chr_).getSequenceLength() / regionLength);
+            int seqlen = dict.getSequence(chr_).getSequenceLength();
+            int lenFact = checkSpecialChromsome(chr_);
+            if(seqlen*lenFact > regionLength)
+                minRegions += (int)Math.ceil((double)seqlen / regionLength);
             else
-                restChr += (double)dict.getSequence(chr_).getSequenceLength() / regionLength;
+                restChr += (double)seqlen / regionLength;
         }
         
-        for(String chr_ : chrs)
-            if(dict.getSequence(chr_).getSequenceLength() < regionLength)
         minRegions += (int)Math.ceil(restChr / 1.0);
         multiplier = 1;
         while(multiplier * minRegions < minCount) 
             multiplier++;
         regionLength = regionLength / multiplier;
+        Logger.DEBUG("maximum regionLength: " + regionLength);
         return regionLength;
     }
     
@@ -113,31 +126,33 @@ public class ChromosomeSplitter {
         else
             chrs = chr.split(",");
         
-        Logger.DEBUG("min chr length to be splittable: " + regionLength, 3);
         int i = 0;
         
         // combine small chr
         int currentKeySize = 0;
+        String sharedGenomes = "";
         for(String chr_ : chrs) {
             int seqlen = dict.getSequence(chr_).getSequenceLength();
-            if(seqlen < regionLength) {
-                Logger.DEBUG("shared chromosome: " + dict.getSequence(chr_).getSequenceName(), 3);
+            int lenFact = checkSpecialChromsome(chr_);
+            if(seqlen * lenFact < regionLength) {
+                sharedGenomes += dict.getSequence(chr_).getSequenceName() + " ";
                 regionsPerChr[i] = 1;
                 regionSizePerChr[i] = seqlen + 1;
                 chromosomeStartKey[i] = currentKey;
                 currentKeySize += seqlen;
-                if(currentKeySize > regionLength) {
-                    Logger.DEBUG("shared chromosome: [" + currentKeySize + "].", 3);
+                if(currentKeySize > regionLength/(3*lenFact)) {
+                    Logger.DEBUG("shared region: [" + currentKeySize+ " - " + sharedGenomes + "]");
                     currentKey++;
                     currentKeySize = 0;
                     regionCount++;
+                    sharedGenomes = "";
                 }
                 
             }
             i++;
         }
         if(currentKeySize > 0 ) {
-            Logger.DEBUG("shared chromosome: [" + currentKeySize + "].", 3);
+            Logger.DEBUG("shared region: [" + currentKeySize + " - " + sharedGenomes + "]");
             currentKey++;
             regionCount++; 
         }
@@ -145,9 +160,10 @@ public class ChromosomeSplitter {
         i = 0;
         for(String chr_ : chrs) {
             int seqlen = dict.getSequence(chr_).getSequenceLength();
+            int lenFact = checkSpecialChromsome(chr_);
             chromosomeSizes[i] = seqlen;
-            if(seqlen >= regionLength) {
-                regionsPerChr[i] = (int)Math.ceil((double)seqlen / regionLength);
+            if(seqlen*lenFact >= regionLength) {
+                regionsPerChr[i] = (int)Math.ceil((double)seqlen*lenFact / regionLength);
                 regionCount += regionsPerChr[i];
                 Logger.DEBUG(dict.getSequence(chr_).getSequenceName() + ": " + regionsPerChr[i] + 
                     " regions [" + (dict.getSequence(chr_).getSequenceLength() / regionsPerChr[i] + 1) + "].",
@@ -156,12 +172,11 @@ public class ChromosomeSplitter {
                 regionSizePerChr[i] = seqlen / regionsPerChr[i] + 1;
                 chromosomeStartKey[i] = currentKey;
                 currentKey += regionsPerChr[i];
+                Logger.DEBUG(dict.getSequence(i).getSequenceName() + "[" + dict.getSequence(i).getSequenceLength() + 
+                        "]: starts with key " + chromosomeStartKey[i] + " with " + regionsPerChr[i] + " regions of size " + regionSizePerChr[i]);
             }
             i++;
         }
         be.ugent.intec.halvade.utils.Logger.DEBUG("Total regions: " + regionCount);
-        for(i = 0; i < chromosomeStartKey.length; i++)
-            Logger.DEBUG(dict.getSequence(i).getSequenceName() + "[" + dict.getSequence(i).getSequenceLength() + 
-                    "]: starts with key " + chromosomeStartKey[i] + " with " + regionsPerChr[i] + " regions of size " + regionSizePerChr[i]);
     }
 }

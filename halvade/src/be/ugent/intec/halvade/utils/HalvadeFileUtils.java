@@ -35,7 +35,7 @@ import org.apache.hadoop.mapreduce.TaskInputOutputContext;
  *
  * @author ddecap
  */
-public class HDFSFileIO {
+public class HalvadeFileUtils {
     protected static final int RETRIES = 3;
 
     public static String Unzip(String inFilePath) throws IOException  {
@@ -168,14 +168,15 @@ public class HDFSFileIO {
     
     public static int uploadFileToHDFS(TaskInputOutputContext context, FileSystem fs, String from, String to) throws IOException {         
         return attemptUploadFileToHDFS(context, fs, from, to, RETRIES);            
-    }
+    }   
 
     
     // functions download BWA/STAR/GATK references/dbSNP database
     
     protected static String HALVADE_BWA_SUFFIX = ".bwa_ref";
     protected static String HALVADE_GATK_SUFFIX = ".gatk_ref";
-    protected static String HALVADE_STAR_SUFFIX = ".star_ref";
+    protected static String HALVADE_STAR_SUFFIX_P1 = ".star_ref";
+    public static String HALVADE_STAR_SUFFIX_P2 = ".star_ref_p2";
     protected static String HALVADE_DBSNP_SUFFIX = ".dbsnp";
     protected static String[] BWA_REF_FILES = 
         {".fasta", ".fasta.amb", ".fasta.ann", ".fasta.bwt", ".fasta.pac", ".fasta.sa", ".fasta.fai", ".dict" }; 
@@ -184,8 +185,7 @@ public class HDFSFileIO {
         {"chrLength.txt", "chrNameLength.txt", "chrName.txt", "chrStart.txt", 
          "Genome", "genomeParameters.txt", "SA", "SAindex"};
     protected static String[] STAR_REF_OPTIONAL_FILES =  {"sjdbInfo.txt", "sjdbList.out.tab"};
-        
-        
+    
     protected static String findFile(String directory, String suffix, boolean recursive) {
         File dir  = new File(directory);
         if(dir.isDirectory() && dir.listFiles() != null) {
@@ -257,15 +257,40 @@ public class HDFSFileIO {
         return refBase + GATK_REF_FILES[0];
     }
     
-    public static String downloadSTARIndex(TaskInputOutputContext context, String id, boolean makeLocalCopy) throws IOException, URISyntaxException {
+    public static boolean checkIfGenomeExists(String HDFSRef, Configuration conf) throws IOException, URISyntaxException {
+        FileSystem fs = FileSystem.get(new URI(HDFSRef), conf);
+        Path genPath = new Path(HDFSRef);
+        if(fs.exists(genPath)) {
+            boolean exists = true;
+            for (String suffix : STAR_REF_FILES) {
+                if(fs.exists(new Path(HDFSRef + suffix))) 
+                    Logger.DEBUG("STAR genome: " + HDFSRef + suffix, 3);
+                else 
+                    exists = false;              
+            }
+            for (String suffix : STAR_REF_OPTIONAL_FILES) {
+                if(fs.exists(new Path(HDFSRef + suffix))) 
+                    Logger.DEBUG("STAR genome: " + HDFSRef + suffix, 3);
+            }
+            Logger.DEBUG(HDFSRef + " seems to be a valid STAR genome");
+            return exists;
+        } else {
+            Logger.DEBUG(HDFSRef + " does not exist!");
+            return false;
+        }
+    }
+    
+    public static String downloadSTARIndex(TaskInputOutputContext context, String id, boolean usePass2Genome) throws IOException, URISyntaxException {
         Logger.INFO("downloading missing reference index files to local scratch");
         Configuration conf = context.getConfiguration();
         String refDir = HalvadeConf.getRefDirOnScratch(conf);
         if(!refDir.endsWith("/")) refDir = refDir + "/";
-        String HDFSRef = HalvadeConf.getStarDirOnHDFS(conf);
+        if(usePass2Genome) Logger.DEBUG("using Pass2 genome");
+        String HDFSRef = usePass2Genome ? HalvadeConf.getStarDirPass2HDFS(conf) : HalvadeConf.getStarDirOnHDFS(conf);
+        Logger.DEBUG("downloading STAR genome from: " + HDFSRef);
         FileSystem fs = FileSystem.get(new URI(HDFSRef), conf);
         
-        String refBase = findFile(refDir, HALVADE_STAR_SUFFIX, true);
+        String refBase = findFile(refDir, usePass2Genome ? HALVADE_STAR_SUFFIX_P2 : HALVADE_STAR_SUFFIX_P1, true);
         boolean foundExisting = (refBase != null);
         if (!foundExisting) {
             refBase = refDir + id + "-star/";
@@ -274,17 +299,18 @@ public class HDFSFileIO {
             makeRefDir.mkdir();
         }
         Logger.DEBUG("STAR dir: " + refBase);
-        
-        for (String suffix : STAR_REF_FILES) {
-            attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES);                
-        }
-        for (String suffix : STAR_REF_OPTIONAL_FILES) {
-            if(fs.exists(new Path(HDFSRef + suffix))) 
-                attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES); 
+        if(!usePass2Genome) {
+            for (String suffix : STAR_REF_FILES) {
+                attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES);                
+            }
+            for (String suffix : STAR_REF_OPTIONAL_FILES) {
+                if(fs.exists(new Path(HDFSRef + suffix))) 
+                    attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES); 
+            }
         }
         Logger.INFO("FINISHED downloading the complete reference index to local scratch");
         if(!foundExisting) {
-            File f = new File(refBase + HALVADE_STAR_SUFFIX);
+            File f = new File(refBase + (usePass2Genome ? HALVADE_STAR_SUFFIX_P2 : HALVADE_STAR_SUFFIX_P1));
             f.createNewFile();
         }
         return refBase;
@@ -325,5 +351,59 @@ public class HDFSFileIO {
             f.createNewFile();
         }        
         return localSites;
+    }
+    
+    
+    public static boolean removeLocalFile(String filename) {
+        return removeLocalFile(false, filename);
+    }
+    public static boolean removeLocalFile(boolean keep, String filename) {
+        if(keep) return false;
+        File f = new File(filename);
+        return f.exists() && f.delete();
+    }
+    
+    public static boolean removeLocalFile(String filename, TaskInputOutputContext context, HalvadeCounters counter) {
+        return removeLocalFile(false, filename, context, counter);
+    }
+    
+    public static boolean removeLocalFile(boolean keep, String filename, TaskInputOutputContext context, HalvadeCounters counter) {
+        if(keep) return false;
+        File f = new File(filename);
+        if(f.exists()) context.getCounter(counter).increment(f.length());
+        return f.exists() && f.delete();
+    }
+    
+    
+    public static boolean removeLocalDir(String filename) {
+        return removeLocalDir(false, filename);
+    }
+    public static boolean removeLocalDir(boolean keep, String filename) {
+        if(keep) return false;
+        File f = new File(filename);
+        return f.exists() && deleteDir(f); // f.delete();
+    }
+    public static  boolean removeLocalDir(String filename, TaskInputOutputContext context, HalvadeCounters counter) {
+        return removeLocalDir(false, filename, context, counter);
+    } 
+    public static  boolean removeLocalDir(boolean keep, String filename, TaskInputOutputContext context, HalvadeCounters counter) {
+        if(keep) return false;
+        File f = new File(filename);
+        if(f.exists()) context.getCounter(counter).increment(f.length());
+        return f.exists() && deleteDir(f); // f.delete();
+    } 
+    protected static  boolean deleteDir(File dir) {
+    	if(dir.exists()) {
+    		File[] files = dir.listFiles();
+    		if(files != null) {
+    			for ( int i = 0; i < files.length; i++) {
+    				if(files[i].isDirectory()) 
+    					deleteDir(files[i]);
+    				else
+    					files[i].delete();
+    			}
+    		}
+    	}
+    	return dir.delete();
     }
 }

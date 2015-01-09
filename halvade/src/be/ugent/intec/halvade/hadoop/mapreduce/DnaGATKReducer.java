@@ -12,6 +12,7 @@ import be.ugent.intec.halvade.tools.QualityException;
 import be.ugent.intec.halvade.utils.ChromosomeRange;
 import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
+import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import be.ugent.intec.halvade.utils.SAMRecordIterator;
 import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import java.io.IOException;
@@ -48,7 +49,7 @@ public class DnaGATKReducer extends GATKReducer {
         DnaVariantCalling(context, region, gatk, tmpFile2, snps);     
         variantFiles.add(snps);
            
-        removeLocalFile(region);
+        HalvadeFileUtils.removeLocalFile(region);
         long estimatedTime = System.currentTimeMillis() - startTime;
         Logger.DEBUG("total estimated time: " + estimatedTime / 1000);
     }

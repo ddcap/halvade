@@ -12,6 +12,7 @@ import be.ugent.intec.halvade.tools.QualityException;
 import be.ugent.intec.halvade.utils.ChromosomeRange;
 import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
+import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import be.ugent.intec.halvade.utils.SAMRecordIterator;
 import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import java.io.IOException;
@@ -33,8 +34,8 @@ public class RnaGATKReducer extends GATKReducer {
         String tmpFile2 = tmpFileBase + "-3.bam";
         String tmpFile3 = tmpFileBase + "-4.bam";
         String snps = tmpFileBase + ".vcf";    
-//        String filteredSnps = tmpFileBase + "-filtered.vcf";    
-//        String annotatedSnps = tmpFileBase + "-annotated.vcf";
+        String filteredSnps = tmpFileBase + "-filtered.vcf";    
+        String annotatedSnps = tmpFileBase + "-annotated.vcf";
         
         boolean useElPrep = HalvadeConf.getUseElPrep(context.getConfiguration());
         ChromosomeRange r = new ChromosomeRange();
@@ -54,14 +55,14 @@ public class RnaGATKReducer extends GATKReducer {
         variantFiles.add(snps);
         
         // filter/annotate??        
-//        windows = 35;
-//        cluster = 3;
-//        minFS = 30.0;
-//        maxQD = 2.0;
-//        annotateVariants(context, region, gatk, snps, annotatedSnps);
-//        filterVariants(context, gatk, annotatedSnps, filteredSnps);     
+        windows = 35;
+        cluster = 3;
+        minFS = 30.0;
+        maxQD = 2.0;
+        annotateVariants(context, region, gatk, snps, annotatedSnps);
+        filterVariants(context, gatk, annotatedSnps, filteredSnps);     
          
-        removeLocalFile(region);
+        HalvadeFileUtils.removeLocalFile(region);
         long estimatedTime = System.currentTimeMillis() - startTime;
         Logger.DEBUG("total estimated time: " + estimatedTime / 1000);
     }

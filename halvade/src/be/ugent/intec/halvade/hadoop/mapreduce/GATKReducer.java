@@ -29,7 +29,7 @@ import be.ugent.intec.halvade.tools.PreprocessingTools;
 import be.ugent.intec.halvade.tools.ProcessException;
 import be.ugent.intec.halvade.tools.QualityException;
 import be.ugent.intec.halvade.utils.ChromosomeRange;
-import be.ugent.intec.halvade.utils.HDFSFileIO;
+import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.Logger;
 import java.net.URI;
@@ -99,10 +99,11 @@ public abstract class GATKReducer extends HalvadeReducer {
         Logger.DEBUG("call elPrep");
         context.setStatus("call elPrep");
         int reads;
-        if(keepTmpFiles) 
+        // TODO put back if!
+//        if(keep) 
             reads = tools.callElPrep(preSamOut, samOut, rg, threads, input, outHeader, dictF);
-        else
-            reads = tools.streamElPrep(context, samOut, rg, threads, input, outHeader, dictF);
+//        else
+//            reads = tools.streamElPrep(context, samOut, rg, threads, input, outHeader, dictF);
         
         Logger.DEBUG(reads + " reads processed in elPrep");
         context.getCounter(HalvadeCounters.IN_PREP_READS).increment(reads);
@@ -113,8 +114,8 @@ public abstract class GATKReducer extends HalvadeReducer {
         Logger.DEBUG("build bam index");
         tools.runBuildBamIndex(output);
         // remove temporary files
-        removeLocalFile(preSamOut, context, HalvadeCounters.FOUT_GATK_TMP);
-        removeLocalFile(samOut, context, HalvadeCounters.FOUT_GATK_TMP);
+//        HalvadeFileUtils.removeLocalFile(keep, preSamOut, context, HalvadeCounters.FOUT_GATK_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, samOut, context, HalvadeCounters.FOUT_GATK_TMP);
     }
     
     protected void PicardPreprocess(Context context, PreprocessingTools tools, SAMRecordIterator input, String output) throws InterruptedException, QualityException {
@@ -160,10 +161,10 @@ public abstract class GATKReducer extends HalvadeReducer {
         Logger.DEBUG("estimated time: " + estimatedTime / 1000);
         
         // remove all temporary files now!
-        removeLocalFile(tmpMetrics, context, HalvadeCounters.FOUT_GATK_TMP);
-        removeLocalFile(tmpOut1, context, HalvadeCounters.FOUT_GATK_TMP);
-        removeLocalFile(tmpOut2, context, HalvadeCounters.FOUT_GATK_TMP);
-        removeLocalFile(tmpOut3, context, HalvadeCounters.FOUT_GATK_TMP);       
+        HalvadeFileUtils.removeLocalFile(keep, tmpMetrics, context, HalvadeCounters.FOUT_GATK_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, tmpOut1, context, HalvadeCounters.FOUT_GATK_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, tmpOut2, context, HalvadeCounters.FOUT_GATK_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, tmpOut3, context, HalvadeCounters.FOUT_GATK_TMP);       
     }
 
     protected String makeRegionFile(Context context, ChromosomeRange r, PreprocessingTools tools, String region) throws URISyntaxException, IOException, InterruptedException {        
@@ -172,10 +173,10 @@ public abstract class GATKReducer extends HalvadeReducer {
             String exomebed = tmpFileBase  + "exome.bed";
             if(exomeBedFile.endsWith(".gz"))
                 exomebed += ".gz";
-            HDFSFileIO.downloadFileFromHDFS(context, FileSystem.get(new URI(exomeBedFile), context.getConfiguration()),
+            HalvadeFileUtils.downloadFileFromHDFS(context, FileSystem.get(new URI(exomeBedFile), context.getConfiguration()),
                 exomeBedFile, exomebed);
             if(exomebed.endsWith(".gz"))
-                exomebed = HDFSFileIO.Unzip(exomebed);
+                exomebed = HalvadeFileUtils.Unzip(exomebed);
             region = tools.filterExomeBed(exomebed, r);
             if(region == null) {
                 Logger.DEBUG("empty region file, no vcf results!!");
@@ -199,9 +200,9 @@ public abstract class GATKReducer extends HalvadeReducer {
         context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
         gatk.runIndelRealigner(input, targets, output, ref, region);
         
-        removeLocalFile(input, context, HalvadeCounters.FOUT_GATK_TMP);
-        removeLocalFile(input.replaceAll(".bam", ".bai"));
-        removeLocalFile(targets, context, HalvadeCounters.FOUT_GATK_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, input, context, HalvadeCounters.FOUT_GATK_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, input.replaceAll(".bam", ".bai"));
+        HalvadeFileUtils.removeLocalFile(keep, targets, context, HalvadeCounters.FOUT_GATK_TMP);
     }
     
     protected void baseQualityScoreRecalibration(Context context, String region, ChromosomeRange r, PreprocessingTools tools, GATKTools gatk, 
@@ -209,13 +210,13 @@ public abstract class GATKReducer extends HalvadeReducer {
         String table = tmpFileBase + ".table";
         
         // get snp database(s)
-        String[] snpslocal = HDFSFileIO.downloadSites(context, taskId);
+        String[] snpslocal = HalvadeFileUtils.downloadSites(context, taskId);
         String[] newKnownSites = new String[snpslocal.length];
         for(int i = 0 ; i < snpslocal.length; i++) {
             if(useBedTools) newKnownSites[i] = tools.filterDBSnps(snpslocal[i], r); 
             else newKnownSites[i] = snpslocal[i]; 
             if(newKnownSites[i].endsWith(".gz"))
-                newKnownSites[i] = HDFSFileIO.Unzip(newKnownSites[i]);
+                newKnownSites[i] = HalvadeFileUtils.Unzip(newKnownSites[i]);
         }
         
         // should be created automatically by GATK if v3.x
@@ -232,11 +233,11 @@ public abstract class GATKReducer extends HalvadeReducer {
         context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
         gatk.runPrintReads(input, output, ref, table, region);
         
-        removeLocalFile(input, context, HalvadeCounters.FOUT_GATK_TMP);
-        removeLocalFile(input.replaceAll(".bam", ".bai"));
-        removeLocalFile(table, context, HalvadeCounters.FOUT_GATK_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, input, context, HalvadeCounters.FOUT_GATK_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, input.replaceAll(".bam", ".bai"));
+        HalvadeFileUtils.removeLocalFile(keep, table, context, HalvadeCounters.FOUT_GATK_TMP);
         for(int i = 0 ; i < newKnownSites.length; i++) {
-            if(useBedTools) removeLocalFile(newKnownSites[i], context, HalvadeCounters.FOUT_GATK_TMP);
+            if(useBedTools) HalvadeFileUtils.removeLocalFile(keep, newKnownSites[i], context, HalvadeCounters.FOUT_GATK_TMP);
         }
     }
 
@@ -253,8 +254,8 @@ public abstract class GATKReducer extends HalvadeReducer {
         context.setStatus("cleanup");
         context.getCounter(HalvadeCounters.OUT_VCF_FILES).increment(1);
         
-        removeLocalFile(input, context, HalvadeCounters.FOUT_GATK_TMP);
-        removeLocalFile(input.replaceAll(".bam", ".bai"));
+        HalvadeFileUtils.removeLocalFile(keep, input, context, HalvadeCounters.FOUT_GATK_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, input.replaceAll(".bam", ".bai"));
     }
     
     protected void RnaVariantCalling(Context context, String region, GATKTools gatk, String input, String output) throws InterruptedException {
@@ -267,8 +268,8 @@ public abstract class GATKReducer extends HalvadeReducer {
         context.setStatus("cleanup");
         context.getCounter(HalvadeCounters.OUT_VCF_FILES).increment(1);
         
-        removeLocalFile(input, context, HalvadeCounters.FOUT_GATK_TMP);
-        removeLocalFile(input.replaceAll(".bam", ".bai"));
+        HalvadeFileUtils.removeLocalFile(keep, input, context, HalvadeCounters.FOUT_GATK_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, input.replaceAll(".bam", ".bai"));
     }
 
     protected void splitNTrim(Context context, String region, GATKTools gatk, String input, String output) throws InterruptedException {        
@@ -277,8 +278,8 @@ public abstract class GATKReducer extends HalvadeReducer {
         context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
         gatk.runSplitNCigarReads(input, output, ref, region, newMaxQualScore);
         
-        removeLocalFile(input, context, HalvadeCounters.FOUT_GATK_TMP);
-        removeLocalFile(input.replaceAll(".bam", ".bai"));
+        HalvadeFileUtils.removeLocalFile(keep, input, context, HalvadeCounters.FOUT_GATK_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, input.replaceAll(".bam", ".bai"));
     }
     
     // TODO improve annotate/filter
@@ -288,7 +289,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
         gatk.runVariantFiltration(input, output, ref, windows, cluster, minFS, maxQD);
         
-        removeLocalFile(input, context, HalvadeCounters.FOUT_GATK_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, input, context, HalvadeCounters.FOUT_GATK_TMP);
     }
     
     protected void annotateVariants(Context context, String region, GATKTools gatk, String input, String output) throws InterruptedException { 
@@ -297,7 +298,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
         gatk.runVariantAnnotator(input, output, ref);
         
-        removeLocalFile(input, context, HalvadeCounters.FOUT_GATK_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, input, context, HalvadeCounters.FOUT_GATK_TMP);
         
     }
 }

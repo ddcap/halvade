@@ -8,7 +8,7 @@ package be.ugent.intec.halvade.hadoop.mapreduce;
 
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import be.ugent.intec.halvade.tools.GATKTools;
-import be.ugent.intec.halvade.utils.HDFSFileIO;
+import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
@@ -53,7 +53,7 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
     protected int threads;
     protected String referenceName;
     protected SAMFileHeader outHeader;
-    protected boolean keepTmpFiles = false;
+    protected boolean keep = false;
     
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
@@ -76,9 +76,9 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
         }
         if(output != null) {        
             try {
-                HDFSFileIO.uploadFileToHDFS(context, FileSystem.get(new URI(outputdir), context.getConfiguration()),
+                HalvadeFileUtils.uploadFileToHDFS(context, FileSystem.get(new URI(outputdir), context.getConfiguration()),
                         output, outputdir + context.getTaskAttemptID().toString() + ".vcf");
-                HDFSFileIO.uploadFileToHDFS(context, FileSystem.get(new URI(outputdir), context.getConfiguration()), 
+                HalvadeFileUtils.uploadFileToHDFS(context, FileSystem.get(new URI(outputdir), context.getConfiguration()), 
                         output + ".idx", outputdir + context.getTaskAttemptID().toString() + ".vcf.idx");
             } catch (URISyntaxException ex) {
                 Logger.EXCEPTION(ex);
@@ -89,13 +89,13 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
         // delete the files from local scratch
         if(variantFiles.size() > 1){
             for(String snps : variantFiles){
-                removeLocalFile(snps, context, HalvadeCounters.FOUT_GATK_VCF);
-                removeLocalFile(snps + ".idx");
+                HalvadeFileUtils.removeLocalFile(keep, snps, context, HalvadeCounters.FOUT_GATK_VCF);
+                HalvadeFileUtils.removeLocalFile(keep, snps + ".idx");
             }
         }
         if(output != null) {
-            removeLocalFile(output, context, HalvadeCounters.FOUT_GATK_VCF);
-                removeLocalFile(output + ".idx");
+            HalvadeFileUtils.removeLocalFile(keep, output, context, HalvadeCounters.FOUT_GATK_VCF);
+            HalvadeFileUtils.removeLocalFile(keep, output + ".idx");
         }
     }
 
@@ -107,7 +107,7 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
-        keepTmpFiles = HalvadeConf.getKeepFiles(context.getConfiguration());
+        keep = HalvadeConf.getKeepFiles(context.getConfiguration());
         java = HalvadeConf.getJava(context.getConfiguration());
         tmp = HalvadeConf.getScratchTempDir(context.getConfiguration());
         threads = HalvadeConf.getReducerThreads(context.getConfiguration());
@@ -121,24 +121,11 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
         variantFiles = new ArrayList<>();
         bin  = checkBinaries(context);
         try {
-            ref = HDFSFileIO.downloadGATKIndex(context, taskId);
+            ref = HalvadeFileUtils.downloadGATKIndex(context, taskId);
         } catch (URISyntaxException ex) {
             Logger.EXCEPTION(ex);
             throw new InterruptedException();
         }
-    }
-    
-    protected boolean removeLocalFile(String filename) {
-        if(keepTmpFiles) return false;
-        File f = new File(filename);
-        return f.exists() && f.delete();
-    }
-    
-    protected boolean removeLocalFile(String filename, Reducer.Context context, HalvadeCounters counter) {
-        if(keepTmpFiles) return false;
-        File f = new File(filename);
-        if(f.exists()) context.getCounter(counter).increment(f.length());
-        return f.exists() && f.delete();
     }
     
     protected void getReadGroupData(Configuration conf) {

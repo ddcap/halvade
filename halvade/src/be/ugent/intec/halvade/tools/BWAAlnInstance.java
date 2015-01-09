@@ -19,7 +19,7 @@ package be.ugent.intec.halvade.tools;
 
 import be.ugent.intec.halvade.hadoop.mapreduce.HalvadeCounters;
 import be.ugent.intec.halvade.utils.CommandGenerator;
-import be.ugent.intec.halvade.utils.HDFSFileIO;
+import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.ProcessBuilderWrapper;
@@ -51,7 +51,7 @@ public class BWAAlnInstance extends AlignerInstance {
         super(context, bin);  
         taskId = context.getTaskAttemptID().toString();
         taskId = taskId.substring(taskId.indexOf("m_"));
-        ref = HDFSFileIO.downloadBWAIndex(context, taskId);
+        ref = HalvadeFileUtils.downloadBWAIndex(context, taskId);
     }
     
     public int feedLine(String line, int read) throws IOException, InterruptedException  {
@@ -190,10 +190,10 @@ public class BWAAlnInstance extends AlignerInstance {
         context.getCounter(HalvadeCounters.TIME_BWA_SAMPE).increment(samxe.getExecutionTime());
         
         //remove all temporary fastq/sai files
-        removeLocalFile(getFileName(tmpdir, taskId, true, 1), context, HalvadeCounters.FOUT_BWA_TMP);
-        removeLocalFile(getFileName(tmpdir, taskId, false, 1), context, HalvadeCounters.FOUT_BWA_TMP);
-        removeLocalFile(getFileName(tmpdir, taskId, true, 2), context, HalvadeCounters.FOUT_BWA_TMP);
-        removeLocalFile(getFileName(tmpdir, taskId, false, 2), context, HalvadeCounters.FOUT_BWA_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, getFileName(tmpdir, taskId, true, 1), context, HalvadeCounters.FOUT_BWA_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, getFileName(tmpdir, taskId, false, 1), context, HalvadeCounters.FOUT_BWA_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, getFileName(tmpdir, taskId, true, 2), context, HalvadeCounters.FOUT_BWA_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, getFileName(tmpdir, taskId, false, 2), context, HalvadeCounters.FOUT_BWA_TMP);
         instance = null;
     }
     

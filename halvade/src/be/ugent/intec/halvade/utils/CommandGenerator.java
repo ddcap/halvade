@@ -34,6 +34,8 @@ public class CommandGenerator {
     }
     
     private static String starBin = "STAR";
+    private static int STARBufferSize = 30000000; // smaller gives a bad malloc error...
+    private static int SAsparseD = 8; // make smaller reference -> much faster to build, speed to align is a bit less
     private static String[] starOptions = {
         "--genomeDir", 
         "--outFileNamePrefix", 
@@ -48,7 +50,10 @@ public class CommandGenerator {
         "--genomeFastaFiles",
         "--sjdbFileChrStartEnd",
         "--outSAMtype",
-        "--runMode"};
+        "--runMode",
+        "--limitIObufferSize",
+        "--limitGenomeGenerateRAM",
+        "--genomeSAsparseD"};
     private static String[] starGenomeLoad = {
         "LoadAndExit" , "Remove", "LoadAndKeep"
     };
@@ -209,7 +214,7 @@ public class CommandGenerator {
     }
     
     public static String[] starRebuildGenome(String bin, String newStarGenomeDir, String ref, 
-            String sjdbfile, int overhang, int numberOfThreads) {
+            String sjdbfile, int overhang, int numberOfThreads, long mem) {
         ArrayList<String> command = new ArrayList<>();
         if(bin.endsWith("/")) 
             command.add(bin + starBin); 
@@ -232,6 +237,12 @@ public class CommandGenerator {
         command.add("" + overhang);
         command.add(starOptions[4]);
         command.add("" + numberOfThreads);
+        command.add(starOptions[16]);
+        command.add("" + SAsparseD);
+        if(mem > 0) {
+            command.add(starOptions[15]);
+            command.add("" + mem*1024*1024);
+        }
         Object[] ObjectList = command.toArray();
         String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
         return StringArray;
@@ -261,6 +272,8 @@ public class CommandGenerator {
             command.add(readsFile2);
         command.add(starOptions[4]);
         command.add("" + numberOfThreads);
+        command.add(starOptions[14]);
+        command.add("" + STARBufferSize); // make default buffersize smaller so more threads are started
         if(passType == STARInstance.PASS1AND2) {
             command.add(starOptions[5]);
             command.add("" + nReads);

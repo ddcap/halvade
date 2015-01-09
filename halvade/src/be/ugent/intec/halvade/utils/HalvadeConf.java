@@ -273,6 +273,18 @@ public class HalvadeConf {
         return conf.get(starDirOnHDFSName);
     }
     
+    private static final String starDirPass2HDFSName = "hdfsSTARrefPass2";
+    private static final String pass2GenomeDirName = "pass2STARGenome/";
+    public static void setStarDirPass2HDFS(Configuration conf, String val) {
+        if(!val.endsWith("/"))
+            conf.set(starDirPass2HDFSName, val + "/" + pass2GenomeDirName);
+        else
+            conf.set(starDirPass2HDFSName, val + pass2GenomeDirName);
+    }    
+    public static String getStarDirPass2HDFS(Configuration conf) {
+        return conf.get(starDirPass2HDFSName);
+    }
+    
     public static int getNumberOfFiles(Configuration conf) {
         return Integer.parseInt(conf.get("mapred.map.tasks"));
     }

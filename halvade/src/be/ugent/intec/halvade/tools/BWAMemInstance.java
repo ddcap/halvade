@@ -42,7 +42,7 @@ public class BWAMemInstance extends AlignerInstance {
         super(context, bin);
         String taskid = context.getTaskAttemptID().toString();
         taskid = taskid.substring(taskid.indexOf("m_"));
-        ref = HDFSFileIO.downloadBWAIndex(context, taskid);
+        ref = HalvadeFileUtils.downloadBWAIndex(context, taskid);
     }
     
     public int feedLine(String line) throws IOException  {
