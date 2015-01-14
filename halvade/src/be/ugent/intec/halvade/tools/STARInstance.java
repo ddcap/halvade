@@ -70,7 +70,7 @@ public class STARInstance extends AlignerInstance {
         if(read == 1 || !isPaired) {
             fastqFile1.write(line + "\n");
 //            return feedLine(line, star);
-        } else if (read == 2) {
+        } else if (read == 0) {
             fastqFile2.write(line + "\n");
 //            return feedLine(line, star);
         }

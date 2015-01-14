@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
 import java.util.zip.GZIPInputStream;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -173,6 +174,11 @@ public class HalvadeFileUtils {
     
     // functions download BWA/STAR/GATK references/dbSNP database
     
+    protected static String REF_LOCK = "down_ref.lock";
+    protected static String STARG_LOCK = "down_starg.lock";
+    protected static String DBSNP_LOCK = "down_snpdb.lock";
+    protected static int REF_BOTH = 2;
+    protected static int DEFAULT_LOCK_VAL = 1;
     protected static String HALVADE_BWA_SUFFIX = ".bwa_ref";
     protected static String HALVADE_GATK_SUFFIX = ".gatk_ref";
     protected static String HALVADE_STAR_SUFFIX_P1 = ".star_ref";
@@ -208,148 +214,343 @@ public class HalvadeFileUtils {
     }
     
     public static String downloadBWAIndex(TaskInputOutputContext context, String id) throws IOException, URISyntaxException {
-        Logger.INFO("downloading missing reference index files to local scratch");
         Configuration conf = context.getConfiguration();
         String refDir = HalvadeConf.getRefDirOnScratch(conf);
         if(!refDir.endsWith("/")) refDir = refDir + "/";
-        String HDFSRef = HalvadeConf.getRefOnHDFS(conf);
-        FileSystem fs = FileSystem.get(new URI(HDFSRef), conf);
-        
-        String refBase = findFile(refDir, HALVADE_BWA_SUFFIX, false);
-        boolean foundExisting = (refBase != null);
-        if (!foundExisting)
-            refBase = refDir + "bwa_ref-" + id;
-        
-        for (String suffix : BWA_REF_FILES) {
-            attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES);                
+        HalvadeFileLock lock = new HalvadeFileLock(refDir, REF_LOCK);
+        String refBase = null;
+        try {
+            lock.getLock();
+
+            ByteBuffer bytes = ByteBuffer.allocate(4);
+            if (lock.read(bytes) > 0) {
+                bytes.flip();
+                long val = bytes.getInt();
+                if(val == REF_BOTH)
+                    Logger.DEBUG("reference has been downloaded to local scratch: " + val);
+                else {
+                    Logger.INFO("downloading missing reference index files to local scratch");
+                    String HDFSRef = HalvadeConf.getRefOnHDFS(conf);
+                    FileSystem fs = FileSystem.get(new URI(HDFSRef), conf);
+                    refBase = findFile(refDir, HALVADE_BWA_SUFFIX, false);
+                    boolean foundExisting = (refBase != null);
+                    if (!foundExisting)
+                        refBase = refDir + "bwa_ref-" + id;
+
+                    for (String suffix : BWA_REF_FILES) {
+                        attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES);                
+                    }
+                    Logger.INFO("FINISHED downloading the complete reference index to local scratch");
+                    if(!foundExisting) {
+                        File f = new File(refBase + HALVADE_BWA_SUFFIX);
+                        f.createNewFile();
+                        f = new File(refBase + HALVADE_GATK_SUFFIX);
+                        f.createNewFile();
+                    }
+                    bytes.clear();
+                    bytes.putInt(REF_BOTH).flip();
+                    lock.forceWrite(bytes);
+                }
+            } else {
+                Logger.INFO("downloading missing reference index files to local scratch");
+                String HDFSRef = HalvadeConf.getRefOnHDFS(conf);
+                FileSystem fs = FileSystem.get(new URI(HDFSRef), conf);
+                refBase = findFile(refDir, HALVADE_BWA_SUFFIX, false);
+                boolean foundExisting = (refBase != null);
+                if (!foundExisting)
+                    refBase = refDir + "bwa_ref-" + id;
+
+                for (String suffix : BWA_REF_FILES) {
+                    attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES);                
+                }
+                Logger.INFO("FINISHED downloading the complete reference index to local scratch");
+                if(!foundExisting) {
+                    File f = new File(refBase + HALVADE_BWA_SUFFIX);
+                    f.createNewFile();
+                    f = new File(refBase + HALVADE_GATK_SUFFIX);
+                    f.createNewFile();
+                }
+                bytes.clear();
+                bytes.putInt(REF_BOTH).flip();
+                lock.forceWrite(bytes);
+            }
+            
+        } catch (InterruptedException ex) {
+            Logger.EXCEPTION(ex);
+        } finally {
+            lock.releaseLock();
         }
-        Logger.INFO("FINISHED downloading the complete reference index to local scratch");
-        if(!foundExisting) {
-            File f = new File(refBase + HALVADE_BWA_SUFFIX);
-            f.createNewFile();
-            f = new File(refBase + HALVADE_GATK_SUFFIX);
-            f.createNewFile();
-        }
+        if(refBase == null)
+            refBase = findFile(refDir, HALVADE_BWA_SUFFIX, false);
         return refBase + BWA_REF_FILES[0];
     }
     
     public static String downloadGATKIndex(TaskInputOutputContext context, String id) throws IOException, URISyntaxException {
-        Logger.INFO("downloading missing reference index files to local scratch");
         Configuration conf = context.getConfiguration();
         String refDir = HalvadeConf.getRefDirOnScratch(conf);
         if(!refDir.endsWith("/")) refDir = refDir + "/";
-        String HDFSRef = HalvadeConf.getRefOnHDFS(conf);
-        FileSystem fs = FileSystem.get(new URI(HDFSRef), conf);
+        HalvadeFileLock lock = new HalvadeFileLock(refDir, REF_LOCK);
+        String refBase = null;
+        try {
+            lock.getLock();
+
+            ByteBuffer bytes = ByteBuffer.allocate(4);
+            if (lock.read(bytes) > 0) {
+                bytes.flip();
+                long val = bytes.getInt();
+                if(val == REF_BOTH || val == DEFAULT_LOCK_VAL)
+                    Logger.DEBUG("reference has been downloaded to local scratch: " + val);
+                else {
+                    Logger.INFO("downloading missing reference index files to local scratch");
+                    String HDFSRef = HalvadeConf.getRefOnHDFS(conf);
+                    FileSystem fs = FileSystem.get(new URI(HDFSRef), conf);
+                    refBase = findFile(refDir, HALVADE_GATK_SUFFIX, false);
+                    boolean foundExisting = (refBase != null);
+                    if (!foundExisting)
+                        refBase = refDir + "bwa_ref-" + id;
+
+                    for (String suffix : GATK_REF_FILES) {
+                        attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES);                
+                    }
+                    Logger.INFO("FINISHED downloading the complete reference index to local scratch");
+                    if(!foundExisting) {
+                        File f = new File(refBase + HALVADE_GATK_SUFFIX);
+                        f.createNewFile();
+                    }
+                    bytes.clear();
+                    bytes.putInt(DEFAULT_LOCK_VAL).flip();
+                    lock.forceWrite(bytes);
+                }
+            } else {
+                Logger.INFO("downloading missing reference index files to local scratch");
+                String HDFSRef = HalvadeConf.getRefOnHDFS(conf);
+                FileSystem fs = FileSystem.get(new URI(HDFSRef), conf);
+                refBase = findFile(refDir, HALVADE_GATK_SUFFIX, false);
+                boolean foundExisting = (refBase != null);
+                if (!foundExisting)
+                    refBase = refDir + "bwa_ref-" + id;
+
+                for (String suffix : GATK_REF_FILES) {
+                    attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES);                
+                }
+                Logger.INFO("FINISHED downloading the complete reference index to local scratch");
+                if(!foundExisting) {
+                    File f = new File(refBase + HALVADE_GATK_SUFFIX);
+                    f.createNewFile();
+                }
+                bytes.clear();
+                bytes.putInt(DEFAULT_LOCK_VAL).flip();
+                lock.forceWrite(bytes);
+            }
         
-        String refBase = findFile(refDir, HALVADE_GATK_SUFFIX, false);
-        boolean foundExisting = (refBase != null);
-        if (!foundExisting)
-            refBase = refDir + "bwa_ref-" + id;
-        
-        for (String suffix : GATK_REF_FILES) {
-            attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES);                
+            
+        } catch (InterruptedException ex) {
+            Logger.EXCEPTION(ex);
+        } finally {
+            lock.releaseLock();
         }
-        Logger.INFO("FINISHED downloading the complete reference index to local scratch");
-        if(!foundExisting) {
-            File f = new File(refBase + HALVADE_GATK_SUFFIX);
-            f.createNewFile();
-        }
+        if(refBase == null)
+            refBase = findFile(refDir, HALVADE_GATK_SUFFIX, false);
         return refBase + GATK_REF_FILES[0];
     }
     
-    public static boolean checkIfGenomeExists(String HDFSRef, Configuration conf) throws IOException, URISyntaxException {
-        FileSystem fs = FileSystem.get(new URI(HDFSRef), conf);
-        Path genPath = new Path(HDFSRef);
-        if(fs.exists(genPath)) {
-            boolean exists = true;
-            for (String suffix : STAR_REF_FILES) {
-                if(fs.exists(new Path(HDFSRef + suffix))) 
-                    Logger.DEBUG("STAR genome: " + HDFSRef + suffix, 3);
-                else 
-                    exists = false;              
-            }
-            for (String suffix : STAR_REF_OPTIONAL_FILES) {
-                if(fs.exists(new Path(HDFSRef + suffix))) 
-                    Logger.DEBUG("STAR genome: " + HDFSRef + suffix, 3);
-            }
-            Logger.DEBUG(HDFSRef + " seems to be a valid STAR genome");
-            return exists;
-        } else {
-            Logger.DEBUG(HDFSRef + " does not exist!");
-            return false;
-        }
-    }
-    
     public static String downloadSTARIndex(TaskInputOutputContext context, String id, boolean usePass2Genome) throws IOException, URISyntaxException {
-        Logger.INFO("downloading missing reference index files to local scratch");
         Configuration conf = context.getConfiguration();
         String refDir = HalvadeConf.getRefDirOnScratch(conf);
         if(!refDir.endsWith("/")) refDir = refDir + "/";
-        if(usePass2Genome) Logger.DEBUG("using Pass2 genome");
-        String HDFSRef = usePass2Genome ? HalvadeConf.getStarDirPass2HDFS(conf) : HalvadeConf.getStarDirOnHDFS(conf);
-        Logger.DEBUG("downloading STAR genome from: " + HDFSRef);
-        FileSystem fs = FileSystem.get(new URI(HDFSRef), conf);
+        HalvadeFileLock lock = new HalvadeFileLock(refDir, STARG_LOCK);
+        String refBase = null;
+        try {
+            lock.getLock();
+
+            ByteBuffer bytes = ByteBuffer.allocate(4);
+            if (lock.read(bytes) > 0) {
+                bytes.flip();
+                long val = bytes.getInt();
+                if(val == DEFAULT_LOCK_VAL)
+                    Logger.DEBUG("reference has been downloaded to local scratch: " + val);
+                else {
+                    Logger.INFO("downloading missing reference index files to local scratch");
+                    if(usePass2Genome) Logger.DEBUG("using Pass2 genome");
+                    String HDFSRef = usePass2Genome ? HalvadeConf.getStarDirPass2HDFS(conf) : HalvadeConf.getStarDirOnHDFS(conf);
+                    Logger.DEBUG("downloading STAR genome from: " + HDFSRef);
+                    FileSystem fs = FileSystem.get(new URI(HDFSRef), conf);
+                    refBase = findFile(refDir, usePass2Genome ? HALVADE_STAR_SUFFIX_P2 : HALVADE_STAR_SUFFIX_P1, true);
+                    boolean foundExisting = (refBase != null);
+                    if (!foundExisting) {
+                        refBase = refDir + id + "-star/";
+                        //make dir
+                        File makeRefDir = new File (refBase);
+                        makeRefDir.mkdir();
+                    }
+                    Logger.DEBUG("STAR dir: " + refBase);
+                    if(!usePass2Genome) {
+                        for (String suffix : STAR_REF_FILES) {
+                            attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES);                
+                        }
+                        for (String suffix : STAR_REF_OPTIONAL_FILES) {
+                            if(fs.exists(new Path(HDFSRef + suffix))) 
+                                attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES); 
+                        }
+                    }
+                    Logger.INFO("FINISHED downloading the complete reference index to local scratch");
+                    if(!foundExisting) {
+                        File f = new File(refBase + (usePass2Genome ? HALVADE_STAR_SUFFIX_P2 : HALVADE_STAR_SUFFIX_P1));
+                        f.createNewFile();
+                    }
+                    bytes.clear();
+                    bytes.putInt(DEFAULT_LOCK_VAL).flip();
+                    lock.forceWrite(bytes);
+                }
+            } else {
+                Logger.INFO("downloading missing reference index files to local scratch");
+                if(usePass2Genome) Logger.DEBUG("using Pass2 genome");
+                String HDFSRef = usePass2Genome ? HalvadeConf.getStarDirPass2HDFS(conf) : HalvadeConf.getStarDirOnHDFS(conf);
+                Logger.DEBUG("downloading STAR genome from: " + HDFSRef);
+                FileSystem fs = FileSystem.get(new URI(HDFSRef), conf);
+                refBase = findFile(refDir, usePass2Genome ? HALVADE_STAR_SUFFIX_P2 : HALVADE_STAR_SUFFIX_P1, true);
+                boolean foundExisting = (refBase != null);
+                if (!foundExisting) {
+                    refBase = refDir + id + "-star/";
+                    //make dir
+                    File makeRefDir = new File (refBase);
+                    makeRefDir.mkdir();
+                }
+                Logger.DEBUG("STAR dir: " + refBase);
+                if(!usePass2Genome) {
+                    for (String suffix : STAR_REF_FILES) {
+                        attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES);                
+                    }
+                    for (String suffix : STAR_REF_OPTIONAL_FILES) {
+                        if(fs.exists(new Path(HDFSRef + suffix))) 
+                            attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES); 
+                    }
+                }
+                Logger.INFO("FINISHED downloading the complete reference index to local scratch");
+                if(!foundExisting) {
+                    File f = new File(refBase + (usePass2Genome ? HALVADE_STAR_SUFFIX_P2 : HALVADE_STAR_SUFFIX_P1));
+                    f.createNewFile();
+                }
+                bytes.clear();
+                bytes.putInt(DEFAULT_LOCK_VAL).flip();
+                lock.forceWrite(bytes);
+            }
         
-        String refBase = findFile(refDir, usePass2Genome ? HALVADE_STAR_SUFFIX_P2 : HALVADE_STAR_SUFFIX_P1, true);
-        boolean foundExisting = (refBase != null);
-        if (!foundExisting) {
-            refBase = refDir + id + "-star/";
-            //make dir
-            File makeRefDir = new File (refBase);
-            makeRefDir.mkdir();
+        
+        } catch (InterruptedException ex) {
+            Logger.EXCEPTION(ex);
+        } finally {
+            lock.releaseLock();
         }
-        Logger.DEBUG("STAR dir: " + refBase);
-        if(!usePass2Genome) {
-            for (String suffix : STAR_REF_FILES) {
-                attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES);                
-            }
-            for (String suffix : STAR_REF_OPTIONAL_FILES) {
-                if(fs.exists(new Path(HDFSRef + suffix))) 
-                    attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES); 
-            }
-        }
-        Logger.INFO("FINISHED downloading the complete reference index to local scratch");
-        if(!foundExisting) {
-            File f = new File(refBase + (usePass2Genome ? HALVADE_STAR_SUFFIX_P2 : HALVADE_STAR_SUFFIX_P1));
-            f.createNewFile();
-        }
+        if(refBase == null)
+            refBase = findFile(refDir, usePass2Genome ? HALVADE_STAR_SUFFIX_P2 : HALVADE_STAR_SUFFIX_P1, true);
         return refBase;
     }
     
     public static String[] downloadSites(TaskInputOutputContext context, String id) throws IOException, URISyntaxException, InterruptedException {  
-        Logger.INFO("downloading missing sites to local scratch");
-        Configuration conf = context.getConfiguration();        
-        String HDFSsites[] = HalvadeConf.getKnownSitesOnHDFS(conf);
+        Configuration conf = context.getConfiguration();
         String refDir = HalvadeConf.getRefDirOnScratch(conf);
-        
-        String refBase = findFile(refDir, HALVADE_DBSNP_SUFFIX, true);
-        boolean foundExisting = (refBase != null);
-        if (!foundExisting) {
-            refBase = refDir + id + "-dbsnp/";
-            //make dir
-            File makeRefDir = new File (refBase);
-            makeRefDir.mkdir();
-        }
-        Logger.DEBUG("dbSNP dir: " + refBase);
-        
+        String HDFSsites[] = HalvadeConf.getKnownSitesOnHDFS(conf);
         String[] localSites = new String[HDFSsites.length];
-        for (int i = 0; i < HDFSsites.length; i++) {
-            String fullName = HDFSsites[i];
-            String name = fullName.substring(fullName.lastIndexOf('/') + 1);
-            Logger.DEBUG("Downloading " + name);
-            FileSystem fs = FileSystem.get(new URI(fullName), conf);
-            attemptDownloadFileFromHDFS(context, fs, fullName, refBase + name, RETRIES);
-            localSites[i] = refBase + name;
-            // attempt to download .idx file
-            if(!foundExisting && fs.exists(new Path(fullName + ".idx")))
-                attemptDownloadFileFromHDFS(context, fs, fullName + ".idx", refBase + name + ".idx", RETRIES);
+        if(!refDir.endsWith("/")) refDir = refDir + "/";
+        HalvadeFileLock lock = new HalvadeFileLock(refDir, DBSNP_LOCK);
+        String refBase = null;
+        try {
+            lock.getLock();
+            
+            ByteBuffer bytes = ByteBuffer.allocate(4);
+            if (lock.read(bytes) > 0) {
+                bytes.flip();
+                long val = bytes.getInt();
+                if(val == DEFAULT_LOCK_VAL)
+                    Logger.DEBUG("dbSNP has been downloaded to local scratch: " + val);
+                else {
+                    Logger.INFO("downloading missing dbSNP to local scratch");   
+                    refBase = findFile(refDir, HALVADE_DBSNP_SUFFIX, true);
+                    boolean foundExisting = (refBase != null);
+                    if (!foundExisting) {
+                        refBase = refDir + id + "-dbsnp/";
+                        //make dir
+                        File makeRefDir = new File (refBase);
+                        makeRefDir.mkdir();
+                    }
+                    Logger.DEBUG("dbSNP dir: " + refBase);
+
+                    for (int i = 0; i < HDFSsites.length; i++) {
+                        String fullName = HDFSsites[i];
+                        String name = fullName.substring(fullName.lastIndexOf('/') + 1);
+                        Logger.DEBUG("Downloading " + name);
+                        FileSystem fs = FileSystem.get(new URI(fullName), conf);
+                        attemptDownloadFileFromHDFS(context, fs, fullName, refBase + name, RETRIES);
+                        localSites[i] = refBase + name;
+                        // attempt to download .idx file
+                        if(!foundExisting && fs.exists(new Path(fullName + ".idx")))
+                            attemptDownloadFileFromHDFS(context, fs, fullName + ".idx", refBase + name + ".idx", RETRIES);
+                    }
+
+                    Logger.INFO("finished downloading the new sites to local scratch");
+                    if(!foundExisting) {
+                        File f = new File(refBase + HALVADE_DBSNP_SUFFIX);
+                        f.createNewFile();
+                    } 
+                    bytes.clear();
+                    bytes.putInt(DEFAULT_LOCK_VAL).flip();
+                    lock.forceWrite(bytes);
+                }
+            } else {
+                Logger.INFO("downloading missing dbSNP to local scratch");   
+                refBase = findFile(refDir, HALVADE_DBSNP_SUFFIX, true);
+                boolean foundExisting = (refBase != null);
+                if (!foundExisting) {
+                    refBase = refDir + id + "-dbsnp/";
+                    //make dir
+                    File makeRefDir = new File (refBase);
+                    makeRefDir.mkdir();
+                }
+                Logger.DEBUG("dbSNP dir: " + refBase);
+
+                for (int i = 0; i < HDFSsites.length; i++) {
+                    String fullName = HDFSsites[i];
+                    String name = fullName.substring(fullName.lastIndexOf('/') + 1);
+                    Logger.DEBUG("Downloading " + name);
+                    FileSystem fs = FileSystem.get(new URI(fullName), conf);
+                    attemptDownloadFileFromHDFS(context, fs, fullName, refBase + name, RETRIES);
+                    localSites[i] = refBase + name;
+                    // attempt to download .idx file
+                    if(!foundExisting && fs.exists(new Path(fullName + ".idx")))
+                        attemptDownloadFileFromHDFS(context, fs, fullName + ".idx", refBase + name + ".idx", RETRIES);
+                }
+
+                Logger.INFO("finished downloading the new sites to local scratch");
+                if(!foundExisting) {
+                    File f = new File(refBase + HALVADE_DBSNP_SUFFIX);
+                    f.createNewFile();
+                } 
+                bytes.clear();
+                bytes.putInt(DEFAULT_LOCK_VAL).flip();
+                lock.forceWrite(bytes);
+            }
+        } catch (InterruptedException ex) {
+            Logger.EXCEPTION(ex);
+        } finally {
+            lock.releaseLock();
         }
-        
-        Logger.INFO("finished downloading the new sites to local scratch");
-        if(!foundExisting) {
-            File f = new File(refBase + HALVADE_DBSNP_SUFFIX);
-            f.createNewFile();
-        }        
+        if(refBase == null){
+            refBase = findFile(refDir, HALVADE_DBSNP_SUFFIX, true);
+            File dir = new File(refBase);
+            File[] directoryListing = dir.listFiles();
+            if (directoryListing != null) {
+                if(directoryListing.length == localSites.length) {
+                    for (int i = 0; i < directoryListing.length; i ++)
+                        localSites[i] = directoryListing[i].getAbsolutePath();
+                } else {
+                    throw new IOException(refBase + " has different number of files: " + 
+                            directoryListing.length + " vs " + localSites.length);
+                }
+            } else {
+                throw new IOException(refBase + " has no files");
+            }
+        }
         return localSites;
     }
     

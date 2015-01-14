@@ -24,7 +24,6 @@ import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.ProcessBuilderWrapper;
 import be.ugent.intec.halvade.utils.SAMRecordIterator;
-import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -34,7 +33,6 @@ import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Iterator;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileWriter;
 import net.sf.samtools.SAMFileWriterFactory;
@@ -218,9 +216,9 @@ public class PreprocessingTools {
         return reads;
     }
     
-    public void callSAMToBAM(String input, String output) throws InterruptedException {
+    public void callSAMToBAM(String input, String output, int threads) throws InterruptedException {
         String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "samtools", "view");  
-        String[] command = CommandGenerator.SAMToolsView(bin, input, output, customArgs);
+        String[] command = CommandGenerator.SAMToolsView(bin, input, output, threads, customArgs);
         long estimatedTime = runProcessAndWait("SAMtools view", command); 
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_SAMTOBAM).increment(estimatedTime);

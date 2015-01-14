@@ -69,32 +69,6 @@ public class HalvadeMapper<T1, T2> extends Mapper<LongWritable, Text, T1, T2> {
         }
     }
     
-    protected File lockfile;
-    protected FileChannel f;
-    protected RandomAccessFile file;
-    protected FileLock lock;
-    protected void getLock(String dir, String filename) throws IOException, InterruptedException {
-        lockfile = new File(dir, filename);
-        file = new RandomAccessFile(lockfile, "rw");
-        f = file.getChannel();
-        lock = f.tryLock();  
-        int loop = 60;
-        int i =0;
-        while(lock == null) {
-            if (i % loop == 0) Logger.DEBUG("waiting for lock...");
-            Thread.sleep(1000);
-            i++;
-            lock = f.tryLock();
-        }
-    }
-    
-    protected void releaseLock() throws IOException {
-        if (lock != null && lock.isValid())
-          lock.release();
-        if (file != null)
-          file.close();
-    }
-    
     protected String checkBinaries(Context context) throws IOException {
         Logger.DEBUG("Checking for binaries...");
         String binDir = null;

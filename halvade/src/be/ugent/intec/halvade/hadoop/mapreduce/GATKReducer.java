@@ -99,22 +99,21 @@ public abstract class GATKReducer extends HalvadeReducer {
         Logger.DEBUG("call elPrep");
         context.setStatus("call elPrep");
         int reads;
-        // TODO put back if!
-//        if(keep) 
+        if(keep) 
             reads = tools.callElPrep(preSamOut, samOut, rg, threads, input, outHeader, dictF);
-//        else
-//            reads = tools.streamElPrep(context, samOut, rg, threads, input, outHeader, dictF);
+        else
+            reads = tools.streamElPrep(context, samOut, rg, threads, input, outHeader, dictF);
         
         Logger.DEBUG(reads + " reads processed in elPrep");
         context.getCounter(HalvadeCounters.IN_PREP_READS).increment(reads);
         context.setStatus("convert SAM to BAM");
         Logger.DEBUG("convert SAM to BAM");
-        tools.callSAMToBAM(samOut, output);
+        tools.callSAMToBAM(samOut, output, threads);
         context.setStatus("build bam index");
         Logger.DEBUG("build bam index");
         tools.runBuildBamIndex(output);
         // remove temporary files
-//        HalvadeFileUtils.removeLocalFile(keep, preSamOut, context, HalvadeCounters.FOUT_GATK_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, preSamOut, context, HalvadeCounters.FOUT_GATK_TMP);
         HalvadeFileUtils.removeLocalFile(keep, samOut, context, HalvadeCounters.FOUT_GATK_TMP);
     }
     

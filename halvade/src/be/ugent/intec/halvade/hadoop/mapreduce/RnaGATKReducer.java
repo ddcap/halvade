@@ -33,7 +33,7 @@ public class RnaGATKReducer extends GATKReducer {
         String tmpFile1 = tmpFileBase + "-2.bam";
         String tmpFile2 = tmpFileBase + "-3.bam";
         String tmpFile3 = tmpFileBase + "-4.bam";
-        String snps = tmpFileBase + ".vcf";    
+        String snps = tmpFileBase + ".vcf";
         String filteredSnps = tmpFileBase + "-filtered.vcf";    
         String annotatedSnps = tmpFileBase + "-annotated.vcf";
         
@@ -51,8 +51,8 @@ public class RnaGATKReducer extends GATKReducer {
         splitNTrim(context, region, gatk, preprocess, tmpFile1);
         indelRealignment(context, region, gatk, tmpFile1, tmpFile2);        
         baseQualityScoreRecalibration(context, region, r, tools, gatk, tmpFile2, tmpFile3);        
-        RnaVariantCalling(context, region, gatk, tmpFile3, snps);  
-        variantFiles.add(snps);
+        RnaVariantCalling(context, region, gatk, tmpFile3, snps);
+//        variantFiles.add(snps);
         
         // filter/annotate??        
         windows = 35;
@@ -60,7 +60,8 @@ public class RnaGATKReducer extends GATKReducer {
         minFS = 30.0;
         maxQD = 2.0;
         annotateVariants(context, region, gatk, snps, annotatedSnps);
-        filterVariants(context, gatk, annotatedSnps, filteredSnps);     
+        filterVariants(context, gatk, annotatedSnps, filteredSnps);   
+        variantFiles.add(filteredSnps);  
          
         HalvadeFileUtils.removeLocalFile(region);
         long estimatedTime = System.currentTimeMillis() - startTime;

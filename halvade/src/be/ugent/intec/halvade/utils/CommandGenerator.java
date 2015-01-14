@@ -150,7 +150,7 @@ public class CommandGenerator {
         return StringArray;
     }
     
-    public static String[] SAMToolsView(String bin, String input, String output, String customArgs) {
+    public static String[] SAMToolsView(String bin, String input, String output, int threads, String customArgs) {
         ArrayList<String> command = new ArrayList<String>();
         if(bin.endsWith("/")) 
             command.add(bin + "samtools"); 
@@ -158,6 +158,10 @@ public class CommandGenerator {
             command.add(bin + "/samtools");
         command.add("view");
         command.add("-Sb");
+        if(threads > 0) {
+            command.add("-@");
+            command.add("" + threads);
+        }
         command.add("-o");
         command.add(output);
         command.add(input);
