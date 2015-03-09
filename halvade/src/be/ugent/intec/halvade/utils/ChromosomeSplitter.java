@@ -1,7 +1,18 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ * Copyright (C) 2014 ddecap
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package be.ugent.intec.halvade.utils;
@@ -14,14 +25,16 @@ import net.sf.samtools.SAMSequenceDictionary;
  * @author ddecap
  */
 public class ChromosomeSplitter {
-    protected static final String[] SPECIAL_CHR = {"M", "_"}; // 
-    protected static final int[] SPECIAL_FACTOR = {4000, 2};
+    protected static final String[] SPECIAL_CHR = {"@@@M", "@@@_"}; // 
+    protected static final int[] SPECIAL_FACTOR = {4000, 200};
+    protected static final double MIN_THRESHOLD = 25.0;
+    protected static final double LT_FACTOR = 5.0;
     protected int[] regionsPerChr;
     protected int[] regionSizePerChr;
     protected int[] chromosomeStartKey;
     protected int[] chromosomeSizes;
     protected String chr;
-    protected int multiplier;
+//    protected int multiplier;
     protected int regionLength;
     protected int regionCount;
     protected SAMSequenceDictionary dict;
@@ -79,7 +92,7 @@ public class ChromosomeSplitter {
     
     private int getMinRegionLength(int minCount) {
         int maxChrLength = dict.getSequence(0).getSequenceLength();
-        int minRegions = 0;
+//        int minRegions = 0;
         String[] chrs;
         if(chr == null)
             chrs = getChromosomeNames(dict);
@@ -92,24 +105,29 @@ public class ChromosomeSplitter {
         regionLength = maxChrLength;
         for(String chr_ : chrs)
             if(dict.getSequence(chr_).getSequenceLength() < regionLength &&
-                    (100.0*dict.getSequence(chr_).getSequenceLength() / maxChrLength) > 25.0)
+                    (100.0*dict.getSequence(chr_).getSequenceLength() / maxChrLength) > MIN_THRESHOLD)
                 regionLength = dict.getSequence(chr_).getSequenceLength();   
         
-        double restChr = 0;
+        long genomeLength = 0;
+//        double restChr = 0;
         for(String chr_ : chrs) {
             int seqlen = dict.getSequence(chr_).getSequenceLength();
             int lenFact = checkSpecialChromsome(chr_);
             if(seqlen*lenFact > regionLength)
-                minRegions += (int)Math.ceil((double)seqlen / regionLength);
+                genomeLength += seqlen*lenFact;
+//                minRegions += (int)Math.ceil((double)seqlen / regionLength);
             else
-                restChr += (double)seqlen / regionLength;
+                genomeLength += seqlen*lenFact;
+//                restChr += (double)seqlen*lenFact / regionLength;
         }
-        
-        minRegions += (int)Math.ceil(restChr / 1.0);
-        multiplier = 1;
-        while(multiplier * minRegions < minCount) 
-            multiplier++;
-        regionLength = regionLength / multiplier;
+//        Logger.DEBUG("minRegions: " + minRegions);
+//        minRegions += (int)Math.ceil(restChr / 1.0);
+//        multiplier = 1;
+//        while(multiplier * minRegions < minCount) 
+//            multiplier++;
+//        Logger.DEBUG("multiplier: " + multiplier);
+//        regionLength = regionLength / multiplier;
+        regionLength = (int) (genomeLength / minCount);
         Logger.DEBUG("maximum regionLength: " + regionLength);
         return regionLength;
     }
@@ -139,8 +157,8 @@ public class ChromosomeSplitter {
                 regionsPerChr[i] = 1;
                 regionSizePerChr[i] = seqlen + 1;
                 chromosomeStartKey[i] = currentKey;
-                currentKeySize += seqlen;
-                if(currentKeySize > regionLength/(3*lenFact)) {
+                currentKeySize += seqlen*lenFact;
+                if(currentKeySize > regionLength/LT_FACTOR) {
                     Logger.DEBUG("shared region: [" + currentKeySize+ " - " + sharedGenomes + "]");
                     currentKey++;
                     currentKeySize = 0;

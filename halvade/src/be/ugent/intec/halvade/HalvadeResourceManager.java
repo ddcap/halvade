@@ -1,7 +1,18 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ * Copyright (C) 2014 ddecap
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package be.ugent.intec.halvade;
@@ -24,13 +35,13 @@ public class HalvadeResourceManager {
     protected static final int ALL = Integer.MAX_VALUE;
     protected static final int MEM_AM = (int) (1.5*1024);
     protected static final int VCORES_AM = 1;
-    protected static final int MEM_STAR = (int) (12*1024);
+    protected static final int MEM_STAR = (int) (31*1024);
     protected static final int[][] RESOURCE_REQ = { 
-        //mapmem, mapcpu, redmem, redcpu
+        //mapmem, redmem
         {MEM_STAR,  ALL},     // RNA with shared memory pass1
         {MEM_STAR,  14*1024}, // RNA with shared memory pass2
         {MEM_STAR,  14*1024}, // RNA without shared memory
-        {14*1024,   14*1024}, // DNA
+        {16*1024,   16*1024}, // DNA
         {4*1024,    4*1024}   // combine
     };
     
@@ -65,7 +76,7 @@ public class HalvadeResourceManager {
         conf.set("mapreduce.map.memory.mb", "" + mmem); 
         conf.set("mapreduce.reduce.java.opts", "-Xmx" + (int)(0.8*rmem) + "m");
         conf.set("mapreduce.map.java.opts", "-Xmx" + (int)(0.8*mmem) + "m"); 
-        conf.set("mapreduce.job.reduce.slowstart.completedmaps", "" + 1.0);
+        conf.set("mapreduce.job.reduce.slowstart.completedmaps", "0.99");
         
         HalvadeConf.setMapThreads(conf, opt.mthreads);
         HalvadeConf.setReducerThreads(conf, opt.rthreads);     

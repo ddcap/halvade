@@ -32,7 +32,7 @@ smt
 #----------------------------------
 # Halvade arguments *** comment if not used ***
 #----------------------------------
-#refdir="/mnt/gpfs/ref/"
+refdir="/mnt/gpfs/ref/"
 #chr="chr1,chr2"
 #cov=50
 #exome="s3://bucketname/path/to/exome.bed"

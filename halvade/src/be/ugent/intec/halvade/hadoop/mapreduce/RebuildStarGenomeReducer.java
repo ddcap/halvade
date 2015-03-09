@@ -1,12 +1,23 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ * Copyright (C) 2014 ddecap
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
 package be.ugent.intec.halvade.hadoop.mapreduce;
 
-import be.ugent.intec.halvade.tools.STARInstance;
+import be.ugent.intec.halvade.hadoop.datatypes.GenomeSJ;
 import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.Logger;
@@ -19,7 +30,6 @@ import java.net.URISyntaxException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.util.Iterator;
-import java.util.logging.Level;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.LongWritable;
@@ -30,66 +40,68 @@ import org.apache.hadoop.mapreduce.Reducer;
  *
  * @author ddecap
  */
-public class RebuildStarGenomeReducer extends Reducer<LongWritable, Text, LongWritable, Text> {
+public class RebuildStarGenomeReducer extends Reducer<GenomeSJ, Text, LongWritable, Text> {
     protected String tmpDir;
     protected String refDir;
     protected String mergeJS;
     protected BufferedWriter bw;
     protected int count;
-    protected String bin, ref;
+    protected String bin, ref, out;
     protected String taskId;
-    protected int overhang = 101, threads;
+    protected int overhang = 100, threads;
     protected long mem;
     protected boolean requireUploadToHDFS = false;
 
     @Override
-    protected void reduce(LongWritable key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
+    protected void reduce(GenomeSJ key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
         Iterator<Text> it = values.iterator();
-        if(key.get() == 0) {
+        Logger.DEBUG("Key: " + key);
+        if(key.getType() == 0) {
             while(it.hasNext()) {
                 bw.write(it.next().toString() + "\n");
                 count++;
             }
-        } else if (key.get() == 1) {
-            if(it.hasNext()) {
-                String str = it.next().toString();
-                overhang = Integer.parseInt(str);
-                Logger.DEBUG("set overhang to " + overhang);
-            }
+        } else if (key.getType() == 1) {
+            overhang = key.getOverhang();
+            Logger.DEBUG("set overhang to " + overhang);
         }
     }
 
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
-        bw.close();
-        Logger.DEBUG("written " + count + " lines to " + mergeJS);
-        // build new genome ref
-        String newGenomeDir = refDir + taskId + "-newSTARgenome/";
-        File starOut = new File(newGenomeDir);
-        starOut.mkdirs();
-        
-        long time = STARInstance.rebuildStarGenome(context, bin, newGenomeDir, ref, mergeJS, 
-                                                    overhang, threads, mem);
-        context.getCounter(HalvadeCounters.TIME_STAR_BUILD).increment(time);
-        
-        //upload to outputdir
-        String out = HalvadeConf.getOutDir(context.getConfiguration());
-        String pass2GenDir = HalvadeConf.getStarDirPass2HDFS(context.getConfiguration());
-        File pass2check = new File(newGenomeDir + HalvadeFileUtils.HALVADE_STAR_SUFFIX_P2);
-        pass2check.createNewFile();
-        if(requireUploadToHDFS) {
-            try {
-                FileSystem fs = FileSystem.get(new URI(out), context.getConfiguration());
-                fs.mkdirs(new Path(pass2GenDir));
-                File[] genFiles = starOut.listFiles();
-                for(File gen : genFiles) {
-                    HalvadeFileUtils.uploadFileToHDFS(context, fs, gen.getAbsolutePath(), pass2GenDir + gen.getName());
-                }
-                Logger.DEBUG("Finished uploading new reference to " + pass2GenDir);
-            } catch (URISyntaxException ex) {
-                java.util.logging.Logger.getLogger(RebuildStarGenomeReducer.class.getName()).log(Level.SEVERE, null, ex);
-            }
+        FileSystem fs = null;
+        try {   
+            fs = FileSystem.get(new URI(out), context.getConfiguration());  
+        } catch (URISyntaxException ex) {
+            Logger.EXCEPTION(ex);
         }
+        
+        bw.close();
+        File mergeFile = new File(mergeJS);
+        Logger.DEBUG("written " + count + " lines to " + mergeJS);
+        HalvadeFileUtils.uploadFileToHDFS(context, fs, mergeFile.getAbsolutePath(), out + mergeFile.getName());
+
+//        // build new genome ref
+//        String newGenomeDir = refDir + taskId + "-newSTARgenome/";
+//        File starOut = new File(newGenomeDir);
+//        starOut.mkdirs();
+//        
+//        long time = STARInstance.rebuildStarGenome(context, bin, newGenomeDir, ref, mergeJS, 
+//                                                    overhang, threads, mem);
+//        context.getCounter(HalvadeCounters.TIME_STAR_BUILD).increment(time);
+//        
+//        //upload to outputdir
+//        String pass2GenDir = HalvadeConf.getStarDirPass2HDFS(context.getConfiguration());
+//        File pass2check = new File(newGenomeDir + HalvadeFileUtils.HALVADE_STAR_SUFFIX_P2);
+//        pass2check.createNewFile();
+//        if(requireUploadToHDFS) {
+//            fs.mkdirs(new Path(pass2GenDir));
+//            File[] genFiles = starOut.listFiles();
+//            for(File gen : genFiles) {
+//                HalvadeFileUtils.uploadFileToHDFS(context, fs, gen.getAbsolutePath(), pass2GenDir + gen.getName());
+//            }
+//            Logger.DEBUG("Finished uploading new reference to " + pass2GenDir);
+//        }
         HalvadeFileUtils.removeLocalFile(mergeJS);
     }
 
@@ -97,15 +109,11 @@ public class RebuildStarGenomeReducer extends Reducer<LongWritable, Text, LongWr
     protected void setup(Context context) throws IOException, InterruptedException {
         tmpDir = HalvadeConf.getScratchTempDir(context.getConfiguration());
         refDir = HalvadeConf.getRefDirOnScratch(context.getConfiguration());
+        out = HalvadeConf.getOutDir(context.getConfiguration()); 
         taskId = context.getTaskAttemptID().toString();
         taskId = taskId.substring(taskId.indexOf("r_"));
         mergeJS = tmpDir + taskId + "-SJ.out.tab";
         File file = new File(mergeJS);
-        if (!file.exists()) {
-                file.createNewFile();
-        }
-        bw = new BufferedWriter(new FileWriter(file.getAbsoluteFile()));
-        Logger.DEBUG("opened file write for " + mergeJS);
         
         threads = HalvadeConf.getReducerThreads(context.getConfiguration());
         try {
@@ -120,6 +128,9 @@ public class RebuildStarGenomeReducer extends Reducer<LongWritable, Text, LongWr
             Logger.EXCEPTION(ex);
             throw new InterruptedException();
         }
+        
+        bw = new BufferedWriter(new FileWriter(file.getAbsoluteFile()));
+        Logger.DEBUG("opened file write for " + mergeJS);
     }
     
     protected String checkBinaries(Reducer.Context context) throws IOException {

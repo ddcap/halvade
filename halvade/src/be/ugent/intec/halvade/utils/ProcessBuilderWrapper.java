@@ -100,7 +100,7 @@ public class ProcessBuilderWrapper {
                 this.stdout.start();
             }  
             if(stderr_ != null) {
-                this.stderr = new StreamGobbler(p.getErrorStream(), stderr_, "[PROCESS_ERR] ");
+                this.stderr = new StreamGobbler(p.getErrorStream(), stderr_, "[PROCESS_ERR]");
                 this.stderr.start();
             } 
             stdin = new BufferedWriter(new OutputStreamWriter(p.getOutputStream()));

@@ -116,6 +116,9 @@ public class BWAAlnInstance extends AlignerInstance {
             }
             fastqFile2 = new BufferedWriter(new FileWriter(file2.getAbsoluteFile()));
         }
+        
+//        hhb = new HalvadeHeartBeat(context);
+//        hhb.start();
     }
         
     /**
@@ -142,11 +145,15 @@ public class BWAAlnInstance extends AlignerInstance {
                 fastqFile2.close();
             }
         } catch (IOException ex) {
+//            hhb.jobFinished();
+//            hhb.join();
             Logger.EXCEPTION(ex);
             throw new ProcessException("BWA aln", -1);
         }
                 
         int error = reads1.waitForCompletion();
+//        hhb.jobFinished();
+//        hhb.join();
         if(error != 0)
             throw new ProcessException("BWA aln", error);
         context.getCounter(HalvadeCounters.TIME_BWA_ALN).increment(reads1.getExecutionTime());

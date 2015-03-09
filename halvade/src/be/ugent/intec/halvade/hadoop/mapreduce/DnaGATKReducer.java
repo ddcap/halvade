@@ -37,12 +37,14 @@ public class DnaGATKReducer extends GATKReducer {
         ChromosomeRange r = new ChromosomeRange();
         SAMRecordIterator SAMit = new SAMRecordIterator(values.iterator(), header, r);
         
-        if(useElPrep)
+        if(useElPrep && isFirstAttempt)
             elPrepPreprocess(context, tools, SAMit, preprocess);
-        else 
-            PicardPreprocess(context, tools, SAMit, preprocess); 
+        else  {
+            if(!isFirstAttempt) Logger.DEBUG("attempt " + taskId + ", preprocessing with Picard for smaller peak memory");
+            PicardPreprocess(context, tools, SAMit, preprocess);
+        }
         region = makeRegionFile(context, r, tools, region);
-        if(region == null) return;        
+        if(region == null) return;
         
         indelRealignment(context, region, gatk, preprocess, tmpFile1);        
         baseQualityScoreRecalibration(context, region, r, tools, gatk, tmpFile1, tmpFile2);        

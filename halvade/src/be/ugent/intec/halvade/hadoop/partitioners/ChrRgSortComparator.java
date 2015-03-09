@@ -25,8 +25,8 @@ import org.apache.hadoop.io.WritableComparator;
  *
  * @author ddecap
  */
-public class ChrRgPositionComparator  extends WritableComparator {
-    protected ChrRgPositionComparator() {
+public class ChrRgSortComparator  extends WritableComparator {
+    protected ChrRgSortComparator() {
         super(ChromosomeRegion.class, true);
     }
 

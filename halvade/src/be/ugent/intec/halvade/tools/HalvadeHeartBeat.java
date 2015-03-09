@@ -42,8 +42,6 @@ public class HalvadeHeartBeat extends Thread {
                 }
                 context.setStatus("Heartbeat: " + count);
                 context.getCounter(HalvadeCounters.STILL_RUNNING_HEARTBEAT).increment(1);
-//                context.progress();
-//                Logger.DEBUG("Heartbeat");
                 count++;
             }
         } catch (InterruptedException ex) {

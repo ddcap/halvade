@@ -215,9 +215,10 @@ public class HalvadeFileUtils {
     
     public static String downloadBWAIndex(TaskInputOutputContext context, String id) throws IOException, URISyntaxException {
         Configuration conf = context.getConfiguration();
+        String tmpDir = HalvadeConf.getScratchTempDir(conf);
         String refDir = HalvadeConf.getRefDirOnScratch(conf);
         if(!refDir.endsWith("/")) refDir = refDir + "/";
-        HalvadeFileLock lock = new HalvadeFileLock(refDir, REF_LOCK);
+        HalvadeFileLock lock = new HalvadeFileLock(context, refDir, REF_LOCK);
         String refBase = null;
         try {
             lock.getLock();
@@ -287,9 +288,10 @@ public class HalvadeFileUtils {
     
     public static String downloadGATKIndex(TaskInputOutputContext context, String id) throws IOException, URISyntaxException {
         Configuration conf = context.getConfiguration();
+        String tmpDir = HalvadeConf.getScratchTempDir(conf);
         String refDir = HalvadeConf.getRefDirOnScratch(conf);
         if(!refDir.endsWith("/")) refDir = refDir + "/";
-        HalvadeFileLock lock = new HalvadeFileLock(refDir, REF_LOCK);
+        HalvadeFileLock lock = new HalvadeFileLock(context, refDir, REF_LOCK);
         String refBase = null;
         try {
             lock.getLock();
@@ -356,9 +358,10 @@ public class HalvadeFileUtils {
     
     public static String downloadSTARIndex(TaskInputOutputContext context, String id, boolean usePass2Genome) throws IOException, URISyntaxException {
         Configuration conf = context.getConfiguration();
+        String tmpDir = HalvadeConf.getScratchTempDir(conf);
         String refDir = HalvadeConf.getRefDirOnScratch(conf);
         if(!refDir.endsWith("/")) refDir = refDir + "/";
-        HalvadeFileLock lock = new HalvadeFileLock(refDir, STARG_LOCK);
+        HalvadeFileLock lock = new HalvadeFileLock(context, tmpDir, STARG_LOCK);
         String refBase = null;
         try {
             lock.getLock();
@@ -449,11 +452,12 @@ public class HalvadeFileUtils {
     
     public static String[] downloadSites(TaskInputOutputContext context, String id) throws IOException, URISyntaxException, InterruptedException {  
         Configuration conf = context.getConfiguration();
+        String tmpDir = HalvadeConf.getScratchTempDir(conf);
         String refDir = HalvadeConf.getRefDirOnScratch(conf);
         String HDFSsites[] = HalvadeConf.getKnownSitesOnHDFS(conf);
         String[] localSites = new String[HDFSsites.length];
         if(!refDir.endsWith("/")) refDir = refDir + "/";
-        HalvadeFileLock lock = new HalvadeFileLock(refDir, DBSNP_LOCK);
+        HalvadeFileLock lock = new HalvadeFileLock(context, refDir, DBSNP_LOCK);
         String refBase = null;
         try {
             lock.getLock();
@@ -540,10 +544,17 @@ public class HalvadeFileUtils {
             File dir = new File(refBase);
             File[] directoryListing = dir.listFiles();
             if (directoryListing != null) {
-                if(directoryListing.length == localSites.length) {
-                    for (int i = 0; i < directoryListing.length; i ++)
-                        localSites[i] = directoryListing[i].getAbsolutePath();
-                } else {
+                int found = 0;
+                for (int i = 0; i < HDFSsites.length; i ++) {
+                    String fullName = HDFSsites[i];
+                    String name = fullName.substring(fullName.lastIndexOf('/') + 1);
+                    localSites[i] = refBase + name;
+                    if((new File(localSites[i])).exists())
+                        found++;
+                    else
+                        Logger.DEBUG(name + " not found in local scratch");
+                }
+                if(found != HDFSsites.length) {
                     throw new IOException(refBase + " has different number of files: " + 
                             directoryListing.length + " vs " + localSites.length);
                 }

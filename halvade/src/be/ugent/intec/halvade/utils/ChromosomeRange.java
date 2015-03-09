@@ -36,7 +36,13 @@ public class ChromosomeRange {
             this.sequenceName = sequenceName;
             this.alignmentStart = alignmentStart;
             this.alignmentEnd = alignmentEnd;
-        }        
+        }
+
+        private Range(Range get) {
+            this.sequenceName = get.sequenceName;
+            this.alignmentStart = get.alignmentStart;
+            this.alignmentEnd = get.alignmentEnd;
+        }
 
         protected String getPicardRegion() {
             return sequenceName + ":" + alignmentStart + "-" + alignmentEnd;
@@ -70,6 +76,26 @@ public class ChromosomeRange {
             bedWriter.write(r.getPicardRegion());
             bedWriter.newLine();
         }
+        bedWriter.close();
+    }
+    
+    public void writeToBedRegionFile(String filename, int overlap) throws IOException {        
+        BufferedWriter bedWriter = new BufferedWriter(new FileWriter(filename));
+        Range r = list.get(0);
+        Range tmp = new Range(r.sequenceName, Math.max(r.alignmentStart - overlap, 1), r.alignmentEnd);
+        for(int i =1; i <list.size(); i++) {
+            r = list.get(i);
+            if(r.sequenceName.equalsIgnoreCase(tmp.sequenceName) && 
+                    r.alignmentStart - overlap < tmp.alignmentEnd)
+                tmp.alignmentEnd = Math.max(tmp.alignmentEnd, r.alignmentEnd);
+            else {
+                bedWriter.write(tmp.getBedRegion());
+                bedWriter.newLine();
+                tmp = new Range(r.sequenceName, Math.max(r.alignmentStart - overlap, 1), r.alignmentEnd);
+            }
+        }
+        bedWriter.write(tmp.getBedRegion());
+        bedWriter.newLine();
         bedWriter.close();
     }
     

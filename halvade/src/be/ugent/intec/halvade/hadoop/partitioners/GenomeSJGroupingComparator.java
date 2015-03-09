@@ -17,7 +17,7 @@
 
 package be.ugent.intec.halvade.hadoop.partitioners;
 
-import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
+import be.ugent.intec.halvade.hadoop.datatypes.GenomeSJ;
 import org.apache.hadoop.io.WritableComparable;
 import org.apache.hadoop.io.WritableComparator;
 
@@ -25,23 +25,16 @@ import org.apache.hadoop.io.WritableComparator;
  *
  * @author ddecap
  */
-public class ChrRgRegionComparator extends WritableComparator {
-    protected ChrRgRegionComparator() {
-        super(ChromosomeRegion.class, true);
+public class GenomeSJGroupingComparator extends WritableComparator {
+    protected GenomeSJGroupingComparator() {
+        super(GenomeSJ.class, true);
     }
-
+    
     @Override
     public int compare(WritableComparable a, WritableComparable b) {
-        ChromosomeRegion r1 = (ChromosomeRegion) a;
-        ChromosomeRegion r2 = (ChromosomeRegion) b;
+        GenomeSJ sj1 = (GenomeSJ) a;
+        GenomeSJ sj2 = (GenomeSJ) b;
         
-        // group per key -> which identifies region (or gathers multiple regions)
-        return r1.getReduceNumber() - r2.getReduceNumber();
-        
-        // group per region
-//        if(r1.getChromosome() == r2.getChromosome()) {
-//            return r1.getRegion() - r2.getRegion();
-//        } else
-//            return r1.getChromosome() - r2.getChromosome();
+        return sj2.getType()- sj1.getType();
     }
 }

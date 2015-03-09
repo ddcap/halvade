@@ -11,11 +11,8 @@ import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import java.io.File;
 import java.io.IOException;
-import java.io.RandomAccessFile;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.channels.FileChannel;
-import java.nio.channels.FileLock;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import org.apache.hadoop.fs.Path;
@@ -34,10 +31,10 @@ public class HalvadeMapper<T1, T2> extends Mapper<LongWritable, Text, T1, T2> {
         super.cleanup(context);
         try {
             Logger.DEBUG(readcount + " fastq reads processed");
-            allTasksHaveStarted = HalvadeConf.allTasksCompleted(context.getConfiguration());
             Logger.DEBUG("starting cleanup: closing aligner");
             instance.closeAligner();
             Logger.DEBUG("finished cleanup");
+            allTasksHaveStarted = HalvadeConf.allTasksCompleted(context.getConfiguration());
         } catch (URISyntaxException ex) {
             Logger.EXCEPTION(ex);
         }

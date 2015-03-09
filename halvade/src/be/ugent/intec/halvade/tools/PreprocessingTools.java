@@ -22,13 +22,16 @@ import be.ugent.intec.halvade.utils.ChromosomeRange;
 import be.ugent.intec.halvade.utils.CommandGenerator;
 import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
+import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import be.ugent.intec.halvade.utils.ProcessBuilderWrapper;
 import be.ugent.intec.halvade.utils.SAMRecordIterator;
+import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,6 +40,7 @@ import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMFileWriter;
 import net.sf.samtools.SAMFileWriterFactory;
 import net.sf.samtools.SAMRecord;
+import net.sf.samtools.SAMSequenceDictionary;
 import net.sf.samtools.SAMTextHeaderCodec;
 import org.apache.hadoop.mapreduce.Reducer;
 
@@ -73,42 +77,46 @@ public class PreprocessingTools {
         this.java = java;
     }
     
-    public String filterDBSnps(String dbsnps, ChromosomeRange r) throws IOException, InterruptedException {
+    private static final int BED_OVERLAP = 301;
+    public String filterDBSnps(String dict, String dbsnps, ChromosomeRange r, String prefix, int threads) throws IOException, InterruptedException {
         // write a bed file with the region!
-        String prefix = dbsnps.substring(0, dbsnps.lastIndexOf(".vcf")) + "_";
-        File bed = new File(prefix + r + ".bed");
-        r.writeToBedRegionFile(bed.getAbsolutePath());
-        // open a new file to write to which will have the vcf output
-        File regionVcf = new File(prefix + r + ".vcf");
+        File bed = new File(prefix + "-filtered.bed");
+        r.writeToBedRegionFile(bed.getAbsolutePath(), BED_OVERLAP);
+        File regionVcf = new File(prefix + "-dbsnp-filtered.vcf");
+        String sortedVcfName = prefix + "-dbsnp-sorted.vcf";
         FileOutputStream vcfStream = new FileOutputStream(regionVcf.getAbsoluteFile());
-        int read = 0;
-        byte[] bytes = new byte[bufferSize];
         
-        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "bedtools", "dbsnp");  
-        String[] command = CommandGenerator.bedTools(bin, dbsnps, bed.getAbsolutePath(), customArgs);
+//        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "snpsift", "intidx");  
+        String[] command = CommandGenerator.snpSift(java, mem, bin, dbsnps, bed.getAbsolutePath(), threads);
         
         long startTime = System.currentTimeMillis();
         ProcessBuilderWrapper builder = new ProcessBuilderWrapper(command, null);
         builder.startProcess();
-        // read from output and write to regionVcf file!
         InputStream is = builder.getSTDOUTStream();
+        byte[] bytes = new byte[bufferSize];
+        int read = 0;
+        int count = 0;
         while ((read = is.read(bytes)) != -1) {
-                vcfStream.write(bytes, 0, read);
-        }            
+            vcfStream.write(bytes, 0, read);
+            count++;
+        }
             
         int error = builder.waitForCompletion();
         if(error != 0)
-            throw new ProcessException("BedTools", error);
+            throw new ProcessException("snpSift", error);
+        
+        vcfStream.close();
+        runSortVcf(regionVcf.getAbsolutePath(), sortedVcfName);
+        
         long estimatedTime = System.currentTimeMillis() - startTime;
         Logger.DEBUG("estimated time: " + estimatedTime / 1000);
+        Logger.DEBUG("vcf filtered count: " + count);
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_BEDTOOLS).increment(estimatedTime);
         
-        
-        vcfStream.close();
-        // remove bed file?
         bed.delete();
-        return regionVcf.getAbsolutePath();
+        regionVcf.delete();
+        return sortedVcfName;
         
     }
     
@@ -240,7 +248,8 @@ public class PreprocessingTools {
         "BuildBamIndex.jar", 
         "AddOrReplaceReadGroups.jar",
         "MarkDuplicates.jar",
-        "CleanSam.jar"
+        "CleanSam.jar",
+        "picard.jar"
     };
     
     private static String[] GetStringVector(Collection<String> c) {
@@ -293,6 +302,28 @@ public class PreprocessingTools {
         long estimatedTime = runProcessAndWait("Picard AddOrReplaceReadGroup", GetStringVector(command));
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_PICARD_ADDGRP).increment(estimatedTime);
+        return 0;
+    }
+
+    public int runSortVcf(String input, String output) throws InterruptedException {
+        String tool;
+        if(bin.endsWith("/")) 
+            tool = bin + PicardTools[4];
+        else
+            tool = bin + "/" + PicardTools[4];  
+        ArrayList<String> command = new ArrayList<>();
+        command.add(java);
+        command.add(mem);
+        command.add("-jar");
+        command.add(tool);
+        command.add("SortVcf");
+        command.add("I=" + input);
+        command.add("O=" + output);                     
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "picard", "sortvcf");  
+        command = CommandGenerator.addToCommand(command, customArgs);        
+        runProcessAndWait("Picard SortVcf", GetStringVector(command));
+        // rm idx -> isnt correct???
+        HalvadeFileUtils.removeLocalFile(output + ".idx");
         return 0;
     }
     public int runMarkDuplicates(String input, String output, String metrics) throws InterruptedException {

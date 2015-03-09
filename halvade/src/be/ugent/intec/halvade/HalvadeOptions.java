@@ -81,7 +81,7 @@ public class HalvadeOptions {
     protected boolean reuseJVM = false;
     protected boolean justAlign = false;
     protected String exomeBedFile = null;
-    protected double coverage = 50; 
+    protected double coverage = -1.0; 
     protected String halvadeBinaries;
     protected String bin;
     protected boolean combineVcf = true;
@@ -143,7 +143,8 @@ public class HalvadeOptions {
             
             parseDictFile(hConf);
             double inputSize = getInputSize(in, hConf);
-            coverage = DEFAULT_COVERAGE * (inputSize / DEFAULT_COVERAGE_SIZE);
+            if(coverage == -1.0)
+                coverage = Math.max(1.0, DEFAULT_COVERAGE * (inputSize / DEFAULT_COVERAGE_SIZE));
             Logger.DEBUG("Estimated coverage: " + roundOneDecimal(coverage));
             // set a minimum first where the real amount is based on
             reduces = (int) (coverage * REDUCE_TASKS_FACTOR);
@@ -185,7 +186,7 @@ public class HalvadeOptions {
     
     private static final String DICT_SUFFIX = ".dict";
     private void parseDictFile(Configuration conf) {
-        be.ugent.intec.halvade.utils.Logger.DEBUG("parsing dictionary file...");
+        be.ugent.intec.halvade.utils.Logger.DEBUG("parsing dictionary " + ref + DICT_SUFFIX);
         try {
             FileSystem fs = FileSystem.get(new URI(ref + DICT_SUFFIX), conf);
             FSDataInputStream stream = fs.open(new Path(ref + DICT_SUFFIX));

@@ -53,7 +53,8 @@ public class CommandGenerator {
         "--runMode",
         "--limitIObufferSize",
         "--limitGenomeGenerateRAM",
-        "--genomeSAsparseD"};
+        "--genomeSAsparseD",
+        "--limitBAMsortRAM"};
     private static String[] starGenomeLoad = {
         "LoadAndExit" , "Remove", "LoadAndKeep"
     };
@@ -150,6 +151,49 @@ public class CommandGenerator {
         return StringArray;
     }
     
+    private static String snpSiftBin = "SnpSift.jar";
+    private static String[] snpSiftOptions = {"intIdx"};
+    //java -jar SnpSift.jar intidx input.vcf intervals.bed > output.vcf
+    public static String[] snpSift(String java, String mem, String bin, String input, String bed, int threads) {
+        ArrayList<String> command = new ArrayList<String>();
+        command.add(java);
+        command.add(mem);
+        command.add("-jar");
+        if(bin.endsWith("/")) 
+            command.add(bin + snpSiftBin); 
+        else
+            command.add(bin + "/" + snpSiftBin);
+        command.add(snpSiftOptions[0]);
+        command.add("-cpus");
+        command.add("" + threads);
+        command.add(input);
+        command.add(bed);
+        Object[] ObjectList = command.toArray();
+        String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
+        return StringArray;
+    }
+    
+    
+    public static String[] SAMToolsMerge(String bin, String[] input, String output, int threads, String customArgs) {
+        ArrayList<String> command = new ArrayList<String>();
+        if(bin.endsWith("/")) 
+            command.add(bin + "samtools"); 
+        else
+            command.add(bin + "/samtools");
+        command.add("merge");
+        if(threads > 0) {
+            command.add("-@");
+            command.add("" + threads);
+        }
+        command = addToCommand(command, customArgs);
+        command.add(output);
+        for(String in : input)
+            command.add(in);
+        Object[] ObjectList = command.toArray();
+        String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
+        return StringArray;
+    }
+    
     public static String[] SAMToolsView(String bin, String input, String output, int threads, String customArgs) {
         ArrayList<String> command = new ArrayList<String>();
         if(bin.endsWith("/")) 
@@ -162,10 +206,10 @@ public class CommandGenerator {
             command.add("-@");
             command.add("" + threads);
         }
+        command = addToCommand(command, customArgs);
         command.add("-o");
         command.add(output);
         command.add(input);
-        command = addToCommand(command, customArgs);
         Object[] ObjectList = command.toArray();
         String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
         return StringArray;
@@ -218,7 +262,7 @@ public class CommandGenerator {
     }
     
     public static String[] starRebuildGenome(String bin, String newStarGenomeDir, String ref, 
-            String sjdbfile, int overhang, int numberOfThreads, long mem) {
+            String sjdbfile, int overhang, int numberOfThreads, long mem, boolean sparse) {
         ArrayList<String> command = new ArrayList<>();
         if(bin.endsWith("/")) 
             command.add(bin + starBin); 
@@ -241,10 +285,14 @@ public class CommandGenerator {
         command.add("" + overhang);
         command.add(starOptions[4]);
         command.add("" + numberOfThreads);
-        command.add(starOptions[16]);
-        command.add("" + SAsparseD);
+        if(sparse) {
+            command.add(starOptions[16]);
+            command.add("" + SAsparseD);
+        }
         if(mem > 0) {
             command.add(starOptions[15]);
+            command.add("" + mem*1024*1024);
+            command.add(starOptions[17]);
             command.add("" + mem*1024*1024);
         }
         Object[] ObjectList = command.toArray();

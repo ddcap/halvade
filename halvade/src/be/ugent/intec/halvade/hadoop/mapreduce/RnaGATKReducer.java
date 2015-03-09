@@ -41,10 +41,12 @@ public class RnaGATKReducer extends GATKReducer {
         ChromosomeRange r = new ChromosomeRange();
         SAMRecordIterator SAMit = new SAMRecordIterator(values.iterator(), header, r);
         
-        if(useElPrep)
+        if(useElPrep && isFirstAttempt)
             elPrepPreprocess(context, tools, SAMit, preprocess);
-        else 
+        else {
+            if(!isFirstAttempt) Logger.DEBUG("attempt " + taskId + ", preprocessing with Picard for smaller peak memory");
             PicardPreprocess(context, tools, SAMit, preprocess);
+        }
         region = makeRegionFile(context, r, tools, region);
         if(region == null) return;
         
@@ -52,16 +54,16 @@ public class RnaGATKReducer extends GATKReducer {
         indelRealignment(context, region, gatk, tmpFile1, tmpFile2);        
         baseQualityScoreRecalibration(context, region, r, tools, gatk, tmpFile2, tmpFile3);        
         RnaVariantCalling(context, region, gatk, tmpFile3, snps);
-//        variantFiles.add(snps);
         
-        // filter/annotate??        
-        windows = 35;
-        cluster = 3;
-        minFS = 30.0;
-        maxQD = 2.0;
-        annotateVariants(context, region, gatk, snps, annotatedSnps);
-        filterVariants(context, gatk, annotatedSnps, filteredSnps);   
-        variantFiles.add(filteredSnps);  
+//        // filter/annotate??       
+//        windows = 35;
+//        cluster = 3;
+//        minFS = 30.0;
+//        maxQD = 2.0;
+//        annotateVariants(context, region, gatk, snps, annotatedSnps);
+//        filterVariants(context, region, gatk, annotatedSnps, filteredSnps);   
+        
+        variantFiles.add(snps);
          
         HalvadeFileUtils.removeLocalFile(region);
         long estimatedTime = System.currentTimeMillis() - startTime;

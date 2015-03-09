@@ -40,7 +40,7 @@ import java.net.URISyntaxException;
  * @author ddecap
  */
 public abstract class GATKReducer extends HalvadeReducer {
-
+    protected boolean isFirstAttempt;
     protected boolean useBedTools;
     protected boolean useUnifiedGenotyper;
     protected double sec, scc;
@@ -68,13 +68,14 @@ public abstract class GATKReducer extends HalvadeReducer {
             processAlignments(values, context, tools, gatk);
         } catch (URISyntaxException | QualityException | ProcessException ex) {
             Logger.EXCEPTION(ex);
-            throw new InterruptedException();
+            throw new InterruptedException(ex.getMessage());
         }
     }
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
+        isFirstAttempt = taskId.endsWith("_0");
         isRNA = HalvadeConf.getIsRNA(context.getConfiguration());
         scc = HalvadeConf.getSCC(context.getConfiguration(), isRNA);
         sec = HalvadeConf.getSEC(context.getConfiguration(), isRNA);
@@ -130,10 +131,12 @@ public abstract class GATKReducer extends HalvadeReducer {
         
         long startTime = System.currentTimeMillis();
         
+        int count = 0;
         SAMRecord sam;
         while(input.hasNext()) {
             sam = input.next();
             writer.addAlignment(sam);
+            count++;
         }
         int reads = input.getCount();
         writer.close();
@@ -141,6 +144,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         context.getCounter(HalvadeCounters.IN_PREP_READS).increment(reads);
         long estimatedTime = System.currentTimeMillis() - startTime;
         context.getCounter(HalvadeCounters.TIME_HADOOP_SAMTOBAM).increment(estimatedTime);
+        Logger.DEBUG("time writing " + count + " records to disk: " + estimatedTime / 1000);
         
         //preprocess steps of iprep
         Logger.DEBUG("clean sam");
@@ -212,7 +216,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         String[] snpslocal = HalvadeFileUtils.downloadSites(context, taskId);
         String[] newKnownSites = new String[snpslocal.length];
         for(int i = 0 ; i < snpslocal.length; i++) {
-            if(useBedTools) newKnownSites[i] = tools.filterDBSnps(snpslocal[i], r); 
+            if(useBedTools) newKnownSites[i] = tools.filterDBSnps(ref.replaceAll("fasta", "dict"), snpslocal[i], r, tmpFileBase, threads); 
             else newKnownSites[i] = snpslocal[i]; 
             if(newKnownSites[i].endsWith(".gz"))
                 newKnownSites[i] = HalvadeFileUtils.Unzip(newKnownSites[i]);
@@ -282,11 +286,11 @@ public abstract class GATKReducer extends HalvadeReducer {
     }
     
     // TODO improve annotate/filter
-    protected void filterVariants(Context context, GATKTools gatk, String input, String output) throws InterruptedException {      
+    protected void filterVariants(Context context, String region, GATKTools gatk, String input, String output) throws InterruptedException {      
         Logger.DEBUG("run VariantFiltration");
         context.setStatus("run VariantFiltration");
         context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
-        gatk.runVariantFiltration(input, output, ref, windows, cluster, minFS, maxQD);
+        gatk.runVariantFiltration(input, output, ref, region, windows, cluster, minFS, maxQD);
         
         HalvadeFileUtils.removeLocalFile(keep, input, context, HalvadeCounters.FOUT_GATK_TMP);
     }
@@ -295,7 +299,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         Logger.DEBUG("run VariantAnnotator");
         context.setStatus("run VariantAnnotator");
         context.getCounter(HalvadeCounters.TOOLS_GATK).increment(1);
-        gatk.runVariantAnnotator(input, output, ref);
+        gatk.runVariantAnnotator(input, output, ref, region);
         
         HalvadeFileUtils.removeLocalFile(keep, input, context, HalvadeCounters.FOUT_GATK_TMP);
         

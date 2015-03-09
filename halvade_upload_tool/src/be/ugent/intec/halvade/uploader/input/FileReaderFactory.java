@@ -85,7 +85,7 @@ public class FileReaderFactory extends BaseFileReader implements Runnable {
 
     protected boolean check = true;
     protected ArrayBlockingQueue<ReadBlock> blocks;
-    protected int READ_BLOCK_CAPACITY = 50;
+    protected int READ_BLOCK_CAPACITY = 300;
     
     @Override
     public void run() {

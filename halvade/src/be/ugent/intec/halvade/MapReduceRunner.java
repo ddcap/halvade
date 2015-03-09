@@ -20,9 +20,9 @@ package be.ugent.intec.halvade;
 import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import fi.tkk.ics.hadoop.bam.VariantContextWritable;
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
+import be.ugent.intec.halvade.hadoop.datatypes.GenomeSJ;
 import be.ugent.intec.halvade.hadoop.mapreduce.HalvadeTextInputFormat;
 import be.ugent.intec.halvade.hadoop.partitioners.*;
-import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileStatus;
@@ -133,9 +133,11 @@ public class MapReduceRunner extends Configured implements Tool  {
             pass1Job.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.StarAlignPassXMapper.class);
 
             pass1Job.setInputFormatClass(HalvadeTextInputFormat.class);
-            pass1Job.setMapOutputKeyClass(LongWritable.class);
+            pass1Job.setMapOutputKeyClass(GenomeSJ.class);
             pass1Job.setMapOutputValueClass(Text.class);
 
+            pass1Job.setSortComparatorClass(GenomeSJSortComparator.class);
+            pass1Job.setGroupingComparatorClass(GenomeSJGroupingComparator.class);
             pass1Job.setNumReduceTasks(1); 
             pass1Job.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.RebuildStarGenomeReducer.class);          
             pass1Job.setOutputKeyClass(LongWritable.class);
@@ -194,8 +196,8 @@ public class MapReduceRunner extends Configured implements Tool  {
         halvadeJob.setMapOutputValueClass(SAMRecordWritable.class);
         halvadeJob.setInputFormatClass(HalvadeTextInputFormat.class);
         halvadeJob.setPartitionerClass(ChrRgPartitioner.class);
-        halvadeJob.setSortComparatorClass(ChrRgPositionComparator.class);
-        halvadeJob.setGroupingComparatorClass(ChrRgRegionComparator.class);
+        halvadeJob.setSortComparatorClass(ChrRgSortComparator.class);
+        halvadeJob.setGroupingComparatorClass(ChrRgGroupingComparator.class);
         halvadeJob.setOutputKeyClass(Text.class);
         halvadeJob.setOutputValueClass(VariantContextWritable.class);
 

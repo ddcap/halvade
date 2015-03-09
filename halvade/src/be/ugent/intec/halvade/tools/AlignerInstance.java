@@ -54,6 +54,7 @@ public abstract class AlignerInstance {
     protected boolean keepChrSplitPairs;
     protected boolean keep = false;
     protected ChromosomeSplitter splitter;
+    protected HalvadeHeartBeat hhb;
     
     
     protected AlignerInstance(Mapper.Context context, String bin) throws IOException {
@@ -74,9 +75,6 @@ public abstract class AlignerInstance {
         splitter = new ChromosomeSplitter(HalvadeConf.getSequenceDictionary(context.getConfiguration()), minChrLength, chr);
         keepChrSplitPairs = HalvadeConf.getkeepChrSplitPairs(context.getConfiguration());
         keep = HalvadeConf.getKeepFiles(context.getConfiguration());
-    }
-    
-    protected void createTmpDirectory() {             
     }
     
     protected int feedLine(String line, ProcessBuilderWrapper proc) throws IOException  {
@@ -142,7 +140,7 @@ public abstract class AlignerInstance {
             int endpos = sam.getAlignmentEnd();
             int beginregion = splitter.getRegion(beginpos, sam.getReferenceIndex());
             int endregion = splitter.getRegion(endpos, sam.getReferenceIndex());
-            writableRegion.setChromosomeRegion(sam.getReferenceIndex(),  
+            writableRegion.setChromosomeRegion(sam.getReferenceIndex(),
                     sam.getAlignmentStart(), splitter.getKey(beginregion, sam.getReferenceIndex()));
             context.write(writableRegion, writableRecord);
             count++;

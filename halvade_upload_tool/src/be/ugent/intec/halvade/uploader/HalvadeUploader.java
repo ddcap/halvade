@@ -262,7 +262,7 @@ public class HalvadeUploader  extends Configured implements Tool {
         if(codec != null)
             Logger.DEBUG("Hadoop encryption: " + codec.getDefaultExtension().substring(1));
         if(line.hasOption("size"))
-            bestFileSize = Integer.parseInt(line.getOptionValue("s"));
+            bestFileSize = Integer.parseInt(line.getOptionValue("size")) * 1024 * 1024;
     }
 
 }

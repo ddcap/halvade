@@ -17,6 +17,7 @@
 
 package be.ugent.intec.halvade.tools;
 
+import be.ugent.intec.halvade.hadoop.datatypes.GenomeSJ;
 import be.ugent.intec.halvade.hadoop.mapreduce.HalvadeCounters;
 import be.ugent.intec.halvade.utils.CommandGenerator;
 import be.ugent.intec.halvade.utils.HalvadeFileUtils;
@@ -32,6 +33,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
+import java.util.logging.Level;
+import net.sf.samtools.SAMSequenceDictionary;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -188,27 +191,36 @@ public class STARInstance extends AlignerInstance {
     }
 
     protected Text val;
-    protected LongWritable key;
-    private void emitJSFile(String starOutDir, Mapper.Context context) {
+    protected GenomeSJ sj;
+    private void emitJSFile(String starOutDir, Mapper.Context context) throws InterruptedException {
+        SAMSequenceDictionary dict = null;
+        try {
+            dict = HalvadeConf.getSequenceDictionary(context.getConfiguration());
+        } catch (IOException ex) {
+            Logger.EXCEPTION(ex);
+            throw new InterruptedException("Error getting the SAMSequenceDictionary for SJ processing");
+        }
         BufferedReader br = null;
         val = new Text();
-        key = new LongWritable();
+        sj = new GenomeSJ();
         try {
             br = new BufferedReader(new FileReader(starOutDir + "/SJ.out.tab"));
             String line = br.readLine();
-            key.set(0);
+            sj.parseSJString(line, dict);
             while (line != null) {
                 val.set(line);
-                context.write(key, val);
+                context.write(sj, val);
                 line = br.readLine();
             }
         } catch (IOException | InterruptedException ex) {
             Logger.EXCEPTION(ex);
         } finally {
-            try {
-                br.close();
-            } catch (IOException ex) {
-            Logger.EXCEPTION(ex);
+            if(br != null) {
+                try {
+                    br.close();
+                } catch (IOException ex) {
+                    Logger.EXCEPTION(ex);
+                }
             }
         }
     }
@@ -251,12 +263,13 @@ public class STARInstance extends AlignerInstance {
         context.getCounter(HalvadeCounters.TIME_STAR_REF).increment(star.getExecutionTime());
     }
     
+    protected static boolean sparseGenome = true;
     public static long rebuildStarGenome(TaskInputOutputContext context, String bin, String newGenomeDir, 
             String ref, String SJouttab, int sjoverhang, int threads, long mem) throws InterruptedException {
         Logger.DEBUG("Creating new genome in " + newGenomeDir);
         String[] command = 
                 CommandGenerator.starRebuildGenome(bin, newGenomeDir, ref, SJouttab, 
-                        sjoverhang, threads, mem);
+                        sjoverhang, threads, mem, sparseGenome);
         
         ProcessBuilderWrapper starbuild = new ProcessBuilderWrapper(command, bin);
         starbuild.startProcess(System.out, System.err);

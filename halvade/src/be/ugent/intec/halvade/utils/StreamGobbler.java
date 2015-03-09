@@ -47,7 +47,7 @@ public class StreamGobbler extends Thread {
             BufferedReader br = new BufferedReader(isr);
             String line = null;
             while ((line = br.readLine()) != null)
-                stream.println(prefix + line);
+                stream.println(prefix + "[" + Timer.getGlobalTime() + "] " + line);
         }
         catch (IOException ioe) {
             Logger.EXCEPTION(ioe);

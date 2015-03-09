@@ -32,6 +32,8 @@ import org.apache.hadoop.mapreduce.Reducer;
  * @author ddecap
  */
 public class GATKTools {
+    protected static final String DISABLE_VCF_LOCKING = "--disable_auto_index_creation_and_locking_when_reading_rods";
+    protected static final String NO_CMD_HEADER = "--no_cmdline_in_header";
     // params
     String reference;
     String bin;
@@ -123,7 +125,8 @@ public class GATKTools {
             "-R", ref,
             "-I", input,
             "-o", table,
-            "-L", region};
+            "-L", region,
+            DISABLE_VCF_LOCKING};
         command.addAll(Arrays.asList(gatkcmd));
         command.addAll(Arrays.asList(covString));
         for(String knownSite : knownSites) {
@@ -195,7 +198,7 @@ public class GATKTools {
         
     }
     
-    public void runVariantFiltration(String input, String output, String ref, int window, int cluster, double minFS, double maxQD) throws InterruptedException {
+    public void runVariantFiltration(String input, String output, String ref, String region, int window, int cluster, double minFS, double maxQD) throws InterruptedException {
         /**
          * example: 
          * java -Xmx4g -jar GenomeAnalysisTK.jar 
@@ -217,6 +220,7 @@ public class GATKTools {
             "-R", ref,
             "-V", input,
             "-o", output,
+            "-L", region,
             "-window", "" + window,
             "-cluster", "" + cluster,
             "-filterName", "FS",
@@ -230,7 +234,7 @@ public class GATKTools {
         
     } 
     
-    public void runVariantAnnotator(String input, String output, String ref) throws InterruptedException {
+    public void runVariantAnnotator(String input, String output, String ref, String region) throws InterruptedException {
         /**
          * example: 
          * java -Xmx4g -jar GenomeAnalysisTK.jar 
@@ -251,7 +255,8 @@ public class GATKTools {
             multiThreadingTypes[0], "" + threads, 
             "-R", ref,
             "-V", input,
-            "-o", output};
+            "-o", output,
+            "-L", region};
         String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "gatk", "variantannotator");
         long estimatedTime = runProcessAndWait("GATK VariantAnnotator", AddCustomArguments(command, customArgs));   
         if(context != null)
@@ -359,7 +364,8 @@ public class GATKTools {
             "-stand_call_conf", roundOneDecimal(scc),
             "-stand_emit_conf", roundOneDecimal(sec),
             "-L", region,
-            "--no_cmdline_in_header"};
+            NO_CMD_HEADER,
+            DISABLE_VCF_LOCKING};
         command.addAll(Arrays.asList(gatkcmd));
         if(knownSites != null) {
             for(String knownSite : knownSites) {
@@ -393,7 +399,8 @@ public class GATKTools {
             "-stand_call_conf", roundOneDecimal(scc),
             "-stand_emit_conf", roundOneDecimal(sec),
             "-L", region,
-            "--no_cmdline_in_header"};
+            NO_CMD_HEADER,
+            DISABLE_VCF_LOCKING};
         command.addAll(Arrays.asList(gatkcmd));
         if(disableSoftClipping) {
             command.add("-dontUseSoftClippedBases");
@@ -414,9 +421,13 @@ public class GATKTools {
     
     private long runProcessAndWait(String name, String[] command) throws InterruptedException {
         long startTime = System.currentTimeMillis();
+//        HalvadeHeartBeat hhb = new HalvadeHeartBeat(context);
+//        hhb.start();
         ProcessBuilderWrapper builder = new ProcessBuilderWrapper(command, null);
         builder.startProcess(true);
         int error = builder.waitForCompletion();
+//        hhb.jobFinished();
+//        hhb.join();
         if(error != 0)
             throw new ProcessException(name, error);
         long estimatedTime = System.currentTimeMillis() - startTime;

@@ -80,17 +80,14 @@ public class Timer {
         int precision = 0;
         if (time >= year && precision < 2){
             formattedTime += (int)(time / year) + "y ";
-            precision++;
         }
         time = time % year;
         if (time >= week && precision < 2){
             formattedTime += (int)(time / week) + "w ";
-            precision++;
         }
         time = time % week;
         if (time >= day && precision < 2){
             formattedTime += (int)(time / day) + "d ";
-            precision++;
         }
         time = time % day;
         if (time >= hour && precision < 2){

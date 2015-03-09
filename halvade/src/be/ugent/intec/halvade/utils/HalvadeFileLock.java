@@ -12,6 +12,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
+import org.apache.hadoop.mapreduce.TaskInputOutputContext;
 
 /**
  *
@@ -23,10 +24,12 @@ public class HalvadeFileLock {
     protected RandomAccessFile file;
     protected FileLock lock;
     protected String dir, filename;
+    protected TaskInputOutputContext context;
     
-    public HalvadeFileLock(String dir, String filename) {
+    public HalvadeFileLock(TaskInputOutputContext context, String dir, String filename) {
         this.dir = dir;
         this.filename = filename;
+        this.context = context;
     }
     
     public int read(ByteBuffer bytes) throws IOException {
@@ -45,7 +48,10 @@ public class HalvadeFileLock {
         int loop = 60;
         int i =0;
         while(lock == null) {
-            if (i % loop == 0) Logger.DEBUG("waiting for lock...");
+            if (i % loop == 0)  {
+                Logger.DEBUG("waiting for lock...");
+                context.setStatus("waiting for lock...");
+            }
             Thread.sleep(1000);
             i++;
             lock = f.tryLock();
