@@ -35,6 +35,7 @@ import org.apache.hadoop.util.Tool;
 import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.Timer;
+import fi.tkk.ics.hadoop.bam.BAMInputFormat;
 import fi.tkk.ics.hadoop.bam.VCFInputFormat;
 import java.io.IOException;
 import java.net.URI;
@@ -64,7 +65,7 @@ public class MapReduceRunner extends Configured implements Tool  {
             String halvadeDir = halvadeOpts.out + "/halvade";
             if(!halvadeOpts.justCombine) {
                 if(halvadeOpts.rnaPipeline) {
-                    if(halvadeOpts.useSharedMemory) {
+                    if(halvadeOpts.useSharedMemory && !halvadeOpts.useBamInput) {
                         ret = runPass1RNAJob(halvadeConf, halvadeOpts.out + "/pass1");
                         if(ret != 0) {
                             Logger.DEBUG("Halvade pass 1 job failed.");
@@ -201,6 +202,11 @@ public class MapReduceRunner extends Configured implements Tool  {
         halvadeJob.setOutputKeyClass(Text.class);
         halvadeJob.setOutputValueClass(VariantContextWritable.class);
 
+        if(halvadeOpts.useBamInput) {
+            halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.AlignedBamMapper.class);
+            halvadeJob.setInputFormatClass(BAMInputFormat.class);
+        }
+        
         return runTimedJob(halvadeJob, "Halvade Job");
     }
     

@@ -34,6 +34,6 @@ public class GenomeSJSortComparator extends WritableComparator {
     public int compare(WritableComparable a, WritableComparable b) {
         GenomeSJ sj1 = (GenomeSJ) a;
         GenomeSJ sj2 = (GenomeSJ) b;
-        return (-1)*sj1.compareTo(sj2); 
+        return sj1.compareTo(sj2); 
     }
 }

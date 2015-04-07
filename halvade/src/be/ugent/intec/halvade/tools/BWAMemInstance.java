@@ -63,7 +63,7 @@ public class BWAMemInstance extends AlignerInstance {
             throw new ProcessException("BWA mem", pbw.getExitState());
         pbw.getSTDINWriter();
         // make a SAMstream handler
-        ssh = new SAMStreamHandler(instance, context);
+        ssh = new SAMStreamHandler(instance, context, false);
         ssh.start();
     }
         

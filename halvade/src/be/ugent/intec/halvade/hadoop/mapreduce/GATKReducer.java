@@ -222,7 +222,7 @@ public abstract class GATKReducer extends HalvadeReducer {
                 newKnownSites[i] = HalvadeFileUtils.Unzip(newKnownSites[i]);
         }
         
-        // should be created automatically by GATK if v3.x
+        // should be created automatically by GATK v3.0 or higher
 //        Logger.DEBUG("build bam index");
 //        context.setStatus("build bam index");
 //        tools.runBuildBamIndex(tmpFile1); 

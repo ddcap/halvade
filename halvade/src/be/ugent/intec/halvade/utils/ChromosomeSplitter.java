@@ -17,6 +17,10 @@
 
 package be.ugent.intec.halvade.utils;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import net.sf.samtools.SAMSequenceDictionary;
 
@@ -196,5 +200,60 @@ public class ChromosomeSplitter {
             i++;
         }
         be.ugent.intec.halvade.utils.Logger.DEBUG("Total regions: " + regionCount);
+    }
+    
+    public static void exportSplitter(int[] regionsPerChr, int[] regionSizePerChr, int[] chromosomeStartKey, int[] chromosomeSizes, String filename) {
+        BufferedWriter br = null;
+        try {
+            br = new BufferedWriter(new FileWriter(filename));
+            String line = regionsPerChr.length + "\n";
+            br.write(line, 0, line.length());
+            for(int i = 0; i < regionsPerChr.length; i++) {
+                line = regionsPerChr[i] + "\t" + regionSizePerChr[i] + "\t" + chromosomeStartKey[i] + "\t" + chromosomeSizes[i] + "\n";
+                br.write(line, 0, line.length());
+            }
+        } catch (IOException ex) {
+            Logger.EXCEPTION(ex);
+        } finally {
+            if(br != null) {
+                try {
+                    br.close();
+                } catch (IOException ex) {
+                    Logger.EXCEPTION(ex);
+                }
+            }
+        }
+        
+    }
+    public void importSplitter(String filename) {
+        BufferedReader br = null;
+        try {
+            br = new BufferedReader(new FileReader(filename));
+            String line = br.readLine();
+            String split[];
+            int len = Integer.parseInt(line);
+            regionsPerChr = new int[len];
+            regionSizePerChr = new int[len];
+            chromosomeStartKey = new int[len];
+            chromosomeSizes = new int[len];
+            for(int i = 0; i < len; i++) {
+                line = br.readLine();
+                split = line.split("\t");
+                regionsPerChr[i] = Integer.parseInt(split[0]);
+                regionSizePerChr[i] = Integer.parseInt(split[1]);
+                chromosomeStartKey[i] = Integer.parseInt(split[2]);
+                chromosomeSizes[i] = Integer.parseInt(split[3]);
+            }
+        } catch (IOException ex) {
+            Logger.EXCEPTION(ex);
+        } finally {
+            if(br != null) {
+                try {
+                    br.close();
+                } catch (IOException ex) {
+                    Logger.EXCEPTION(ex);
+                }
+            }
+        }
     }
 }

@@ -28,76 +28,61 @@ import org.apache.hadoop.io.WritableComparable;
  * @author ddecap
  */
 public class GenomeSJ implements WritableComparable<GenomeSJ> {
-    protected int type; // 0 = sj string, 1 = overhang length
-    protected int chromosome;
-    protected int firstBaseIntron;
-    protected int lastBaseIntron;
-    protected int overhang;
+    protected int type; // -2 = overhang length, -1 = sj string, 2 =  count per key region
+    protected int secondary_key;
 
     public void setOverhang(int overhang) {
-        this.type = 1;
-        this.overhang = overhang;
+        this.type = -2;
+        this.secondary_key = overhang;
     }
     
     public void parseSJString(String sjString, SAMSequenceDictionary dict) {
         String columns[] = sjString.split("\t");
-        this.type = 0;
-        this.chromosome = dict.getSequenceIndex(columns[0]);
-        this.firstBaseIntron = Integer.parseInt(columns[1]);
-        this.lastBaseIntron = Integer.parseInt(columns[2]);
+        this.type = -1;
+        this.secondary_key = dict.getSequenceIndex(columns[0]);
+    }
+    
+    public void setRegion(int key, int pos) {
+        this.type = key;
+        this.secondary_key = pos;
     }
     
     public int getType() {
         return type;
     }
-    public int getOverhang() {
-        return overhang;
-    }
-    public int getChromosome() {
-        return chromosome;
-    }
-    public int getFirstBaseIntron() {
-        return firstBaseIntron;
-    }
-    public int getLastBaseIntron() {
-        return lastBaseIntron;
+    public int getSecKey() {
+        return secondary_key;
     }
     
     public GenomeSJ() {
         this.type = 0;
-        this.chromosome = Integer.MAX_VALUE;
-        this.firstBaseIntron = -1;
-        this.lastBaseIntron = -1;
-        this.overhang = -1;
+        this.secondary_key = -1;
     }
     
     @Override
     public void write(DataOutput d) throws IOException {
         d.writeInt(type);
-        d.writeInt(chromosome);
-        d.writeInt(firstBaseIntron);
-        d.writeInt(lastBaseIntron);
-        d.writeInt(overhang);
+        d.writeInt(secondary_key);
     }
 
     @Override
+    public String toString() {
+        return "GenomeSJ{" + "1=" + type + ", 2=" + secondary_key + '}';
+    }
+
+    
+    @Override
     public void readFields(DataInput di) throws IOException {
         type = di.readInt();
-        chromosome = di.readInt();
-        firstBaseIntron = di.readInt();
-        lastBaseIntron = di.readInt();
-        overhang = di.readInt();
+        secondary_key = di.readInt();
     }
 
     @Override
     public int compareTo(GenomeSJ o) {
-        if(chromosome == o.chromosome) {
-            if(firstBaseIntron == o.firstBaseIntron)
-                return lastBaseIntron - o.lastBaseIntron;
-            else
-                return firstBaseIntron - o.firstBaseIntron;
+        if(type == o.type) {
+            return secondary_key - o.secondary_key;
         } else 
-            return chromosome - o.chromosome;
+            return type - o.type;
     }
     
 }

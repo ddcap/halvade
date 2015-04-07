@@ -331,17 +331,11 @@ public class CommandGenerator {
             command.add("" + nReads);
             command.add(starOptions[6]);
             command.add("" + overhang);
-            command.add(starOptions[7]);
-            command.add("SAM");
-            command.add("Unsorted"); 
-        } else if (passType == STARInstance.PASS1) {
-            command.add(starOptions[12]);
-            command.add("None");
+        } else if (passType == STARInstance.PASS2 || passType == STARInstance.PASS1) {
             command.add(starOptions[9]);
             command.add(starGenomeLoad[2]);
-        } else if (passType == STARInstance.PASS2) {
-            command.add(starOptions[9]);
-            command.add(starGenomeLoad[2]);
+        }
+        if(passType == STARInstance.PASS2 || passType == STARInstance.PASS1AND2) {            
             command.add(starOptions[7]);
             command.add("SAM");
             command.add("Unsorted"); 

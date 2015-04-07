@@ -91,11 +91,12 @@ public class HalvadeOptions {
     protected boolean rnaPipeline = false;
     protected boolean reportAll = false;
     protected boolean useSharedMemory = false;
+    protected boolean useBamInput = false;
     protected boolean setMapContainers = true, setReduceContainers = true;
     protected DecimalFormat onedec;
     private static final double REDUCE_TASKS_FACTOR = 1.68*15;
     private static final double DEFAULT_COVERAGE = 50;
-    private static final double DEFAULT_COVERAGE_SIZE = 86;    
+    private static final double DEFAULT_COVERAGE_SIZE = 86;
     
     public int GetOptions(String[] args, Configuration hConf) throws IOException, URISyntaxException {
         try {
@@ -377,6 +378,8 @@ public class HalvadeOptions {
                                 .create( "report_all" );
         Option optShmem= OptionBuilder.withDescription(  "Use shared memory in tools where supported. Currently only supports STAR aligner.")
                                 .create( "shmem" );
+        Option optBamIn= OptionBuilder.withDescription(  "Uses aligned bam as input files instead of unaligned fastq files.")
+                                .create( "bam" );
         
         
         options.addOption(optIn);
@@ -418,6 +421,7 @@ public class HalvadeOptions {
         options.addOption(optRna);
         options.addOption(optStarGenome);
         options.addOption(optShmem);
+        options.addOption(optBamIn);
         options.addOption(optCustomArgs);
     }
     
@@ -500,6 +504,8 @@ public class HalvadeOptions {
             useBedTools = true;
         if(line.hasOption("hc"))
             useGenotyper = false;
+        if(line.hasOption("bam"))
+            useBamInput = true;
         if(line.hasOption("P"))
             useIPrep = false;
         if(line.hasOption("id"))

@@ -33,9 +33,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
-import java.util.logging.Level;
 import net.sf.samtools.SAMSequenceDictionary;
-import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
@@ -64,6 +62,7 @@ public class STARInstance extends AlignerInstance {
         taskId = context.getTaskAttemptID().toString();
         taskId = taskId.substring(taskId.indexOf("m_"));
         ref = HalvadeFileUtils.downloadSTARIndex(context, taskId, starType == PASS2);
+        Logger.DEBUG("ref: " + ref);
         starOutDir = tmpdir + taskId + "-STARout/";
         nReads = 0;
         overhang = 0;
@@ -157,25 +156,20 @@ public class STARInstance extends AlignerInstance {
         star = new ProcessBuilderWrapper(command, bin);
         // run command
         // needs to be streamed to output otherwise the process blocks ...
-        star.startProcess(null, System.err);
+        if(starType == PASS1)
+            star.startProcess(System.out, System.err);
+        else
+            star.startProcess(null, System.err);
         // check if alive
         if(!star.isAlive())
             throw new ProcessException("STAR aligner", star.getExitState());
         if(starType == PASS2 || starType == PASS1AND2) {
-            // make a SAMstream handler
-            ssh = new SAMStreamHandler(instance, context);
+            ssh = new SAMStreamHandler(instance, context, false);
             ssh.start();
         }
-        
-        // send a heartbeat every min its still running -> avoid timeout
-        HalvadeHeartBeat hhb = new HalvadeHeartBeat(context);
-        hhb.start();
-        
+        int error = star.waitForCompletion();
         if(starType == PASS2 || starType == PASS1AND2)
             ssh.join();
-        int error = star.waitForCompletion();
-        hhb.jobFinished();
-        hhb.join();
         if(error != 0)
             throw new ProcessException("STAR aligner", error);
         context.getCounter(HalvadeCounters.TIME_STAR).increment(star.getExecutionTime());

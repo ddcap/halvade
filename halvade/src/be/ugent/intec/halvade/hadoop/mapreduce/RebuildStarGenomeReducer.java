@@ -21,6 +21,7 @@ import be.ugent.intec.halvade.hadoop.datatypes.GenomeSJ;
 import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.Logger;
+import be.ugent.intec.halvade.tools.STARInstance;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -29,6 +30,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.Iterator;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -48,27 +50,48 @@ public class RebuildStarGenomeReducer extends Reducer<GenomeSJ, Text, LongWritab
     protected int count;
     protected String bin, ref, out;
     protected String taskId;
+    protected String jobId;
     protected int overhang = 100, threads;
     protected long mem;
     protected boolean requireUploadToHDFS = false;
+    protected int totalValCount;
+    protected int totalKeyCount;
+    protected ArrayList<Integer> keyFactors;
 
     @Override
     protected void reduce(GenomeSJ key, Iterable<Text> values, Context context) throws IOException, InterruptedException {
         Iterator<Text> it = values.iterator();
-        Logger.DEBUG("Key: " + key);
-        if(key.getType() == 0) {
+        if(key.getType() == -1) {
             while(it.hasNext()) {
                 bw.write(it.next().toString() + "\n");
                 count++;
             }
-        } else if (key.getType() == 1) {
-            overhang = key.getOverhang();
+            Logger.DEBUG("genomeSJ count: " + count);
+        } else if (key.getType() == -2) {
+            overhang = key.getSecKey();
             Logger.DEBUG("set overhang to " + overhang);
+        } else {
+            int valCount = 0;
+            while(it.hasNext()) {
+                valCount++;
+                it.next();
+            }
+            keyFactors.add(valCount);
+            totalValCount += valCount;
+            totalKeyCount++;
+            Logger.DEBUG("key: " + key + " count: " + valCount);
         }
     }
 
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
+        Logger.DEBUG("total count: " + totalValCount);
+        Logger.DEBUG("total keys: " + totalKeyCount);
+        //for(Integer count : keyFactors) {
+        //    int factor = Math.min(1, count / avg + 1); 
+        //    Logger.DEBUG("count: " + count + " factor: " + factor + " new count: " + (count/factor));
+        //}
+
         FileSystem fs = null;
         try {   
             fs = FileSystem.get(new URI(out), context.getConfiguration());  
@@ -81,35 +104,40 @@ public class RebuildStarGenomeReducer extends Reducer<GenomeSJ, Text, LongWritab
         Logger.DEBUG("written " + count + " lines to " + mergeJS);
         HalvadeFileUtils.uploadFileToHDFS(context, fs, mergeFile.getAbsolutePath(), out + mergeFile.getName());
 
-//        // build new genome ref
-//        String newGenomeDir = refDir + taskId + "-newSTARgenome/";
-//        File starOut = new File(newGenomeDir);
-//        starOut.mkdirs();
-//        
-//        long time = STARInstance.rebuildStarGenome(context, bin, newGenomeDir, ref, mergeJS, 
-//                                                    overhang, threads, mem);
-//        context.getCounter(HalvadeCounters.TIME_STAR_BUILD).increment(time);
-//        
-//        //upload to outputdir
-//        String pass2GenDir = HalvadeConf.getStarDirPass2HDFS(context.getConfiguration());
-//        File pass2check = new File(newGenomeDir + HalvadeFileUtils.HALVADE_STAR_SUFFIX_P2);
-//        pass2check.createNewFile();
-//        if(requireUploadToHDFS) {
-//            fs.mkdirs(new Path(pass2GenDir));
-//            File[] genFiles = starOut.listFiles();
-//            for(File gen : genFiles) {
-//                HalvadeFileUtils.uploadFileToHDFS(context, fs, gen.getAbsolutePath(), pass2GenDir + gen.getName());
-//            }
-//            Logger.DEBUG("Finished uploading new reference to " + pass2GenDir);
-//        }
+        // build new genome ref
+        Logger.DEBUG("jobid: " + jobId);
+        String newGenomeDir = refDir + taskId + "-nsg/";
+        File starOut = new File(newGenomeDir);
+        starOut.mkdirs();
+        
+        long time = STARInstance.rebuildStarGenome(context, bin, newGenomeDir, ref, mergeJS, 
+                                                    overhang, threads, mem);
+        context.getCounter(HalvadeCounters.TIME_STAR_BUILD).increment(time);
+        
+        //upload to outputdir
+        String pass2GenDir = HalvadeConf.getStarDirPass2HDFS(context.getConfiguration());
+        File pass2check = new File(newGenomeDir + HalvadeFileUtils.HALVADE_STAR_SUFFIX_P2);
+        pass2check.createNewFile();
+        if(requireUploadToHDFS) {
+            fs.mkdirs(new Path(pass2GenDir));
+            File[] genFiles = starOut.listFiles();
+            for(File gen : genFiles) {
+                HalvadeFileUtils.uploadFileToHDFS(context, fs, gen.getAbsolutePath(), pass2GenDir + gen.getName());
+            }
+            Logger.DEBUG("Finished uploading new reference to " + pass2GenDir);
+        }
         HalvadeFileUtils.removeLocalFile(mergeJS);
     }
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
+        totalValCount = 0;
+        totalKeyCount = 0;
+        keyFactors = new ArrayList<>();
         tmpDir = HalvadeConf.getScratchTempDir(context.getConfiguration());
         refDir = HalvadeConf.getRefDirOnScratch(context.getConfiguration());
         out = HalvadeConf.getOutDir(context.getConfiguration()); 
+        jobId = context.getJobID().toString();
         taskId = context.getTaskAttemptID().toString();
         taskId = taskId.substring(taskId.indexOf("r_"));
         mergeJS = tmpDir + taskId + "-SJ.out.tab";

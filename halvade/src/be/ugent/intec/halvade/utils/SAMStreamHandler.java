@@ -55,11 +55,13 @@ public class SAMStreamHandler extends Thread {
     ChromosomeRegion writableRegion;
     AlignerInstance instance;
     boolean isPaired = true;
+    protected boolean useCompact;
 
-    public SAMStreamHandler(AlignerInstance instance, Context context) {
+    public SAMStreamHandler(AlignerInstance instance, Context context, boolean useCompact) {
         this.is = instance.getSTDOUTStream();
         this.mFileHeader = instance.getFileHeader();
         this.instance = instance;
+        this.useCompact = useCompact;
         mCurrentLine = null;
         mFile = null;
         this.validationStringency = SAMFileReader.ValidationStringency.LENIENT;
@@ -90,16 +92,15 @@ public class SAMStreamHandler extends Thread {
                 // only write mapped records as output
                 // paired or unpaired ?? need to know to check for boundaries
                 
-                if(isPaired) count += instance.writePairedSAMRecordToContext(samrecord);
-                else count += instance.writeSAMRecordToContext(samrecord);
-//                if(count % 50000 == 0) Logger.DEBUG("read this many: " + count);
+                if(isPaired) count += instance.writePairedSAMRecordToContext(samrecord, useCompact);
+                else count += instance.writeSAMRecordToContext(samrecord, useCompact);
                 //advance line even if bad line
                 advanceLine();
             }
         } catch (IOException | InterruptedException ex) {
             Logger.EXCEPTION(ex);
         }
-        Logger.DEBUG("ending loop with " + count + " records read");
+        Logger.DEBUG("SAMstream counts " + count + " records");
     }
     
     private String advanceLine()

@@ -18,6 +18,7 @@
 package be.ugent.intec.halvade.tools;
 
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
+import be.ugent.intec.halvade.hadoop.datatypes.GenomeSJ;
 import be.ugent.intec.halvade.hadoop.mapreduce.HalvadeCounters;
 import be.ugent.intec.halvade.utils.ChromosomeSplitter;
 import be.ugent.intec.halvade.utils.Logger;
@@ -30,6 +31,7 @@ import java.io.InputStream;
 import java.util.Arrays;
 import net.sf.samtools.SAMFileHeader;
 import net.sf.samtools.SAMRecord;
+import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 
 /**
@@ -40,6 +42,8 @@ public abstract class AlignerInstance {
     protected SAMFileHeader header;
     protected SAMRecordWritable writableRecord;
     protected ChromosomeRegion writableRegion;
+    protected GenomeSJ writeableCompactRegion;
+    protected Text stub;
     protected String read1File = "reads1_";
     protected String read2File = "reads2_";
     protected String tmpdir;
@@ -58,9 +62,12 @@ public abstract class AlignerInstance {
     
     
     protected AlignerInstance(Mapper.Context context, String bin) throws IOException {
+        AlignerInstance.context = context;
         header = null;
         writableRecord = new SAMRecordWritable();
         writableRegion = new ChromosomeRegion();
+        writeableCompactRegion = new GenomeSJ();
+        stub = new Text();
         minChrLength = HalvadeConf.getMinChrLength(context.getConfiguration());
         chr = HalvadeConf.getChrList(context.getConfiguration());
         
@@ -87,39 +94,60 @@ public abstract class AlignerInstance {
         return 0;
     }
     
-    public int writePairedSAMRecordToContext(SAMRecord sam) throws IOException, InterruptedException {
+    public int writePairedSAMRecordToContext(SAMRecord sam, boolean useCompact) throws IOException, InterruptedException {
         int count = 0;
         int read1Ref = sam.getReferenceIndex();
         int read2Ref = sam.getMateReferenceIndex();
-        if (!sam.getReadUnmappedFlag() && (read1Ref == read2Ref || keepChrSplitPairs)) {
+        if (!sam.getReadUnmappedFlag() && (read1Ref == read2Ref || keepChrSplitPairs) && (read1Ref > 0 || read2Ref > 0)) {
             context.getCounter(HalvadeCounters.OUT_BWA_READS).increment(1);
             writableRecord.set(sam);
             int[] keys = new int[4];
             int readLength = sam.getReadLength();
             int beginpos1 = sam.getAlignmentStart();
             int beginpos2 = sam.getMateAlignmentStart();
-            keys[0] = splitter.getKey(splitter.getRegion(beginpos1, read1Ref), read1Ref);
-            if(splitter.checkUpperBound(beginpos1 + readLength, read1Ref)) // check if it goes out the chr range
-                keys[1] = splitter.getKey(splitter.getRegion(beginpos1 + readLength, read1Ref), read1Ref);
-            else 
-                keys[1] = keys[0];
+            int keyrange_start = 0;
+            int keyrange_end = 4;
+            if(read1Ref > 0) {
+                keys[0] = splitter.getKey(splitter.getRegion(beginpos1, read1Ref), read1Ref);
+                if(splitter.checkUpperBound(beginpos1 + readLength, read1Ref)) // check if it goes out the chr range
+                    keys[1] = splitter.getKey(splitter.getRegion(beginpos1 + readLength, read1Ref), read1Ref);
+                else 
+                    keys[1] = keys[0];
+            } else
+                keyrange_start = 2;
             
-            keys[2] = splitter.getKey(splitter.getRegion(beginpos2, read2Ref), read2Ref);
-            if(splitter.checkUpperBound(beginpos2 + readLength, read2Ref)) // check if it goes out the chr range
-                keys[3] = splitter.getKey(splitter.getRegion(beginpos2 + readLength, read2Ref), read2Ref);
-            else 
-                keys[3] = keys[2];
+            if(read2Ref > 0) {
+                keys[2] = splitter.getKey(splitter.getRegion(beginpos2, read2Ref), read2Ref);
+                if(splitter.checkUpperBound(beginpos2 + readLength, read2Ref)) // check if it goes out the chr range
+                    keys[3] = splitter.getKey(splitter.getRegion(beginpos2 + readLength, read2Ref), read2Ref);
+                else 
+                    keys[3] = keys[2];
+            } else 
+                keyrange_end = 2;
+                
             Arrays.sort(keys);
             // add this read as to be sorted to all unique found keys (mate will be added when the mate is parsed)
-            writableRegion.setChromosomeRegion(read1Ref, beginpos1, keys[0]);
-            context.write(writableRegion, writableRecord);
-            count++;
-            for(int i = 1; i < 4; i++) {
-                if(keys[i] != keys[i - 1]) {
-                    context.getCounter(HalvadeCounters.OUT_OVERLAPPING_READS).increment(1);
-                    writableRegion.setChromosomeRegion(read1Ref, beginpos1, keys[i]);
+            if(keyrange_start != keyrange_end) {
+                if(useCompact) {
+                    writeableCompactRegion.setRegion(keys[keyrange_start], beginpos1);
+                    context.write(writeableCompactRegion, stub);
+                } else {
+                    writableRegion.setChromosomeRegion(read1Ref, beginpos1, keys[keyrange_start]);
                     context.write(writableRegion, writableRecord);
-                    count++;
+                }
+                count++;
+                for(int i = keyrange_start + 1; i < keyrange_end; i++) {
+                    if(keys[i] != keys[i - 1]) {
+                        context.getCounter(HalvadeCounters.OUT_OVERLAPPING_READS).increment(1);
+                        if(useCompact) {
+                            writeableCompactRegion.setRegion(keys[i], beginpos1);
+                            context.write(writeableCompactRegion, stub);
+                        } else {
+                            writableRegion.setChromosomeRegion(read1Ref, beginpos1, keys[i]);
+                            context.write(writableRegion, writableRecord);
+                        }
+                        count++;
+                    }
                 }
             }
         } else {
@@ -131,7 +159,7 @@ public abstract class AlignerInstance {
         return count;
     }
     
-    public int writeSAMRecordToContext(SAMRecord sam) throws IOException, InterruptedException {
+    public int writeSAMRecordToContext(SAMRecord sam, boolean useCompact) throws IOException, InterruptedException {
         int count = 0;
         if (!sam.getReadUnmappedFlag()){
             context.getCounter(HalvadeCounters.OUT_BWA_READS).increment(1);
@@ -140,15 +168,25 @@ public abstract class AlignerInstance {
             int endpos = sam.getAlignmentEnd();
             int beginregion = splitter.getRegion(beginpos, sam.getReferenceIndex());
             int endregion = splitter.getRegion(endpos, sam.getReferenceIndex());
-            writableRegion.setChromosomeRegion(sam.getReferenceIndex(),
-                    sam.getAlignmentStart(), splitter.getKey(beginregion, sam.getReferenceIndex()));
-            context.write(writableRegion, writableRecord);
+            int key = splitter.getKey(beginregion, sam.getReferenceIndex());
+            if(useCompact) {
+                writeableCompactRegion.setRegion(key, sam.getAlignmentStart());
+                context.write(writeableCompactRegion, stub);
+            } else {
+                writableRegion.setChromosomeRegion(sam.getReferenceIndex(), sam.getAlignmentStart(), key);
+                context.write(writableRegion, writableRecord);
+            }
             count++;
             if(beginregion != endregion) {
                 context.getCounter(HalvadeCounters.OUT_OVERLAPPING_READS).increment(1);
-                writableRegion.setChromosomeRegion(sam.getReferenceIndex(),  
-                        sam.getAlignmentStart(), splitter.getKey(endregion, sam.getReferenceIndex()));
-                context.write(writableRegion, writableRecord);
+                key = splitter.getKey(endregion, sam.getReferenceIndex());
+                if(useCompact) {
+                    writeableCompactRegion.setRegion(key, sam.getAlignmentStart());
+                    context.write(writeableCompactRegion, stub);
+                } else {
+                    writableRegion.setChromosomeRegion(sam.getReferenceIndex(), sam.getAlignmentStart(), key);
+                    context.write(writableRegion, writableRecord);
+                }
                 count++;
             }
         } else {

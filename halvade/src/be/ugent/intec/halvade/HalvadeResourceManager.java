@@ -35,13 +35,14 @@ public class HalvadeResourceManager {
     protected static final int ALL = Integer.MAX_VALUE;
     protected static final int MEM_AM = (int) (1.5*1024);
     protected static final int VCORES_AM = 1;
-    protected static final int MEM_STAR = (int) (31*1024);
+    protected static final int MEM_STAR = (int) (16*1024); // 31 for gh
+    protected static final int MEM_REF = (int) (16*1024); // 16 for gh
     protected static final int[][] RESOURCE_REQ = { 
         //mapmem, redmem
         {MEM_STAR,  ALL},     // RNA with shared memory pass1
-        {MEM_STAR,  14*1024}, // RNA with shared memory pass2
-        {MEM_STAR,  14*1024}, // RNA without shared memory
-        {16*1024,   16*1024}, // DNA
+        {MEM_STAR,  MEM_REF}, // RNA with shared memory pass2
+        {MEM_STAR,  MEM_REF}, // RNA without shared memory
+        {MEM_REF,   MEM_REF}, // DNA
         {4*1024,    4*1024}   // combine
     };
     
@@ -53,8 +54,8 @@ public class HalvadeResourceManager {
             tmpvcores -= VCORES_AM;
         }
         
-        if (opt.setMapContainers) 
-            opt.mapsPerContainer = Math.min(tmpvcores, Math.max(tmpmem / RESOURCE_REQ[type][0],1));
+        if (opt.setMapContainers)
+            opt.mapsPerContainer = Math.min(tmpvcores / 2, Math.max(tmpmem / RESOURCE_REQ[type][0],1));
         if (opt.setReduceContainers) 
             opt.reducersPerContainer = Math.min(tmpvcores, Math.max(tmpmem / RESOURCE_REQ[type][1], 1));
         

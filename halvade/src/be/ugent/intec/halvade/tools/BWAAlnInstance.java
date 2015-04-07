@@ -179,7 +179,7 @@ public class BWAAlnInstance extends AlignerInstance {
             throw new ProcessException("BWA samXe", samxe.getExitState());   
         
         // make a SAMstream handler
-        ssh = new SAMStreamHandler(instance, context);
+        ssh = new SAMStreamHandler(instance, context, false);
         ssh.start();
     }
 
