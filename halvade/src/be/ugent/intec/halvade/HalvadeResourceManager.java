@@ -41,7 +41,7 @@ public class HalvadeResourceManager {
         //mapmem, redmem
         {MEM_STAR,  ALL},     // RNA with shared memory pass1
         {MEM_STAR,  MEM_REF}, // RNA with shared memory pass2
-        {MEM_STAR,  MEM_REF}, // RNA without shared memory
+        {MEM_STAR,  MEM_REF}, // RNA without shared memory <- to be deleted
         {MEM_REF,   MEM_REF}, // DNA
         {4*1024,    4*1024}   // combine
     };
@@ -55,20 +55,22 @@ public class HalvadeResourceManager {
         }
         
         if (opt.setMapContainers)
-            opt.mapsPerContainer = Math.min(tmpvcores / 2, Math.max(tmpmem / RESOURCE_REQ[type][0],1));
+            opt.mapContainersPerNode = Math.min(tmpvcores, Math.max(tmpmem / RESOURCE_REQ[type][0],1));
         if (opt.setReduceContainers) 
-            opt.reducersPerContainer = Math.min(tmpvcores, Math.max(tmpmem / RESOURCE_REQ[type][1], 1));
+            opt.reducerContainersPerNode = Math.min(tmpvcores, Math.max(tmpmem / RESOURCE_REQ[type][1], 1));
         
-        opt.maps = Math.max(1,opt.nodes*opt.mapsPerContainer);
-        opt.mthreads = Math.max(1, tmpvcores/opt.mapsPerContainer);
-        opt.rthreads = Math.max(1, tmpvcores/opt.reducersPerContainer);
-        
+        opt.maps = Math.max(1,opt.nodes*opt.mapContainersPerNode);
+        Logger.DEBUG("set # map containers: " + opt.maps);
+        HalvadeConf.setMapContainerCount(conf, opt.maps);
+        HalvadeConf.setVcores(conf, opt.vcores);
+        opt.mthreads = Math.max(1, tmpvcores/opt.mapContainersPerNode);
+        opt.rthreads = Math.max(1, tmpvcores/opt.reducerContainersPerNode);
         int mmem = RESOURCE_REQ[type][0];
         int rmem = RESOURCE_REQ[type][1] == ALL ? tmpmem : RESOURCE_REQ[type][1];
         
-        Logger.DEBUG("resources set to " + opt.mapsPerContainer + " maps [" 
+        Logger.DEBUG("resources set to " + opt.mapContainersPerNode + " maps [" 
                 + opt.mthreads + " cpu , " + mmem + " mb] per node and " 
-                + opt.reducersPerContainer + " reducers ["
+                + opt.reducerContainersPerNode + " reducers ["
                 + opt.rthreads + " cpu, " + rmem + " mb] per node");
         
         conf.set("mapreduce.map.cpu.vcores", "" + opt.mthreads);

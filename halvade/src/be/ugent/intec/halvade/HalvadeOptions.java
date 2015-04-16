@@ -76,8 +76,8 @@ public class HalvadeOptions {
     protected int stand_emit_conf = -1;
     protected SAMSequenceDictionary dict;
     protected String chr = null;
-    protected int reducersPerContainer = -1;
-    protected int mapsPerContainer = -1;
+    protected int reducerContainersPerNode = -1;
+    protected int mapContainersPerNode = -1;
     protected boolean reuseJVM = false;
     protected boolean justAlign = false;
     protected String exomeBedFile = null;
@@ -93,6 +93,7 @@ public class HalvadeOptions {
     protected boolean useSharedMemory = false;
     protected boolean useBamInput = false;
     protected boolean setMapContainers = true, setReduceContainers = true;
+    protected boolean redistribute = false;
     protected DecimalFormat onedec;
     private static final double REDUCE_TASKS_FACTOR = 1.68*15;
     private static final double DEFAULT_COVERAGE = 50;
@@ -128,6 +129,7 @@ public class HalvadeOptions {
             HalvadeConf.setUseIPrep(hConf, useIPrep);
             HalvadeConf.setUseUnifiedGenotyper(hConf, useGenotyper);
             HalvadeConf.setReuseJVM(hConf, reuseJVM);
+            HalvadeConf.setRedistribute(hConf, redistribute);
             HalvadeConf.setReadGroup(hConf, "ID:" + RGID + " LB:" + RGLB + " PL:" + RGPL + " PU:" + RGPU + " SM:" + RGSM);  
             HalvadeConf.setkeepChrSplitPairs(hConf, keepChrSplitPairs);
             if(STARGenome != null && useSharedMemory) HalvadeConf.setStarDirPass2HDFS(hConf, out);
@@ -380,6 +382,8 @@ public class HalvadeOptions {
                                 .create( "shmem" );
         Option optBamIn= OptionBuilder.withDescription(  "Uses aligned bam as input files instead of unaligned fastq files.")
                                 .create( "bam" );
+        Option optRedis= OptionBuilder.withDescription(  "This will enable Halvade to redistribute resources when possible when not all containers are used.")
+                                .create( "redistribute" );
         
         
         options.addOption(optIn);
@@ -423,6 +427,7 @@ public class HalvadeOptions {
         options.addOption(optShmem);
         options.addOption(optBamIn);
         options.addOption(optCustomArgs);
+        options.addOption(optRedis);
     }
     
     protected boolean parseArguments(String[] args, Configuration halvadeConf) throws ParseException {
@@ -460,11 +465,11 @@ public class HalvadeOptions {
             mem = Double.parseDouble(line.getOptionValue("mem"));
         if(line.hasOption("mpn")) {
             setMapContainers = false;
-            mapsPerContainer = Integer.parseInt(line.getOptionValue("mpn"));
+            mapContainersPerNode = Integer.parseInt(line.getOptionValue("mpn"));
         }
         if(line.hasOption("rpn")) {
             setReduceContainers = false;
-            reducersPerContainer = Integer.parseInt(line.getOptionValue("rpn"));
+            reducerContainersPerNode = Integer.parseInt(line.getOptionValue("rpn"));
         }
         if(line.hasOption("scc"))
             stand_call_conf = Integer.parseInt(line.getOptionValue("scc"));
@@ -474,6 +479,8 @@ public class HalvadeOptions {
             reportAll = true;
         if(line.hasOption("keep"))
             keepFiles = true;
+        if(line.hasOption("redistribute"))
+            redistribute = true;
         if(line.hasOption("s"))
             paired = false;
         if(line.hasOption("justalign")) {

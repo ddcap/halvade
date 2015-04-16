@@ -105,6 +105,21 @@ public class HalvadeConf {
             return false;
     }
     
+    private static final String redist = "redistribute";
+    public static void setRedistribute(Configuration conf, boolean val) {
+        if(val)
+            conf.set(redist, "true");
+        else 
+            conf.set(redist, "false");
+    }
+    public static boolean getRedistribute(Configuration conf) {
+        String s = conf.get(redist);
+        if(s.equalsIgnoreCase("true"))
+            return true;
+        else 
+            return false;
+    }
+    
     private static final String reuseJVM = "reuseJVM";
     public static void setReuseJVM(Configuration conf, boolean val) {
         if(val)
@@ -153,6 +168,14 @@ public class HalvadeConf {
     }
     public static long getRefSize(Configuration conf) {
         return conf.getLong(refSize, HUMAN_REF_SIZE);
+    }
+    
+    private static final String vCores = "vcores";
+    public static void setVcores(Configuration conf, int val) {
+        conf.setInt(vCores, val);
+    }
+    public static int getVcores(Configuration conf) {
+        return conf.getInt(vCores, 1);
     }
     
     private static final String mapThreads = "mapthreads";
@@ -236,10 +259,29 @@ public class HalvadeConf {
     }
     
     public static boolean addTaskRunning(Configuration conf, String val) throws IOException, URISyntaxException {
-        val = val.substring(0, val.lastIndexOf("_"));
+        val = val.substring(0, val.lastIndexOf("_")); // rewrite file if second attempt
         String filepath = conf.get(outdir) + tasksDone + val;
         FileSystem fs = FileSystem.get(new URI(filepath), conf);
         return fs.createNewFile(new Path(filepath));
+    }
+    
+    private static final String totalContainers = "containers";
+    public static void setMapContainerCount(Configuration conf, int val) {
+        conf.setInt(totalContainers, val);
+    }
+    public static int lessTasksLeftThanContainers(Configuration conf) throws IOException, URISyntaxException {
+        int containers = conf.getInt(totalContainers, 1);        
+        int tasks = 0;
+        String filedir = conf.get(outdir) + tasksDone;
+        FileSystem fs = FileSystem.get(new URI(filedir), conf);
+        FileStatus[] files = fs.listStatus(new Path(filedir));
+        for(FileStatus file : files) {
+            if (!file.isDirectory()) {
+                tasks++;
+            }
+        }
+        Logger.DEBUG("containers left: " + (containers - (Integer.parseInt(conf.get("mapred.map.tasks")) - tasks)));
+        return containers - (Integer.parseInt(conf.get("mapred.map.tasks")) - tasks);        
     }
     
     public static boolean allTasksCompleted(Configuration conf) throws IOException, URISyntaxException {

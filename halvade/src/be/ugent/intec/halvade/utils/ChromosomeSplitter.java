@@ -163,7 +163,7 @@ public class ChromosomeSplitter {
                 chromosomeStartKey[i] = currentKey;
                 currentKeySize += seqlen*lenFact;
                 if(currentKeySize > regionLength/LT_FACTOR) {
-                    Logger.DEBUG("shared region: [" + currentKeySize+ " - " + sharedGenomes + "]");
+                    Logger.DEBUG("shared region: [" + currentKeySize+ " - " + sharedGenomes + "]", 3);
                     currentKey++;
                     currentKeySize = 0;
                     regionCount++;
@@ -174,7 +174,7 @@ public class ChromosomeSplitter {
             i++;
         }
         if(currentKeySize > 0 ) {
-            Logger.DEBUG("shared region: [" + currentKeySize + " - " + sharedGenomes + "]");
+            Logger.DEBUG("shared region: [" + currentKeySize + " - " + sharedGenomes + "]", 3);
             currentKey++;
             regionCount++; 
         }
@@ -188,14 +188,13 @@ public class ChromosomeSplitter {
                 regionsPerChr[i] = (int)Math.ceil((double)seqlen*lenFact / regionLength);
                 regionCount += regionsPerChr[i];
                 Logger.DEBUG(dict.getSequence(chr_).getSequenceName() + ": " + regionsPerChr[i] + 
-                    " regions [" + (dict.getSequence(chr_).getSequenceLength() / regionsPerChr[i] + 1) + "].",
-                        3);
+                    " regions [" + (dict.getSequence(chr_).getSequenceLength() / regionsPerChr[i] + 1) + "].", 3);
                 
                 regionSizePerChr[i] = seqlen / regionsPerChr[i] + 1;
                 chromosomeStartKey[i] = currentKey;
                 currentKey += regionsPerChr[i];
                 Logger.DEBUG(dict.getSequence(i).getSequenceName() + "[" + dict.getSequence(i).getSequenceLength() + 
-                        "]: starts with key " + chromosomeStartKey[i] + " with " + regionsPerChr[i] + " regions of size " + regionSizePerChr[i]);
+                        "]: starts with key " + chromosomeStartKey[i] + " with " + regionsPerChr[i] + " regions of size " + regionSizePerChr[i], 3);
             }
             i++;
         }

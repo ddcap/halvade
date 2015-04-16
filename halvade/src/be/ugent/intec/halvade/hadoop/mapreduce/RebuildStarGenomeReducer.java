@@ -105,8 +105,7 @@ public class RebuildStarGenomeReducer extends Reducer<GenomeSJ, Text, LongWritab
         HalvadeFileUtils.uploadFileToHDFS(context, fs, mergeFile.getAbsolutePath(), out + mergeFile.getName());
 
         // build new genome ref
-        Logger.DEBUG("jobid: " + jobId);
-        String newGenomeDir = refDir + taskId + "-nsg/";
+        String newGenomeDir = refDir + jobId + "-nsg/";
         File starOut = new File(newGenomeDir);
         starOut.mkdirs();
         
@@ -119,6 +118,7 @@ public class RebuildStarGenomeReducer extends Reducer<GenomeSJ, Text, LongWritab
         File pass2check = new File(newGenomeDir + HalvadeFileUtils.HALVADE_STAR_SUFFIX_P2);
         pass2check.createNewFile();
         if(requireUploadToHDFS) {
+            Logger.DEBUG("Uploading STAR genome to parallel filesystem...");
             fs.mkdirs(new Path(pass2GenDir));
             File[] genFiles = starOut.listFiles();
             for(File gen : genFiles) {
@@ -136,6 +136,7 @@ public class RebuildStarGenomeReducer extends Reducer<GenomeSJ, Text, LongWritab
         keyFactors = new ArrayList<>();
         tmpDir = HalvadeConf.getScratchTempDir(context.getConfiguration());
         refDir = HalvadeConf.getRefDirOnScratch(context.getConfiguration());
+        requireUploadToHDFS = refDir.startsWith(tmpDir);
         out = HalvadeConf.getOutDir(context.getConfiguration()); 
         jobId = context.getJobID().toString();
         taskId = context.getTaskAttemptID().toString();

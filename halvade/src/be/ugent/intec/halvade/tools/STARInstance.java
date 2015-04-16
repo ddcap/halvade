@@ -247,11 +247,7 @@ public class STARInstance extends AlignerInstance {
         star.startProcess(System.out, System.err);
         if(!star.isAlive())
             throw new ProcessException("STAR aligner load", star.getExitState());
-        HalvadeHeartBeat hhb = new HalvadeHeartBeat(context);
-        hhb.start();
         int error = star.waitForCompletion();
-        hhb.jobFinished();
-        hhb.join();
         if(!(error == 0 || error == 105)) // 105 = no ref in memory
             throw new ProcessException("STAR aligner load", error);
         context.getCounter(HalvadeCounters.TIME_STAR_REF).increment(star.getExecutionTime());
@@ -269,11 +265,7 @@ public class STARInstance extends AlignerInstance {
         starbuild.startProcess(System.out, System.err);
         if(!starbuild.isAlive())
             throw new ProcessException("STAR rebuild genome", starbuild.getExitState());
-        HalvadeHeartBeat hhb = new HalvadeHeartBeat(context);
-        hhb.start();
         int error = starbuild.waitForCompletion();
-        hhb.jobFinished();
-        hhb.join();
         if(error != 0)
             throw new ProcessException("STAR aligner load", error);
         return starbuild.getExecutionTime();        

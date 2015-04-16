@@ -185,6 +185,7 @@ public abstract class GATKReducer extends HalvadeReducer {
                 Logger.DEBUG("empty region file, no vcf results!!");
                 return null;
             }
+            HalvadeFileUtils.removeLocalFile(keep, exomebed);
         } else 
             r.writeToPicardRegionFile(region);
         return region;

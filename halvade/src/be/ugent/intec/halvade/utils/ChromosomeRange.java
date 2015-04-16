@@ -66,7 +66,7 @@ public class ChromosomeRange {
 
     @Override
     public String toString() {
-        return list.size() + " region ranges [first: " + list.get(0).sequenceName + "-" + list.get(0).alignmentStart + "]";
+        return list.size() + "regions_" + list.get(0).sequenceName + "-" + list.get(0).alignmentStart;
     }
     
     public void writeToPicardRegionFile(String filename) throws IOException {        

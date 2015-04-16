@@ -46,12 +46,14 @@ public class BWAAlnInstance extends AlignerInstance {
     private BufferedWriter fastqFile1;
     private BufferedWriter fastqFile2;
     private String taskId;
+    private String alnCustomArgs;
     
     private BWAAlnInstance(Mapper.Context context, String bin) throws IOException, URISyntaxException {
         super(context, bin);  
         taskId = context.getTaskAttemptID().toString();
         taskId = taskId.substring(taskId.indexOf("m_"));
         ref = HalvadeFileUtils.downloadBWAIndex(context, taskId);
+        alnCustomArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "bwa", "aln");
     }
     
     public int feedLine(String line, int read) throws IOException, InterruptedException  {
@@ -60,7 +62,8 @@ public class BWAAlnInstance extends AlignerInstance {
             return feedLine(line, reads1);
         } else if (read == 2) {
             fastqFile2.write(line + "\n");
-            return feedLine(line, reads2);
+            if(threads > 1) return feedLine(line, reads2);
+            else return 0;
         }
         return -1;
     }
@@ -87,10 +90,13 @@ public class BWAAlnInstance extends AlignerInstance {
     protected void startAligner(Mapper.Context context) throws IOException, InterruptedException {
         // make command
         // use half the threads if paired reads ( 2 instances of aln will run)
+        if(redistribute && containerMinusTasksLeft > 0) {
+            getIdleCores(context);
+            Logger.DEBUG("Redistributing cores: using " + threads);
+        }
         int threadsToUse = threads;
         if (isPaired && threadsToUse > 1 ) threadsToUse /= 2;
-        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "bwa", "aln");
-        String[] command1 = CommandGenerator.bwaAln(bin, ref, "/dev/stdin", getFileName(tmpdir, taskId, true, 1), threadsToUse, customArgs);
+        String[] command1 = CommandGenerator.bwaAln(bin, ref, "/dev/stdin", getFileName(tmpdir, taskId, true, 1), threadsToUse, alnCustomArgs);
         reads1 = new ProcessBuilderWrapper(command1, bin);
         reads1.setThreads(threadsToUse);
         reads1.startProcess(null, System.err);
@@ -104,12 +110,14 @@ public class BWAAlnInstance extends AlignerInstance {
         }
         fastqFile1 = new BufferedWriter(new FileWriter(file1.getAbsoluteFile()));
         if(isPaired) {
-            String[] command2 = CommandGenerator.bwaAln(bin, ref, "/dev/stdin", getFileName(tmpdir, taskId, true, 2), threadsToUse, customArgs);
-            reads2 = new ProcessBuilderWrapper(command2, bin);
-            reads2.setThreads(threadsToUse);
-            reads2.startProcess(null, System.err);
-            if(!reads2.isAlive())
-                throw new ProcessException("BWA aln", reads2.getExitState());
+            if(threads > 1) {
+                String[] command2 = CommandGenerator.bwaAln(bin, ref, "/dev/stdin", getFileName(tmpdir, taskId, true, 2), threadsToUse, alnCustomArgs);
+                reads2 = new ProcessBuilderWrapper(command2, bin);
+                reads2.setThreads(threadsToUse);
+                reads2.startProcess(null, System.err);
+                if(!reads2.isAlive())
+                    throw new ProcessException("BWA aln", reads2.getExitState());
+            }
             File file2 = new File(getFileName(tmpdir, taskId,false, 2));
             if (!file2.exists()) {
                     file2.createNewFile();
@@ -117,8 +125,6 @@ public class BWAAlnInstance extends AlignerInstance {
             fastqFile2 = new BufferedWriter(new FileWriter(file2.getAbsoluteFile()));
         }
         
-//        hhb = new HalvadeHeartBeat(context);
-//        hhb.start();
     }
         
     /**
@@ -127,7 +133,7 @@ public class BWAAlnInstance extends AlignerInstance {
      */
     @Override
     public int getState() {
-        if (isPaired) 
+        if (isPaired & threads > 1) 
             return reads1.getState() & reads2.getState();
         else
             return reads1.getState();
@@ -140,24 +146,31 @@ public class BWAAlnInstance extends AlignerInstance {
             reads1.getSTDINWriter().close();
             fastqFile1.close();
             if(isPaired) {
-                reads2.getSTDINWriter().flush();
-                reads2.getSTDINWriter().close();
                 fastqFile2.close();
+                if(threads > 1) {
+                    reads2.getSTDINWriter().flush();
+                    reads2.getSTDINWriter().close();
+                }
             }
         } catch (IOException ex) {
-//            hhb.jobFinished();
-//            hhb.join();
             Logger.EXCEPTION(ex);
             throw new ProcessException("BWA aln", -1);
         }
                 
         int error = reads1.waitForCompletion();
-//        hhb.jobFinished();
-//        hhb.join();
         if(error != 0)
             throw new ProcessException("BWA aln", error);
         context.getCounter(HalvadeCounters.TIME_BWA_ALN).increment(reads1.getExecutionTime());
         if(isPaired) {
+            if(threads == 1) {
+                String[] command2 = CommandGenerator.bwaAln(bin, ref, getFileName(tmpdir, taskId,false, 2), getFileName(tmpdir, taskId, true, 2), 
+                        threads, alnCustomArgs);
+                reads2 = new ProcessBuilderWrapper(command2, bin);
+                reads2.setThreads(threads);
+                reads2.startProcess(null, System.err);
+                if(!reads2.isAlive())
+                    throw new ProcessException("BWA aln", reads2.getExitState());
+            }
             error = reads2.waitForCompletion();
             if(error != 0)
                 throw new ProcessException("BWA aln", error);

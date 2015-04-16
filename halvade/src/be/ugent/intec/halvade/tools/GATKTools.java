@@ -114,10 +114,6 @@ public class GATKTools {
          */
 
         ArrayList<String> command = new ArrayList<>();
-        String[] covString = {
-            "-cov", "ReadGroupCovariate",
-            "-cov", "QualityScoreCovariate",
-            "-cov", "ContextCovariate"};
         String[] gatkcmd = {
             java, mem, "-jar", gatk,
             "-T", "BaseRecalibrator",
@@ -128,7 +124,6 @@ public class GATKTools {
             "-L", region,
             DISABLE_VCF_LOCKING};
         command.addAll(Arrays.asList(gatkcmd));
-        command.addAll(Arrays.asList(covString));
         for(String knownSite : knownSites) {
             command.add("-knownSites");
             command.add(knownSite);
