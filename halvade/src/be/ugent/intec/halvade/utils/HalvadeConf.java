@@ -269,6 +269,9 @@ public class HalvadeConf {
     public static void setMapContainerCount(Configuration conf, int val) {
         conf.setInt(totalContainers, val);
     }
+    public static int getMapContainerCount(Configuration conf) {
+        return conf.getInt(totalContainers, 1);
+    }
     public static int lessTasksLeftThanContainers(Configuration conf) throws IOException, URISyntaxException {
         int containers = conf.getInt(totalContainers, 1);        
         int tasks = 0;
