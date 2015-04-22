@@ -69,6 +69,7 @@ public abstract class AlignerInstance {
     protected AlignerInstance(Mapper.Context context, String bin) throws IOException, URISyntaxException {
         AlignerInstance.context = context;
         header = null;
+        containers = HalvadeConf.getMapContainerCount(context.getConfiguration());
         containerMinusTasksLeft = HalvadeConf.lessTasksLeftThanContainers(context.getConfiguration());
         redistribute = HalvadeConf.getRedistribute(context.getConfiguration());
         writableRecord = new SAMRecordWritable();
