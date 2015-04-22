@@ -20,15 +20,17 @@ public class FileReaderFactory extends BaseFileReader implements Runnable {
     protected ArrayList<BaseFileReader> readers;
     protected BaseFileReader currentReader = null;
     protected static FileReaderFactory allReaders = null;
+    protected int threads;
 
-    public FileReaderFactory() {
+    public FileReaderFactory(int threads) {
         super(false);
         readers = new ArrayList<>();
+        this.threads = threads;
     }
     
-    public static FileReaderFactory getInstance() {
+    public static FileReaderFactory getInstance(int threads) {
         if(allReaders == null) {
-            allReaders = new FileReaderFactory();
+            allReaders = new FileReaderFactory(threads);
         }
         return allReaders;
     }
@@ -85,11 +87,11 @@ public class FileReaderFactory extends BaseFileReader implements Runnable {
 
     protected boolean check = true;
     protected ArrayBlockingQueue<ReadBlock> blocks;
-    protected int READ_BLOCK_CAPACITY = 300;
+    protected int READ_BLOCK_CAPACITY_PER_THREAD = 10;
     
     @Override
     public void run() {
-        blocks = new ArrayBlockingQueue<>(READ_BLOCK_CAPACITY);
+        blocks = new ArrayBlockingQueue<>(READ_BLOCK_CAPACITY_PER_THREAD*threads);
         if(currentReader == null) {
             if(!getNextReader()) check = false;
         }

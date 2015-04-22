@@ -91,7 +91,7 @@ public class HalvadeOptions {
     protected boolean startupJob = true;
     protected boolean rnaPipeline = false;
     protected boolean reportAll = false;
-    protected boolean useSharedMemory = false;
+    protected boolean useSharedMemory = true;
     protected boolean useBamInput = false;
     protected boolean setMapContainers = true, setReduceContainers = true;
     protected boolean redistribute = false;
@@ -396,8 +396,6 @@ public class HalvadeOptions {
                 .create("drop");
         Option optReportAll = OptionBuilder.withDescription("Reports all variants at the same location when combining variants.")
                 .create("report_all");
-        Option optShmem = OptionBuilder.withDescription("Use shared memory in tools where supported. Currently only supports STAR aligner.")
-                .create("shmem");
         Option optBamIn = OptionBuilder.withDescription("Uses aligned bam as input files instead of unaligned fastq files.")
                 .create("bam");
         Option optRedis = OptionBuilder.withDescription("This will enable Halvade to redistribute resources when possible when not all containers are used.")
@@ -441,7 +439,6 @@ public class HalvadeOptions {
         options.addOption(optSmt);
         options.addOption(optRna);
         options.addOption(optStarGenome);
-        options.addOption(optShmem);
         options.addOption(optBamIn);
         options.addOption(optCustomArgs);
         options.addOption(optRedis);
@@ -484,9 +481,9 @@ public class HalvadeOptions {
             smtEnabled = true;
 //            vcores *= 2;
         }
-        if (line.hasOption("shmem")) {
-            useSharedMemory = true;
-        }
+//        if (line.hasOption("shmem")) {
+//            useSharedMemory = true;
+//        }
         if (line.hasOption("mem")) {
             mem = Double.parseDouble(line.getOptionValue("mem"));
         }

@@ -43,7 +43,7 @@ abstract class BaseInterleaveFiles extends Thread {
         written = 0;
         read = 0;
         count = 0;
-        factory = FileReaderFactory.getInstance();
+        factory = FileReaderFactory.getInstance(thread);
         BaseInterleaveFiles.maxFileSize = maxFileSize;
     }
 
@@ -69,23 +69,11 @@ abstract class BaseInterleaveFiles extends Thread {
             OutputStream dataStream = getNewDataStream(part, fileBase);
             BufferedOutputStream gzipStream = getNewCompressedStream(dataStream);
             
-            Timer t = new Timer();
-            Timer s = new Timer();
-            double retrieveBlockTime = 0;
-            double writeBlockTime = 0;
-            double totalTime = 0;
-            t.start();
             
             fileWritten = 0;
-            s.start();
             ReadBlock block = factory.retrieveBlock();
-            s.stop();
-            retrieveBlockTime += s.getElapsedTime();
             while(block != null) {
-                s.start();
                 fileWritten += block.write(gzipStream);
-                s.stop();
-                writeBlockTime += s.getElapsedTime();
                 count += block.getSize();
                 tSize = getSize(dataStream);
                 if(tSize > maxFileSize) {
@@ -99,10 +87,7 @@ abstract class BaseInterleaveFiles extends Thread {
                     dataStream = resetDataStream(part, fileBase, dataStream);
                     gzipStream = getNewCompressedStream(dataStream);                 
                 }
-                s.start();
                 block = factory.retrieveBlock();
-                s.stop();
-                retrieveBlockTime += s.getElapsedTime();
             }
             // finish the files          
             gzipStream.close();
@@ -115,13 +100,6 @@ abstract class BaseInterleaveFiles extends Thread {
                 written += tSize;
                 read += fileWritten;
             }
-            t.stop();
-            
-            totalTime = t.getElapsedTime();
-            Logger.DEBUG("Thread " + thread + " Retrieve block time: " + round(retrieveBlockTime));
-            Logger.DEBUG("Thread " + thread + " Write block time: " + round(writeBlockTime));
-            Logger.DEBUG("Thread " + thread + " Total time: " + round(totalTime));
-            
             Logger.DEBUG("Thread " + thread + " read " + count + " lines");
             Logger.DEBUG("Thread " + thread + " read " + round(read / (1024*1024)) + "MB");
             Logger.DEBUG("Thread " + thread + " wrote " + round(written / (1024*1024)) + "MB");

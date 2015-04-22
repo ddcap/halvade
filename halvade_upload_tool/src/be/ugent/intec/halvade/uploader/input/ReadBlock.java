@@ -42,6 +42,7 @@ public class ReadBlock {
     }
     
     public void reset() {
+//        reads = new String[this.capacity];
         size = 0;
     }
 

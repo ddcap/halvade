@@ -105,7 +105,7 @@ public class HalvadeUploader  extends Configured implements Tool {
             }
         }
         
-        FileReaderFactory factory = FileReaderFactory.getInstance();
+        FileReaderFactory factory = FileReaderFactory.getInstance(mthreads);
         if(manifest != null) {
             Logger.DEBUG("reading input files from " + manifest);
             // read from file
