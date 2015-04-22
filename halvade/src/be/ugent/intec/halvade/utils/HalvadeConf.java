@@ -90,15 +90,15 @@ public class HalvadeConf {
             return false;
     }
     
-    private static final String useIPrep = "useiprep";
-    public static void setUseIPrep(Configuration conf, boolean use) {
+    private static final String useElPrep = "useiprep";
+    public static void setUseElPrep(Configuration conf, boolean use) {
         if(use)
-            conf.set(useIPrep, "true");
+            conf.set(useElPrep, "true");
         else 
-            conf.set(useIPrep, "false");
+            conf.set(useElPrep, "false");
     }
     public static boolean getUseElPrep(Configuration conf) {
-        String s = conf.get(useIPrep);
+        String s = conf.get(useElPrep);
         if(s.equalsIgnoreCase("true"))
             return true;
         else 

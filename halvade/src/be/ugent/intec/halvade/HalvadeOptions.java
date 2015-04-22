@@ -47,6 +47,7 @@ import org.apache.hadoop.fs.Path;
  * @author ddecap
  */
 public class HalvadeOptions {
+
     protected Options options = new Options();
     protected String in;
     protected String out;
@@ -54,7 +55,7 @@ public class HalvadeOptions {
     protected String STARGenome = null;
     protected String java = null;
     protected String tmpDir = "/tmp/halvade/";
-    protected String localRefDir = null; 
+    protected String localRefDir = null;
     protected String sites;
     protected int nodes, vcores;
     protected double mem;
@@ -70,7 +71,7 @@ public class HalvadeOptions {
     protected String RGPL = "ILLUMINA";
     protected String RGPU = "UNIT1";
     protected String RGSM = "SAMPLE1";
-    protected boolean useIPrep = true;
+    protected boolean useElPrep = true;
     protected boolean keepFiles = false;
     protected int stand_call_conf = -1;
     protected int stand_emit_conf = -1;
@@ -81,7 +82,7 @@ public class HalvadeOptions {
     protected boolean reuseJVM = false;
     protected boolean justAlign = false;
     protected String exomeBedFile = null;
-    protected double coverage = -1.0; 
+    protected double coverage = -1.0;
     protected String halvadeBinaries;
     protected String bin;
     protected boolean combineVcf = true;
@@ -95,73 +96,85 @@ public class HalvadeOptions {
     protected boolean setMapContainers = true, setReduceContainers = true;
     protected boolean redistribute = false;
     protected DecimalFormat onedec;
-    private static final double REDUCE_TASKS_FACTOR = 1.68*15;
+    private static final double REDUCE_TASKS_FACTOR = 1.68 * 15;
     private static final double DEFAULT_COVERAGE = 50;
     private static final double DEFAULT_COVERAGE_SIZE = 86;
-    
+    protected boolean smtEnabled = false;
+    protected int overrideMem = -1;
+
     public int GetOptions(String[] args, Configuration hConf) throws IOException, URISyntaxException {
         try {
             boolean result = parseArguments(args, hConf);
-            if(!result) {
+            if (!result) {
                 HelpFormatter formatter = new HelpFormatter();
                 formatter.setWidth(80);
-                formatter.printHelp( "hadoop jar HalvadeWithLibs.jar -I <IN> -O <OUT> " +
-                        "-R <REF> -D <SITES> -B <BIN> -nodes <nodes> -mem <mem> -vcores <cores> [options]", options);
+                formatter.printHelp("hadoop jar HalvadeWithLibs.jar -I <IN> -O <OUT> "
+                        + "-R <REF> -D <SITES> -B <BIN> -nodes <nodes> -mem <mem> -vcores <cores> [options]", options);
                 return 1;
             }
             onedec = new DecimalFormat("###0.0");
             // add parameters to configuration:
-            if(localRefDir == null)
+            if (localRefDir == null) {
                 localRefDir = tmpDir;
+            }
             HalvadeConf.setScratchTempDir(hConf, tmpDir);
             HalvadeConf.setRefDirOnScratch(hConf, localRefDir);
             HalvadeConf.setRefOnHDFS(hConf, ref);
-            if(STARGenome != null) HalvadeConf.setStarDirOnHDFS(hConf, STARGenome);
+            if (STARGenome != null) {
+                HalvadeConf.setStarDirOnHDFS(hConf, STARGenome);
+            }
             HalvadeConf.setKnownSitesOnHDFS(hConf, hdfsSites);
             HalvadeConf.setIsPaired(hConf, paired);
             HalvadeConf.setIsRNA(hConf, rnaPipeline);
-            if(exomeBedFile != null)
+            if (exomeBedFile != null) {
                 HalvadeConf.setExomeBed(hConf, exomeBedFile);
+            }
             HalvadeConf.setOutDir(hConf, out);
             HalvadeConf.setKeepFiles(hConf, keepFiles);
             HalvadeConf.setUseBedTools(hConf, useBedTools);
             HalvadeConf.clearTaskFiles(hConf);
-            HalvadeConf.setUseIPrep(hConf, useIPrep);
+            HalvadeConf.setUseElPrep(hConf, useElPrep);
             HalvadeConf.setUseUnifiedGenotyper(hConf, useGenotyper);
             HalvadeConf.setReuseJVM(hConf, reuseJVM);
             HalvadeConf.setRedistribute(hConf, redistribute);
-            HalvadeConf.setReadGroup(hConf, "ID:" + RGID + " LB:" + RGLB + " PL:" + RGPL + " PU:" + RGPU + " SM:" + RGSM);  
+            HalvadeConf.setReadGroup(hConf, "ID:" + RGID + " LB:" + RGLB + " PL:" + RGPL + " PU:" + RGPU + " SM:" + RGSM);
             HalvadeConf.setkeepChrSplitPairs(hConf, keepChrSplitPairs);
-            if(STARGenome != null && useSharedMemory) HalvadeConf.setStarDirPass2HDFS(hConf, out);
-                        
-            if(chr != null )
+            if (STARGenome != null && useSharedMemory) {
+                HalvadeConf.setStarDirPass2HDFS(hConf, out);
+            }
+
+            if (chr != null) {
                 HalvadeConf.setChrList(hConf, chr);
-            if(java != null)
+            }
+            if (java != null) {
                 HalvadeConf.setJava(hConf, java);
-                    
-            if(stand_call_conf > 0) 
+            }
+
+            if (stand_call_conf > 0) {
                 HalvadeConf.setSCC(hConf, stand_call_conf);
-            if(stand_emit_conf > 0) 
+            }
+            if (stand_emit_conf > 0) {
                 HalvadeConf.setSEC(hConf, stand_emit_conf);
-            
+            }
+
             parseDictFile(hConf);
             double inputSize = getInputSize(in, hConf);
-            if(coverage == -1.0)
+            if (coverage == -1.0) {
                 coverage = Math.max(1.0, DEFAULT_COVERAGE * (inputSize / DEFAULT_COVERAGE_SIZE));
+            }
             Logger.DEBUG("Estimated coverage: " + roundOneDecimal(coverage));
             // set a minimum first where the real amount is based on
             reduces = (int) (coverage * REDUCE_TASKS_FACTOR);
             ChromosomeSplitter splitter = new ChromosomeSplitter(dict, chr, reduces);
             HalvadeConf.setMinChrLength(hConf, splitter.getRegionSize());
             reduces = splitter.getRegionCount();
-            
-            
+
         } catch (ParseException e) {
             Logger.DEBUG(e.getMessage());
             HelpFormatter formatter = new HelpFormatter();
             formatter.setWidth(80);
-            formatter.printHelp( "hadoop jar HalvadeWithLibs.jar -I <input> -O <output> " +
-                    "-R <ref> -D <dbsnp> -B <bin> -nodes <nodes> -mem <mem> -vcores <cores> [options]", options);
+            formatter.printHelp("hadoop jar HalvadeWithLibs.jar -I <input> -O <output> "
+                    + "-R <ref> -D <dbsnp> -B <bin> -nodes <nodes> -mem <mem> -vcores <cores> [options]", options);
             return 1;
         }
         return 0;
@@ -170,13 +183,14 @@ public class HalvadeOptions {
     public String roundOneDecimal(double val) {
         return onedec.format(val);
     }
+
     protected double getInputSize(String input, Configuration conf) throws URISyntaxException, IOException {
         double size = 0;
         FileSystem fs = FileSystem.get(new URI(input), conf);
         if (fs.getFileStatus(new Path(input)).isDirectory()) {
             // add every file in directory
             FileStatus[] files = fs.listStatus(new Path(input));
-            for(FileStatus file : files) {
+            for (FileStatus file : files) {
                 if (!file.isDirectory()) {
                     size += file.getLen();
                 }
@@ -184,10 +198,11 @@ public class HalvadeOptions {
         } else {
             size += fs.getFileStatus(new Path(input)).getLen();
         }
-        return (size  / (1024*1024*1024));
+        return (size / (1024 * 1024 * 1024));
     }
-    
+
     private static final String DICT_SUFFIX = ".dict";
+
     private void parseDictFile(Configuration conf) {
         be.ugent.intec.halvade.utils.Logger.DEBUG("parsing dictionary " + ref + DICT_SUFFIX);
         try {
@@ -196,196 +211,198 @@ public class HalvadeOptions {
             String line = getLine(stream); // header
             dict = new SAMSequenceDictionary();
             line = getLine(stream);
-            while(line != null) {
+            while (line != null) {
                 // @SQ	SN:chrM	LN:16571
                 String[] lineData = line.split("\\s+");
                 String seqName = lineData[1].substring(lineData[1].indexOf(':') + 1);
                 int seqLength = 0;
                 try {
                     seqLength = Integer.parseInt(lineData[2].substring(lineData[2].indexOf(':') + 1));
-                } catch(NumberFormatException ex) {
+                } catch (NumberFormatException ex) {
                     be.ugent.intec.halvade.utils.Logger.EXCEPTION(ex);
                 }
                 SAMSequenceRecord seq = new SAMSequenceRecord(seqName, seqLength);
 //                Logger.DEBUG("name: " + seq.getSequenceName() + " length: " + seq.getSequenceLength());
-                dict.addSequence(seq);  
+                dict.addSequence(seq);
                 line = getLine(stream);
             }
             HalvadeConf.setSequenceDictionary(conf, dict);
         } catch (URISyntaxException | IOException ex) {
             be.ugent.intec.halvade.utils.Logger.EXCEPTION(ex);
         }
-        
+
     }
-    
+
     private String getLine(FSDataInputStream stream) throws IOException {
         String tmp = "";
         try {
-            char c = (char)stream.readByte();
-            while(c != '\n') {
+            char c = (char) stream.readByte();
+            while (c != '\n') {
                 tmp = tmp + c;
-                c = (char)stream.readByte();
+                c = (char) stream.readByte();
             }
-            return tmp;  
+            return tmp;
         } catch (EOFException ex) {
             // reached end of file, return null;
             return null;
         }
     }
-    
+
     protected void createOptions() {
-        Option optIn = OptionBuilder.withArgName( "input" )
-                                .hasArg()
-                                .isRequired(true)
-                                .withDescription(  "Input directory on hdfs containing fastq files." )
-                                .create( "I" );
-        Option optOut = OptionBuilder.withArgName( "output" )
-                                .hasArg()
-                                .isRequired(true)
-                                .withDescription(  "Output directory on hdfs." )
-                                .create( "O" );
-        Option optBin = OptionBuilder.withArgName( "bin.tar.gz" )
-                                .hasArg()
-                                .isRequired(true)
-                                .withDescription(  "The tarred file containing all binary files located on HDFS." )
-                                .create( "B" );
-        Option optRef = OptionBuilder.withArgName( "reference" )
-                                .hasArg()
-                                .isRequired(true)
-                                .withDescription(  "Name of the fasta file name of the reference (without extension) on HDFS. Make sure the BWA index has the same prefix." )
-                                .create( "R" );
-        Option optNodes = OptionBuilder.withArgName( "nodes" )
-                                .hasArg()                
-                                .isRequired(true)
-                                .withDescription(  "Sets the number of nodes in this cluster." )
-                                .create( "nodes" );
-        Option optVcores = OptionBuilder.withArgName( "cores" )
-                                .hasArg()                
-                                .isRequired(true)
-                                .withDescription(  "Sets the available cpu cores per node in this cluster." )
-                                .create( "vcores" );
-        Option optMem = OptionBuilder.withArgName( "gb" )
-                                .hasArg()                
-                                .isRequired(true)
-                                .withDescription(  "Sets the available memory [in GB] per node in this cluster." )
-                                .create( "mem" );
-        Option optSites = OptionBuilder.withArgName( "snpDBa,snpDBb" )
-                                .hasArg()
-                                .isRequired(true)
-                                .withDescription(  "Name of snpDB files for the genome on HDFS. If multiple separate with \',\'." )
-                                .create( "D" );
-        Option optStarGenome = OptionBuilder.withArgName( "stargenome" )
-                                .hasArg()
-                                .withDescription(  "Directory on HDFS containing all STAR genome files" )
-                                .create( "SG" );
-        Option optTmp = OptionBuilder.withArgName( "dir" )
-                                .hasArg()
-                                .withDescription(  "Sets the location for temporary files on every node [/tmp/halvade/]." )
-                                .create( "tmp" );
-        Option optrefdir = OptionBuilder.withArgName( "dir" )
-                                .hasArg()
-                                .withDescription(  "Sets the folder containing all the reference files for BWA or STAR and GATK on every node [tmp directory]." )
-                                .create( "refdir" );
-        Option optJava = OptionBuilder.withArgName( "java" )
-                                .hasArg()
-                                .withDescription(  "Set location of java binary to use [must be 1.7+]." )
-                                .create( "J" );
+        Option optIn = OptionBuilder.withArgName("input")
+                .hasArg()
+                .isRequired(true)
+                .withDescription("Input directory on hdfs containing fastq files.")
+                .create("I");
+        Option optOut = OptionBuilder.withArgName("output")
+                .hasArg()
+                .isRequired(true)
+                .withDescription("Output directory on hdfs.")
+                .create("O");
+        Option optBin = OptionBuilder.withArgName("bin.tar.gz")
+                .hasArg()
+                .isRequired(true)
+                .withDescription("The tarred file containing all binary files located on HDFS.")
+                .create("B");
+        Option optRef = OptionBuilder.withArgName("reference")
+                .hasArg()
+                .isRequired(true)
+                .withDescription("Name of the fasta file name of the reference (without extension) on HDFS. Make sure the BWA index has the same prefix.")
+                .create("R");
+        Option optNodes = OptionBuilder.withArgName("nodes")
+                .hasArg()
+                .isRequired(true)
+                .withDescription("Sets the number of nodes in this cluster.")
+                .create("nodes");
+        Option optVcores = OptionBuilder.withArgName("cores")
+                .hasArg()
+                .isRequired(true)
+                .withDescription("Sets the available cpu cores per node in this cluster.")
+                .create("vcores");
+        Option optMem = OptionBuilder.withArgName("gb")
+                .hasArg()
+                .isRequired(true)
+                .withDescription("Sets the available memory [in GB] per node in this cluster.")
+                .create("mem");
+        Option optRmem = OptionBuilder.withArgName("gb")
+                .hasArg()
+                .withDescription("Overrides the maximum container memory [in GB].")
+                .create("refmem");
+        Option optSites = OptionBuilder.withArgName("snpDBa,snpDBb")
+                .hasArg()
+                .isRequired(true)
+                .withDescription("Name of snpDB files for the genome on HDFS. If multiple separate with \',\'.")
+                .create("D");
+        Option optStarGenome = OptionBuilder.withArgName("stargenome")
+                .hasArg()
+                .withDescription("Directory on HDFS containing all STAR genome files")
+                .create("SG");
+        Option optTmp = OptionBuilder.withArgName("dir")
+                .hasArg()
+                .withDescription("Sets the location for temporary files on every node [/tmp/halvade/].")
+                .create("tmp");
+        Option optrefdir = OptionBuilder.withArgName("dir")
+                .hasArg()
+                .withDescription("Sets the folder containing all the reference files for BWA or STAR and GATK on every node [tmp directory].")
+                .create("refdir");
+        Option optJava = OptionBuilder.withArgName("java")
+                .hasArg()
+                .withDescription("Set location of java binary to use [must be 1.7+].")
+                .create("J");
         // "ID:" + RGID + " LB:" + RGLB + " PL:" + RGPL + " PU:" + RGPU + " SM:" + RGSM
-        Option optID = OptionBuilder.withArgName( "RGID" )
-                                .hasArg()
-                                .withDescription(  "sets the RGID for the read-group." )
-                                .create( "id" );
-        Option optLB = OptionBuilder.withArgName( "RGLB" )
-                                .hasArg()
-                                .withDescription(  "sets the RGLB for the read-group." )
-                                .create( "lb" );
-        Option optPL = OptionBuilder.withArgName( "RGPL" )
-                                .hasArg()
-                                .withDescription(  "sets the RGPL for the read-group." )
-                                .create( "pl" );
-        Option optPU = OptionBuilder.withArgName( "RGPU" )
-                                .hasArg()
-                                .withDescription(  "sets the RGPU for the read-group." )
-                                .create( "pu" );
-        Option optSM = OptionBuilder.withArgName( "RGSM" )
-                                .hasArg()
-                                .withDescription(  "sets the RGSM for the read-group." )
-                                .create( "sm" );
-        Option optCov = OptionBuilder.withArgName( "coverage" )
-                                .hasArg()
-                                .withDescription(  "Sets the coverage to better distribute the tasks.")
-                                .create( "cov" );
-        Option optScc = OptionBuilder.withArgName( "scc" )
-                                .hasArg()
-                                .withDescription(  "Sets stand_call_conf for gatk Variant Caller." )
-                                .create( "scc" );
-        Option optSec = OptionBuilder.withArgName( "sec" )
-                                .hasArg()
-                                .withDescription(  "Sets stand_emit_conf for gatk Variant Caller." )
-                                .create( "sec" );
-        Option optChr = OptionBuilder.withArgName( "chr1,chr2,..." )
-                                .hasArg()
-                                .withDescription(  "Sets the chromosomes if reads don't cover the full reference (chrM,chr2,...)." +
-                                        "This only changes how the regions will be distributed not the reference.")
-                                .create( "chr" );
-        Option optEx = OptionBuilder.withArgName( "bed file" )
-                                .hasArg()
-                                .withDescription(  "Gives the location of a bed file for exome target regions. Required for exome sequences. ")
-                                .create( "exome" );              
-        Option optMpn = OptionBuilder.withArgName( "tasks" )
-                                .hasArg()
-                                .withDescription(  "Overrides the number of map tasks running simultaneously on each node. ")
-                                .create( "mpn" );
-        Option optRpn = OptionBuilder.withArgName( "tasks" )
-                                .hasArg()
-                                .withDescription(  "Overrides the number of reduce tasks running simultaneously on each node. ")
-                                .create( "rpn" );  
+        Option optID = OptionBuilder.withArgName("RGID")
+                .hasArg()
+                .withDescription("sets the RGID for the read-group.")
+                .create("id");
+        Option optLB = OptionBuilder.withArgName("RGLB")
+                .hasArg()
+                .withDescription("sets the RGLB for the read-group.")
+                .create("lb");
+        Option optPL = OptionBuilder.withArgName("RGPL")
+                .hasArg()
+                .withDescription("sets the RGPL for the read-group.")
+                .create("pl");
+        Option optPU = OptionBuilder.withArgName("RGPU")
+                .hasArg()
+                .withDescription("sets the RGPU for the read-group.")
+                .create("pu");
+        Option optSM = OptionBuilder.withArgName("RGSM")
+                .hasArg()
+                .withDescription("sets the RGSM for the read-group.")
+                .create("sm");
+        Option optCov = OptionBuilder.withArgName("coverage")
+                .hasArg()
+                .withDescription("Sets the coverage to better distribute the tasks.")
+                .create("cov");
+        Option optScc = OptionBuilder.withArgName("scc")
+                .hasArg()
+                .withDescription("Sets stand_call_conf for gatk Variant Caller.")
+                .create("scc");
+        Option optSec = OptionBuilder.withArgName("sec")
+                .hasArg()
+                .withDescription("Sets stand_emit_conf for gatk Variant Caller.")
+                .create("sec");
+        Option optChr = OptionBuilder.withArgName("chr1,chr2,...")
+                .hasArg()
+                .withDescription("Sets the chromosomes if reads don't cover the full reference (chrM,chr2,...)."
+                        + "This only changes how the regions will be distributed not the reference.")
+                .create("chr");
+        Option optEx = OptionBuilder.withArgName("bed file")
+                .hasArg()
+                .withDescription("Gives the location of a bed file for exome target regions. Required for exome sequences. ")
+                .create("exome");
+        Option optMpn = OptionBuilder.withArgName("tasks")
+                .hasArg()
+                .withDescription("Overrides the number of map tasks running simultaneously on each node. ")
+                .create("mpn");
+        Option optRpn = OptionBuilder.withArgName("tasks")
+                .hasArg()
+                .withDescription("Overrides the number of reduce tasks running simultaneously on each node. ")
+                .create("rpn");
         Option optCustomArgs = OptionBuilder.withLongOpt("custom_args")
-                                .withArgName("tool=args")
-                                .hasArgs(2)
-                                .withValueSeparator()
-                                .withDescription(  "Adds custom arguments for a tool. If a module in a tool is used, add the name after an underscore. " 
-                                        + "Possible values: " + getProgramNames())
-                                .create( "ca" );      
-        
-        
+                .withArgName("tool=args")
+                .hasArgs(2)
+                .withValueSeparator()
+                .withDescription("Adds custom arguments for a tool. If a module in a tool is used, add the name after an underscore. "
+                        + "Possible values: " + getProgramNames())
+                .create("ca");
+
         //flags
-        Option optSingle = OptionBuilder.withDescription(  "Sets the input files to single reads [default is paired-end reads]." )
-                                .create( "s" );
-        Option optBmem = OptionBuilder.withDescription("Use BWA mem instead of default BWA aln & sampe/samse (better for longer reads)." )
-                                .create( "bwamem" );
-        Option optCombine = OptionBuilder.withDescription(  "Just Combines the vcf on HDFS [out dir] and doesn't run the hadoop job." )
-                                .create( "c" );
-        Option optPp = OptionBuilder.withDescription(  "Uses Picard to preprocess the data for GATK." )
-                                .create( "P" );
-        Option optBed = OptionBuilder.withDescription(  "Use Bedtools to select an interval of dbsnp." )
-                                .create( "b" );
-        Option optJVM = OptionBuilder.withDescription(  "Set this to enable reusing JVM (avoids loading reference multiple times)." )
-                                .create( "rjvm" );
-        Option optJustAlign = OptionBuilder.withDescription(  "Only align the reads." )
-                                .create( "justalign" );
-        Option optSmt = OptionBuilder.withDescription(  "Enable simultaneous multithreading." )
-                                .create( "smt" );
-        Option optKeep = OptionBuilder.withDescription(  "Keep intermediate files." )
-                                .create( "keep" );
-        Option optHap = OptionBuilder.withDescription(  "Use HaplotypeCaller instead of UnifiedGenotyper for Variant Detection." )
-                                .create( "hc" );
-        Option optRna = OptionBuilder.withDescription(  "Run the RNA Best Practices pipeline by Broad [default is DNA pipeline]." )
-                                .create( "rna" );
-        Option optDry = OptionBuilder.withDescription(  "Execute a dryrun, will calculate task size, split for regions etc, but not execute the MapReduce job.")
-                                .create( "dryrun" );        
-        Option optDrop = OptionBuilder.withDescription(  "Drop all paired-end reads where the pairs are aligned to different chromosomes.")
-                                .create( "drop" );
-        Option optReportAll= OptionBuilder.withDescription(  "Reports all variants at the same location when combining variants.")
-                                .create( "report_all" );
-        Option optShmem= OptionBuilder.withDescription(  "Use shared memory in tools where supported. Currently only supports STAR aligner.")
-                                .create( "shmem" );
-        Option optBamIn= OptionBuilder.withDescription(  "Uses aligned bam as input files instead of unaligned fastq files.")
-                                .create( "bam" );
-        Option optRedis= OptionBuilder.withDescription(  "This will enable Halvade to redistribute resources when possible when not all containers are used.")
-                                .create( "redistribute" );
-        
-        
+        Option optSingle = OptionBuilder.withDescription("Sets the input files to single reads [default is paired-end reads].")
+                .create("s");
+        Option optBmem = OptionBuilder.withDescription("Use BWA mem instead of default BWA aln & sampe/samse (better for longer reads).")
+                .create("bwamem");
+        Option optCombine = OptionBuilder.withDescription("Just Combines the vcf on HDFS [out dir] and doesn't run the hadoop job.")
+                .create("c");
+        Option optPp = OptionBuilder.withDescription("Uses Picard to preprocess the data for GATK.")
+                .create("P");
+        Option optBed = OptionBuilder.withDescription("Use Bedtools to select an interval of dbsnp.")
+                .create("b");
+        Option optJVM = OptionBuilder.withDescription("Set this to enable reusing JVM (avoids loading reference multiple times).")
+                .create("rjvm");
+        Option optJustAlign = OptionBuilder.withDescription("Only align the reads.")
+                .create("justalign");
+        Option optSmt = OptionBuilder.withDescription("Enable simultaneous multithreading.")
+                .create("smt");
+        Option optKeep = OptionBuilder.withDescription("Keep intermediate files.")
+                .create("keep");
+        Option optHap = OptionBuilder.withDescription("Use HaplotypeCaller instead of UnifiedGenotyper for Variant Detection.")
+                .create("hc");
+        Option optRna = OptionBuilder.withDescription("Run the RNA Best Practices pipeline by Broad [default is DNA pipeline].")
+                .create("rna");
+        Option optDry = OptionBuilder.withDescription("Execute a dryrun, will calculate task size, split for regions etc, but not execute the MapReduce job.")
+                .create("dryrun");
+        Option optDrop = OptionBuilder.withDescription("Drop all paired-end reads where the pairs are aligned to different chromosomes.")
+                .create("drop");
+        Option optReportAll = OptionBuilder.withDescription("Reports all variants at the same location when combining variants.")
+                .create("report_all");
+        Option optShmem = OptionBuilder.withDescription("Use shared memory in tools where supported. Currently only supports STAR aligner.")
+                .create("shmem");
+        Option optBamIn = OptionBuilder.withDescription("Uses aligned bam as input files instead of unaligned fastq files.")
+                .create("bam");
+        Option optRedis = OptionBuilder.withDescription("This will enable Halvade to redistribute resources when possible when not all containers are used.")
+                .create("redistribute");
+
         options.addOption(optIn);
         options.addOption(optOut);
         options.addOption(optRef);
@@ -428,111 +445,146 @@ public class HalvadeOptions {
         options.addOption(optBamIn);
         options.addOption(optCustomArgs);
         options.addOption(optRedis);
+        options.addOption(optRmem);
     }
-    
+
     protected boolean parseArguments(String[] args, Configuration halvadeConf) throws ParseException {
         createOptions();
         CommandLineParser parser = new GnuParser();
         CommandLine line = parser.parse(options, args);
-        
+
         in = line.getOptionValue("I");
         out = line.getOptionValue("O");
         ref = line.getOptionValue("R");
         sites = line.getOptionValue("D");
         halvadeBinaries = line.getOptionValue("B");
         hdfsSites = sites.split(",");
-        if(line.hasOption("rna")) {
-            rnaPipeline = true; 
-            if(line.hasOption("SG"))
+        if (line.hasOption("rna")) {
+            rnaPipeline = true;
+            if (line.hasOption("SG")) {
                 STARGenome = line.getOptionValue("SG");
-            else
+            } else {
                 throw new ParseException("the '-rna' option requires -SG, pointing to the location of the STAR reference directory.");
+            }
         }
-        
-        if(line.hasOption("tmp"))
-            tmpDir = line.getOptionValue("tmp");  
-        if(line.hasOption("refdir"))
-            localRefDir = line.getOptionValue("refdir");       
-        if(line.hasOption("nodes"))
+
+        if (line.hasOption("tmp")) {
+            tmpDir = line.getOptionValue("tmp");
+        }
+        if (line.hasOption("refdir")) {
+            localRefDir = line.getOptionValue("refdir");
+        }
+        if (line.hasOption("nodes")) {
             nodes = Integer.parseInt(line.getOptionValue("nodes"));
-        if(line.hasOption("vcores"))
+        }
+        if (line.hasOption("vcores")) {
             vcores = Integer.parseInt(line.getOptionValue("vcores"));
-        if(line.hasOption("smt"))
-            vcores *= 2;
-        if(line.hasOption("shmem"))
+        }
+        if (line.hasOption("smt")) {
+            smtEnabled = true;
+//            vcores *= 2;
+        }
+        if (line.hasOption("shmem")) {
             useSharedMemory = true;
-        if(line.hasOption("mem"))
+        }
+        if (line.hasOption("mem")) {
             mem = Double.parseDouble(line.getOptionValue("mem"));
-        if(line.hasOption("mpn")) {
+        }
+        if (line.hasOption("mpn")) {
             setMapContainers = false;
             mapContainersPerNode = Integer.parseInt(line.getOptionValue("mpn"));
         }
-        if(line.hasOption("rpn")) {
+        if (line.hasOption("rpn")) {
             setReduceContainers = false;
             reducerContainersPerNode = Integer.parseInt(line.getOptionValue("rpn"));
         }
-        if(line.hasOption("scc"))
+        if (line.hasOption("refmem")) {
+            overrideMem = Integer.parseInt(line.getOptionValue("refmem")) * 1024;
+        }
+        if (line.hasOption("scc")) {
             stand_call_conf = Integer.parseInt(line.getOptionValue("scc"));
-        if(line.hasOption("sec"))
+        }
+        if (line.hasOption("sec")) {
             stand_emit_conf = Integer.parseInt(line.getOptionValue("sec"));
-        if(line.hasOption("report_all"))
+        }
+        if (line.hasOption("report_all")) {
             reportAll = true;
-        if(line.hasOption("keep"))
+        }
+        if (line.hasOption("keep")) {
             keepFiles = true;
-        if(line.hasOption("redistribute"))
+        }
+        if (line.hasOption("redistribute")) {
             redistribute = true;
-        if(line.hasOption("s"))
+        }
+        if (line.hasOption("s")) {
             paired = false;
-        if(line.hasOption("justalign")) {
+        }
+        if (line.hasOption("justalign")) {
             justAlign = true;
             combineVcf = false;
         }
-        if(line.hasOption("rjvm"))
+        if (line.hasOption("rjvm")) {
             reuseJVM = true;
-        if(line.hasOption("bwamem"))
+        }
+        if (line.hasOption("bwamem")) {
             aln = false;
-        if(line.hasOption("J"))
+        }
+        if (line.hasOption("J")) {
             java = line.getOptionValue("J");
-        if(line.hasOption("exome"))
+        }
+        if (line.hasOption("exome")) {
             exomeBedFile = line.getOptionValue("exome");
-        if(line.hasOption("dryrun")) {
+        }
+        if (line.hasOption("dryrun")) {
             dryRun = true;
             combineVcf = false;
         }
-        if(line.hasOption("drop"))
+        if (line.hasOption("drop")) {
             keepChrSplitPairs = false;
-        if(line.hasOption("cov"))
+        }
+        if (line.hasOption("cov")) {
             coverage = Integer.parseInt(line.getOptionValue("cov"));
-        if(line.hasOption("c")) {
+        }
+        if (line.hasOption("c")) {
             justCombine = true;
             combineVcf = true;
         }
-        if(line.hasOption("b"))
+        if (line.hasOption("b")) {
             useBedTools = true;
-        if(line.hasOption("hc"))
+        }
+        if (line.hasOption("hc")) {
             useGenotyper = false;
-        if(line.hasOption("bam"))
+        }
+        if (line.hasOption("bam")) {
             useBamInput = true;
-        if(line.hasOption("P"))
-            useIPrep = false;
-        if(line.hasOption("id"))
+        }
+        if (line.hasOption("P")) {
+            useElPrep = false;
+        }
+        if (line.hasOption("id")) {
             RGID = line.getOptionValue("id");
-        if(line.hasOption("lb"))
+        }
+        if (line.hasOption("lb")) {
             RGLB = line.getOptionValue("lb");
-        if(line.hasOption("pl"))
+        }
+        if (line.hasOption("pl")) {
             RGPL = line.getOptionValue("pl");
-        if(line.hasOption("pu"))
+        }
+        if (line.hasOption("pu")) {
             RGPU = line.getOptionValue("pu");
-        if(line.hasOption("sm"))
+        }
+        if (line.hasOption("sm")) {
             RGSM = line.getOptionValue("sm");
-        if(line.hasOption("chr"))
+        }
+        if (line.hasOption("chr")) {
             chr = line.getOptionValue("chr");
-        
+        }
+
         if (line.hasOption("ca")) {
             Properties props = line.getOptionProperties("ca");
             Enumeration names = props.propertyNames();
-            while(names.hasMoreElements()) {
-                String name = (String)names.nextElement();
+            while (names.hasMoreElements()) {
+                String name = (String) names.nextElement();
                 addCustomArguments(halvadeConf, name, props.getProperty(name));
             }
         }
@@ -540,18 +592,18 @@ public class HalvadeOptions {
     }
 
     protected String[] programNames = {
-        "bwa_aln", "bwa_mem", "bwa_sampe", 
-        "star", 
+        "bwa_aln", "bwa_mem", "bwa_sampe",
+        "star",
         "elprep",
         "samtools_view",
         "bedtools_bdsnp", "bedtools_exome",
-        "picard_buildbamindex", "picard_addorreplacereadgroup", "picard_markduplicates", "picard_cleansam", 
-        "gatk_realignertargetcreator", "gatk_indelrealigner", "gatk_baserecalibrator", "gatk_printreads", "gatk_combinevariants", 
-        "gatk_variantcaller", "gatk_variantannotator", "gatk_variantfiltration", "gatk_splitncigarreads" };
-    
+        "picard_buildbamindex", "picard_addorreplacereadgroup", "picard_markduplicates", "picard_cleansam",
+        "gatk_realignertargetcreator", "gatk_indelrealigner", "gatk_baserecalibrator", "gatk_printreads", "gatk_combinevariants",
+        "gatk_variantcaller", "gatk_variantannotator", "gatk_variantfiltration", "gatk_splitncigarreads"};
+
     protected String getProgramNames() {
         String names = programNames[0];
-        for(int i = 1 ; i < programNames.length; i++){
+        for (int i = 1; i < programNames.length; i++) {
             names += ", " + programNames[i];
         }
         return names;
@@ -560,16 +612,19 @@ public class HalvadeOptions {
     private void addCustomArguments(Configuration halvadeConf, String name, String property) throws ParseException {
         boolean found = false;
         int i = 0;
-        while (!found && i < programNames.length){
-            if (name.equalsIgnoreCase(programNames[i])) 
+        while (!found && i < programNames.length) {
+            if (name.equalsIgnoreCase(programNames[i])) {
                 found = true;
+            }
             i++;
         }
-        if(found) {
+        if (found) {
             String[] split = name.split("_");
             String program = split[0];
             String tool = "";
-            if(split.length > 1) tool = split[1];
+            if (split.length > 1) {
+                tool = split[1];
+            }
             HalvadeConf.setCustomArgs(halvadeConf, program, tool, property);
             Logger.DEBUG("Custom arguments for " + name + ": \"" + property + "\"");
         } else {

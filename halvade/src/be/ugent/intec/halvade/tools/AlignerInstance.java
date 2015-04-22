@@ -61,6 +61,7 @@ public abstract class AlignerInstance {
     protected boolean keepChrSplitPairs;
     protected boolean keep = false;
     protected ChromosomeSplitter splitter;
+    protected int containers;
     protected int containerMinusTasksLeft;
     protected boolean redistribute;
     
@@ -91,34 +92,34 @@ public abstract class AlignerInstance {
     }
     
     protected void getIdleCores(Mapper.Context context) throws IOException {
-        int totalCores = HalvadeConf.getVcores(context.getConfiguration());
-        int usedCores = 0;
-        // run "ps -eo args"  and search for any process with bwa aln
-        // count the -t options of all bwa aln instances this is used cores;
-        String line;
-        Process p = Runtime.getRuntime().exec("ps -eo args");
-        BufferedReader input = new BufferedReader(new InputStreamReader(p.getInputStream()));
-        while ((line = input.readLine()) != null) {
-            if(line.contains("bwa")) {
-                System.out.println(line); //<-- Parse data here.
-                if(line.contains("sampe") || line.contains("samse"))
-                    usedCores++;
-                else if (line.contains("aln")) {
-                    String[] cmd = line.split("\\s+");
-                    int i = 0;
-                    while (i < cmd.length && !cmd[i].equals("-t"))
-                        i++;
-                    int alnCores = 1;
-                    if (i + 1 < cmd.length)
-                        alnCores = Integer.parseInt(cmd[i+1]);
-                    Logger.DEBUG("Aln used cores: " + alnCores);
-                    usedCores += alnCores;
-                }
-            }
-        }
-        input.close();
+//        int totalCores = HalvadeConf.getVcores(context.getConfiguration());
+//        int usedCores = 0;
+//        // run "ps -eo args"  and search for any process with bwa aln
+//        // count the -t options of all bwa aln instances this is used cores;
+//        String line;
+//        Process p = Runtime.getRuntime().exec("ps -eo args");
+//        BufferedReader input = new BufferedReader(new InputStreamReader(p.getInputStream()));
+//        while ((line = input.readLine()) != null) {
+//            if(line.contains("bwa")) {
+//                System.out.println(line); //<-- Parse data here.
+//                if(line.contains("sampe") || line.contains("samse"))
+//                    usedCores++;
+//                else if (line.contains("aln")) {
+//                    String[] cmd = line.split("\\s+");
+//                    int i = 0;
+//                    while (i < cmd.length && !cmd[i].equals("-t"))
+//                        i++;
+//                    int alnCores = 1;
+//                    if (i + 1 < cmd.length)
+//                        alnCores = Integer.parseInt(cmd[i+1]);
+//                    Logger.DEBUG("Aln used cores: " + alnCores);
+//                    usedCores += alnCores;
+//                }
+//            }
+//        }
+//        input.close();
         
-        threads = Math.max(threads, totalCores - usedCores);
+        if(containerMinusTasksLeft > 0) threads = 6;
     }
     
     protected int feedLine(String line, ProcessBuilderWrapper proc) throws IOException  {

@@ -94,7 +94,7 @@ public class MapReduceRunner extends Configured implements Tool  {
     
     protected int runPass1RNAJob(Configuration pass1Conf, String tmpOutDir) throws IOException, InterruptedException, ClassNotFoundException, URISyntaxException {
         HalvadeConf.setIsPass2(pass1Conf, false);
-        HalvadeResourceManager.setJobResources(halvadeOpts, pass1Conf, HalvadeResourceManager.RNA_SHMEM_PASS1, false);
+        HalvadeResourceManager.setJobResources(halvadeOpts, pass1Conf, HalvadeResourceManager.RNA_SHMEM_PASS1, true);
         Job pass1Job = Job.getInstance(pass1Conf, "Halvade pass 1 RNA pipeline");
         pass1Job.addCacheArchive(new URI(halvadeOpts.halvadeBinaries));
         pass1Job.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.HalvadeMapper.class);

@@ -49,10 +49,6 @@ public class HalvadeResourceManager {
     public static void setJobResources(HalvadeOptions opt, Configuration conf, int type, boolean subtractAM) {
         int tmpmem = (int) (opt.mem * 1024);
         int tmpvcores = opt.vcores;
-        if(subtractAM) {
-            tmpmem -= MEM_AM;
-            tmpvcores -= VCORES_AM;
-        }
         
         if (opt.setMapContainers)
             opt.mapContainersPerNode = Math.min(tmpvcores, Math.max(tmpmem / RESOURCE_REQ[type][0],1));
@@ -65,8 +61,19 @@ public class HalvadeResourceManager {
         HalvadeConf.setVcores(conf, opt.vcores);
         opt.mthreads = Math.max(1, tmpvcores/opt.mapContainersPerNode);
         opt.rthreads = Math.max(1, tmpvcores/opt.reducerContainersPerNode);
+        if(opt.smtEnabled) {
+            opt.mthreads *=2;
+            opt.rthreads *=2;
+        }
         int mmem = RESOURCE_REQ[type][0];
-        int rmem = RESOURCE_REQ[type][1] == ALL ? tmpmem : RESOURCE_REQ[type][1];
+        int rmem = RESOURCE_REQ[type][1] == ALL ? tmpmem - MEM_AM : RESOURCE_REQ[type][1];
+        
+        if(type == DNA){
+            if (opt.overrideMem > 0) {
+                mmem = opt.overrideMem;
+                rmem = opt.overrideMem;
+            }
+        }
         
         Logger.DEBUG("resources set to " + opt.mapContainersPerNode + " maps [" 
                 + opt.mthreads + " cpu , " + mmem + " mb] per node and " 
@@ -74,14 +81,18 @@ public class HalvadeResourceManager {
                 + opt.rthreads + " cpu, " + rmem + " mb] per node");
         
         conf.set("mapreduce.map.cpu.vcores", "" + opt.mthreads);
-        conf.set("mapreduce.reduce.cpu.vcores", "" + opt.rthreads );
-        conf.set("mapreduce.reduce.memory.mb", "" + rmem);
         conf.set("mapreduce.map.memory.mb", "" + mmem); 
+        if(subtractAM) 
+            conf.set("mapreduce.reduce.cpu.vcores", "" + (opt.rthreads - VCORES_AM) );
+        else 
+            conf.set("mapreduce.reduce.cpu.vcores", "" + opt.rthreads );
+        conf.set("mapreduce.reduce.memory.mb", "" + rmem);        
         conf.set("mapreduce.reduce.java.opts", "-Xmx" + (int)(0.8*rmem) + "m");
-        conf.set("mapreduce.map.java.opts", "-Xmx" + (int)(0.8*mmem) + "m"); 
+        conf.set("mapreduce.map.java.opts", "-Xmx" + (int)(0.8*mmem) + "m");
+//                + " -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -Xloggc:/tmp/halvade/@taskid@.gc"); 
         conf.set("mapreduce.job.reduce.slowstart.completedmaps", "0.99");
         
         HalvadeConf.setMapThreads(conf, opt.mthreads);
-        HalvadeConf.setReducerThreads(conf, opt.rthreads);     
+        HalvadeConf.setReducerThreads(conf, opt.rthreads);  
     }
 }
