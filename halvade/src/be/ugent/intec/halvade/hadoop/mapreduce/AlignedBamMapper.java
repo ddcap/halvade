@@ -38,6 +38,9 @@ public class AlignedBamMapper extends Mapper<LongWritable,SAMRecordWritable,
     protected void setup(Context context) throws IOException, InterruptedException {
         isPaired = HalvadeConf.getIsPaired(context.getConfiguration());
         try {
+            String taskId = context.getTaskAttemptID().toString();
+            Logger.DEBUG("taskId = " + taskId);
+            HalvadeConf.addTaskRunning(context.getConfiguration(), taskId);
             instance = DummyAlignerInstance.getDummyInstance(context, null);
         } catch (URISyntaxException ex) {
             Logger.EXCEPTION(ex);
