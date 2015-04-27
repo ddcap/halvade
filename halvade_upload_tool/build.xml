@@ -74,25 +74,25 @@
     <target name="-post-jar">
         <jar jarfile="dist/HalvadeUploaderWithLibs.jar">
             <zipfileset src="${dist.jar}" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/aspectjrt.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/aspectjweaver.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/aws-java-sdk-1.7.12.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/commons-cli-1.2.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/commons-codec-1.3.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/commons-logging-1.1.1.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/freemarker-2.3.18.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/httpclient-4.2.3.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/httpcore-4.2.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/jackson-annotations-2.1.1.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/jackson-core-2.1.1.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/jackson-databind-2.1.1.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/joda-time-2.2.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/mail-1.4.3.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/spring-beans-3.0.7.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/spring-context-3.0.7.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/spring-core-3.0.7.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/stax-1.2.0.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/stax-api-1.0.1.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/aspectjrt.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/aspectjweaver.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/aws-java-sdk-1.7.12.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/commons-cli-1.2.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/commons-codec-1.3.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/commons-logging-1.1.1.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/freemarker-2.3.18.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/httpclient-4.2.3.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/httpcore-4.2.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/jackson-annotations-2.1.1.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/jackson-core-2.1.1.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/jackson-databind-2.1.1.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/joda-time-2.2.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/mail-1.4.3.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/spring-beans-3.0.7.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/spring-context-3.0.7.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/spring-core-3.0.7.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/stax-1.2.0.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/stax-api-1.0.1.jar" excludes="META-INF/*" />
             <manifest>
                 <attribute name="Main-Class" value="be.ugent.intec.halvade.uploader.HalvadeUploader"/>
             </manifest>

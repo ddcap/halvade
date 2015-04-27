@@ -74,12 +74,12 @@
     <target name="-post-jar">
         <jar jarfile="dist/HalvadeWithLibs.jar">
             <zipfileset src="${dist.jar}" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/commons-cli-1.2.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/HadoopBam.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/picard-1.112.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/sam-1.112.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/variant-1.112.jar" excludes="META-INF/*" />
-            <zipfileset src="dist/lib/tribble-1.112.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/commons-cli-1.2.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/HadoopBam.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/picard-1.112.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/sam-1.112.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/variant-1.112.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/tribble-1.112.jar" excludes="META-INF/*" />
             <manifest>
                 <attribute name="Main-Class" value="be.ugent.intec.halvade.Halvade"/>
             </manifest>
