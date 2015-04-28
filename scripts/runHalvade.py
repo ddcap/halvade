@@ -1,7 +1,9 @@
 #!/usr/local/bin/python
 
-from sys import argv
-from subprocess import call
+import subprocess
+import os
+import sys
+
 
 halvade = "halvade.config"
 arguments = "halvade_run.config"
@@ -38,6 +40,31 @@ def readConfig(filename):
 					flags[key] = key
 					print "FLAG %s: %s" % (key, key)				
 
+def spawnDaemon(args):
+        # create double-fork
+        try:
+                pid = os.fork()
+                if pid > 0:
+                        # parent process, return and keep running
+                        return
+        except OSError, e:
+                print >> sys.stderr, "fork #1 failed: %d (%s)" % (e.errno, e.strerror)
+                sys.exit(1)
+
+        os.setsid()
+
+        # do second fork
+        try:
+                pid = os.fork()
+                if pid > 0:
+                        # exit from second parent
+                        sys.exit(0)
+        except OSError, e:
+                print >> sys.stderr, "fork #2 failed: %d (%s)" % (e.errno, e.strerror)
+                sys.exit(1)
+
+        subprocess.Popen(args, stdout=open('halvade.stdout', 'a'), stderr=open('halvade.stderr', 'a'))
+        os._exit(os.EX_OK)
 
 
 # read config
@@ -86,8 +113,7 @@ if "emr_type" in emr_config:
 		argsArray.append("--arg")
                 argsArray.append(key+"="+custom_args[key])
 	print argsArray
-	call(argsArray)
-
+        spawnDaemon(argsArray)
 
 else:
 	print "Running Halvade on local cluster:"
@@ -104,6 +130,5 @@ else:
 		argsArray.append("-ca")
 		argsArray.append(key+"="+custom_args[key])
 	print argsArray
-	call(argsArray)
-
+        spawnDaemon(argsArray)
 

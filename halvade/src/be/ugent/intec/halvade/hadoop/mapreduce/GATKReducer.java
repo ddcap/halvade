@@ -49,6 +49,7 @@ public abstract class GATKReducer extends HalvadeReducer {
     protected int windows, cluster;
     protected double minFS, maxQD;
     protected boolean isRNA;
+    protected boolean redistribute;
     
     @Override
     protected void reduce(ChromosomeRegion key, Iterable<SAMRecordWritable> values, Context context) throws IOException, InterruptedException {
@@ -82,6 +83,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         exomeBedFile = HalvadeConf.getExomeBed(context.getConfiguration());
         useBedTools = HalvadeConf.getUseBedTools(context.getConfiguration());
         useUnifiedGenotyper = HalvadeConf.getUseUnifiedGenotyper(context.getConfiguration());
+        redistribute = HalvadeConf.getRedistribute(context.getConfiguration());
     }
     
     protected abstract void processAlignments(Iterable<SAMRecordWritable> values, Context context, PreprocessingTools tools, GATKTools gatk) 

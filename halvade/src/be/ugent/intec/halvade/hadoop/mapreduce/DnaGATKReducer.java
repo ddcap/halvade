@@ -41,6 +41,11 @@ public class DnaGATKReducer extends GATKReducer {
             elPrepPreprocess(context, tools, SAMit, preprocess);
         else  {
             if(!isFirstAttempt) Logger.DEBUG("attempt " + taskId + ", preprocessing with Picard for smaller peak memory");
+            if(redistribute) {
+                // assume this is after all other tasks and increase threads to 6!
+                threads = 6;
+                gatk.setThreads(threads);
+            }
             PicardPreprocess(context, tools, SAMit, preprocess);
         }
         region = makeRegionFile(context, r, tools, region);
