@@ -50,10 +50,16 @@ public class HalvadeResourceManager {
         int tmpmem = (int) (opt.mem * 1024);
         int tmpvcores = opt.vcores;
         
+        int mmem = RESOURCE_REQ[type][0];
+        int rmem = RESOURCE_REQ[type][1] == ALL ? tmpmem - MEM_AM : RESOURCE_REQ[type][1];
+        if(type == DNA && opt.overrideMem > 0) {
+            mmem = opt.overrideMem;
+            rmem = opt.overrideMem;
+        }
         if (opt.setMapContainers)
-            opt.mapContainersPerNode = Math.min(tmpvcores, Math.max(tmpmem / RESOURCE_REQ[type][0],1));
+            opt.mapContainersPerNode = Math.min(tmpvcores, Math.max(tmpmem / mmem,1));
         if (opt.setReduceContainers) 
-            opt.reducerContainersPerNode = Math.min(tmpvcores, Math.max(tmpmem / RESOURCE_REQ[type][1], 1));
+            opt.reducerContainersPerNode = Math.min(tmpvcores, Math.max(tmpmem / rmem, 1));
         
         opt.maps = Math.max(1,opt.nodes*opt.mapContainersPerNode);
         Logger.DEBUG("set # map containers: " + opt.maps);
@@ -64,15 +70,6 @@ public class HalvadeResourceManager {
         if(opt.smtEnabled) {
             opt.mthreads *=2;
             opt.rthreads *=2;
-        }
-        int mmem = RESOURCE_REQ[type][0];
-        int rmem = RESOURCE_REQ[type][1] == ALL ? tmpmem - MEM_AM : RESOURCE_REQ[type][1];
-        
-        if(type == DNA){
-            if (opt.overrideMem > 0) {
-                mmem = opt.overrideMem;
-                rmem = opt.overrideMem;
-            }
         }
         
         Logger.DEBUG("resources set to " + opt.mapContainersPerNode + " maps [" 

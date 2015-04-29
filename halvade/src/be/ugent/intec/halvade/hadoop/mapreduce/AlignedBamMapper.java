@@ -30,7 +30,13 @@ public class AlignedBamMapper extends Mapper<LongWritable,SAMRecordWritable,
     @Override
     protected void map(LongWritable key, SAMRecordWritable value, Context context) throws IOException, InterruptedException {
         SAMRecord sam = value.get();
-        Logger.DEBUG(sam.getSAMString());
+        try{
+            String s = sam.getSAMString();
+        } catch(StringIndexOutOfBoundsException e) {
+            Logger.DEBUG("error with samstring...");
+            Logger.DEBUG(sam.getReadName() + " " + sam.getReadString());
+            throw e;
+        }
         instance.writePairedSAMRecordToContext(value.get(), false);
     }
 
