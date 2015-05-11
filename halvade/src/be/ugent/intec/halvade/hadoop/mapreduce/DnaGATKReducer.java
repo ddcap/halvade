@@ -37,7 +37,7 @@ public class DnaGATKReducer extends GATKReducer {
         ChromosomeRange r = new ChromosomeRange();
         SAMRecordIterator SAMit = new SAMRecordIterator(values.iterator(), header, r);
         
-        if(useElPrep && isFirstAttempt)
+        if(useElPrep && isFirstAttempt) 
             elPrepPreprocess(context, tools, SAMit, preprocess);
         else  {
             if(!isFirstAttempt) Logger.DEBUG("attempt " + taskId + ", preprocessing with Picard for smaller peak memory");
@@ -45,6 +45,7 @@ public class DnaGATKReducer extends GATKReducer {
                 // assume this is after all other tasks and increase threads to 6!
                 threads = 6;
                 gatk.setThreads(threads);
+                Logger.DEBUG("redistributing... using 6 cores");
             }
             PicardPreprocess(context, tools, SAMit, preprocess);
         }

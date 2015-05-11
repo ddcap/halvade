@@ -14,7 +14,6 @@ import be.ugent.intec.halvade.utils.Logger;
 import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
 import java.io.IOException;
 import java.net.URISyntaxException;
-import net.sf.samtools.SAMRecord;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.Mapper;
 
@@ -29,13 +28,10 @@ public class AlignedBamMapper extends Mapper<LongWritable,SAMRecordWritable,
     
     @Override
     protected void map(LongWritable key, SAMRecordWritable value, Context context) throws IOException, InterruptedException {
-        SAMRecord sam = value.get();
-        try{
-            String s = sam.getSAMString();
+        try {
+            value.get().getSAMString();
         } catch(StringIndexOutOfBoundsException e) {
-            Logger.DEBUG("error with samstring...");
-            Logger.DEBUG(sam.getReadName() + " " + sam.getReadString());
-            throw e;
+            Logger.DEBUG("incorrect samstring, skipping...");
         }
         instance.writePairedSAMRecordToContext(value.get(), false);
     }

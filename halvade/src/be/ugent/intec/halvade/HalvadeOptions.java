@@ -167,7 +167,7 @@ public class HalvadeOptions {
             reduces = (int) (coverage * REDUCE_TASKS_FACTOR);
             ChromosomeSplitter splitter = new ChromosomeSplitter(dict, chr, reduces);
             HalvadeConf.setMinChrLength(hConf, splitter.getRegionSize());
-            reduces = splitter.getRegionCount();
+            reduces = splitter.getRegionCount() + 1;
 
         } catch (ParseException e) {
             Logger.DEBUG(e.getMessage());

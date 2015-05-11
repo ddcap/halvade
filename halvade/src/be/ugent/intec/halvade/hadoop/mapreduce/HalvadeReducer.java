@@ -51,9 +51,11 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
     protected String RGPU = "UNIT1";
     protected String RGSM = "SAMPLE1";
     protected int threads;
+    protected int taskNr;
     protected String referenceName;
     protected SAMFileHeader outHeader;
     protected boolean keep = false;
+    protected SAMReadGroupRecord bamrg;
     
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
@@ -115,11 +117,17 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
         getReadGroupData(context.getConfiguration());
         taskId = context.getTaskAttemptID().toString();
         taskId = taskId.substring(taskId.indexOf("r_"));
+        taskNr = Integer.parseInt(taskId.split("_")[1]);
         header = new SAMFileHeader();
         header.setSequenceDictionary(dict);
         count = 0;
         variantFiles = new ArrayList<>();
         bin  = checkBinaries(context);
+        bamrg = new SAMReadGroupRecord(RGID);
+        bamrg.setLibrary(RGLB);
+        bamrg.setPlatform(RGPL);
+        bamrg.setPlatformUnit(RGPU);
+        bamrg.setSample(RGSM);
         try {
             ref = HalvadeFileUtils.downloadGATKIndex(context, taskId);
         } catch (URISyntaxException ex) {

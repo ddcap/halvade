@@ -272,7 +272,7 @@ public class HalvadeConf {
     public static int getMapContainerCount(Configuration conf) {
         return conf.getInt(totalContainers, 1);
     }
-    public static int lessTasksLeftThanContainers(Configuration conf) throws IOException, URISyntaxException {
+    public static int getMapTasksLeft(Configuration conf) throws IOException, URISyntaxException {
         int containers = conf.getInt(totalContainers, 1);        
         int tasks = 0;
         String filedir = conf.get(outdir) + tasksDone;
@@ -283,8 +283,8 @@ public class HalvadeConf {
                 tasks++;
             }
         }
-        Logger.DEBUG("containers left: " + (containers - (Integer.parseInt(conf.get("mapred.map.tasks")) - tasks)));
-        return containers - (Integer.parseInt(conf.get("mapred.map.tasks")) - tasks);        
+        Logger.DEBUG("containers left: " + (Integer.parseInt(conf.get("mapred.map.tasks")) - tasks));
+        return Integer.parseInt(conf.get("mapred.map.tasks")) - tasks;        
     }
     
     public static boolean allTasksCompleted(Configuration conf) throws IOException, URISyntaxException {

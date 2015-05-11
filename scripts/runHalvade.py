@@ -63,7 +63,8 @@ def spawnDaemon(args):
                 print >> sys.stderr, "fork #2 failed: %d (%s)" % (e.errno, e.strerror)
                 sys.exit(1)
 
-        subprocess.Popen(args, stdout=open('halvade.stdout', 'a'), stderr=open('halvade.stderr', 'a'))
+        print "starting halvade with pid(%d)" % (os.getpid())
+        subprocess.Popen(args, stdout=open('halvade'+str(os.getpid())+'.stdout', 'a'), stderr=open('halvade'+str(os.getpid())+'.stderr', 'a'))
         os._exit(os.EX_OK)
 
 

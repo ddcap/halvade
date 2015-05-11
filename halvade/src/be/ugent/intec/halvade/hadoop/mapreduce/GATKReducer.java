@@ -50,6 +50,8 @@ public abstract class GATKReducer extends HalvadeReducer {
     protected double minFS, maxQD;
     protected boolean isRNA;
     protected boolean redistribute;
+    protected int containers;
+    protected int tasksLeft;
     
     @Override
     protected void reduce(ChromosomeRegion key, Iterable<SAMRecordWritable> values, Context context) throws IOException, InterruptedException {
@@ -84,6 +86,12 @@ public abstract class GATKReducer extends HalvadeReducer {
         useBedTools = HalvadeConf.getUseBedTools(context.getConfiguration());
         useUnifiedGenotyper = HalvadeConf.getUseUnifiedGenotyper(context.getConfiguration());
         redistribute = HalvadeConf.getRedistribute(context.getConfiguration());
+        containers = HalvadeConf.getMapContainerCount(context.getConfiguration());
+        tasksLeft = Integer.parseInt(context.getConfiguration().get("mapred.map.tasks")) - taskNr;
+        // get task number: 
+        if(redistribute && tasksLeft < containers) {
+            threads = 6;
+        }
     }
     
     protected abstract void processAlignments(Iterable<SAMRecordWritable> values, Context context, PreprocessingTools tools, GATKTools gatk) 
@@ -129,6 +137,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         String tmpOut3 = tmpFileBase + "-p3.bam";
         String tmpMetrics = tmpFileBase + "-p3-metrics.txt";
         SAMFileWriterFactory factory = new SAMFileWriterFactory();
+        outHeader.addReadGroup(bamrg);
         SAMFileWriter writer = factory.makeBAMWriter(outHeader, true, new File(tmpOut1));
         
         long startTime = System.currentTimeMillis();
@@ -148,7 +157,6 @@ public abstract class GATKReducer extends HalvadeReducer {
         context.getCounter(HalvadeCounters.TIME_HADOOP_SAMTOBAM).increment(estimatedTime);
         Logger.DEBUG("time writing " + count + " records to disk: " + estimatedTime / 1000);
         
-        //preprocess steps of iprep
         Logger.DEBUG("clean sam");
         context.setStatus("clean sam");
         tools.runCleanSam(tmpOut1, tmpOut2);

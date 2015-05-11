@@ -88,9 +88,7 @@ public class BWAAlnInstance extends AlignerInstance {
         
     @Override
     protected void startAligner(Mapper.Context context) throws IOException, InterruptedException {
-        // make command
-        // use half the threads if paired reads ( 2 instances of aln will run)
-        if(redistribute && containerMinusTasksLeft > 0) {
+        if(redistribute) {
             getIdleCores(context);
             Logger.DEBUG("Redistributing cores: using " + threads);
         }
