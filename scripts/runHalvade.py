@@ -79,12 +79,14 @@ print jar
 if "emr_type" in emr_config:
 	print "Running Halvade on Amazon EMR:"
 	emr_mem = int(config["mem"])*1024
-	timeout = 6000000
-	hadoopArgs="-y,yarn.scheduler.maximum-allocation-mb=%d,-y,yarn.nodemanager.resource.memory-mb=%d,-m,mapreduce.job.reduce.slowstart.completedmaps=1.0,-m,mapreduce.task.timeout=%d" %(emr_mem, emr_mem,timeout)
+	timeout = 1800000
+	hadoopArgs="[-y,yarn.scheduler.maximum-allocation-mb=%d,-y,yarn.nodemanager.resource.memory-mb=%d,-m,mapreduce.job.reduce.slowstart.completedmaps=1.0,-m,mapreduce.task.timeout=%d]" %(emr_mem, emr_mem,timeout)
 	print hadoopArgs
 	argsArray = []
-	argsArray.append("elastic-mapreduce")
-	argsArray.append("--create")
+	argsArray.append("aws")
+	argsArray.append("emr")
+	argsArray.append("create-cluster")
+	argsArray.append("--auto-terminate")
 	argsArray.append("--instance-type")
 	argsArray.append(emr_config["emr_type"])
 	argsArray.append("--instance-count")
@@ -92,29 +94,22 @@ if "emr_type" in emr_config:
 	argsArray.append("--enable-debugging")
 	argsArray.append("--ami-version")
 	argsArray.append(emr_config["emr_ami_v"])
-	argsArray.append("--bootstrap-action")
-	argsArray.append("s3://elasticmapreduce/bootstrap-actions/configure-hadoop")
-	argsArray.append("--args")
-	argsArray.append(hadoopArgs)
-	argsArray.append("--bootstrap-action")
-	argsArray.append(emr_config["emr_script"])
-	argsArray.append("--jar")
-	argsArray.append(emr_config["emr_jar"])
-	for key in config:
-		argsArray.append("--arg")
-		argsArray.append("-"+key)
-		argsArray.append("--arg")
-		argsArray.append(config[key])
-	for key in flags:
-		argsArray.append("--arg")
-		argsArray.append("-"+key)
-	for key in custom_args:
-		argsArray.append("--arg")
-                argsArray.append("-ca")	
-		argsArray.append("--arg")
-                argsArray.append(key+"="+custom_args[key])
+        argsArray.append("--bootstrap-actions")
+        argsArray.append("Path=s3://elasticmapreduce/bootstrap-actions/configure-hadoop,Name=configuration,Args="+hadoopArgs+ " Path="+emr_config["emr_script"]+",Name=maketmpdir")
+	argsArray.append("--steps")
+	argsString ="["
+        for key in config:
+                argsString+="-"+key+","
+                argsString+=config[key]+","
+        for key in flags:
+                argsString+="-"+key+","
+        for key in custom_args:
+                argsString+="-ca,"
+                argsString+="-"+key+"="+custom_args[key]+","
+	argsString = argsString[:-1]+"]"
+	argsArray.append("Name=Halvade,Jar="+emr_config["emr_jar"]+",ActionOnFailure=TERMINATE_CLUSTER,Args="+argsString)
 	print argsArray
-        spawnDaemon(argsArray)
+        #spawnDaemon(argsArray)
 
 else:
 	print "Running Halvade on local cluster:"

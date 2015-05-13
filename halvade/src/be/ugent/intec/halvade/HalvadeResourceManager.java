@@ -35,8 +35,8 @@ public class HalvadeResourceManager {
     protected static final int ALL = Integer.MAX_VALUE;
     protected static final int MEM_AM = (int) (1.5*1024);
     protected static final int VCORES_AM = 1;
-    protected static final int MEM_STAR = (int) (16*1024); // 31 for gh
-    protected static final int MEM_REF = (int) (16*1024); // 16 for gh
+    protected static final int MEM_STAR = (int) (16*1024); // 16 for hg -> reduced reference
+    protected static final int MEM_REF = (int) (16*1024); // 16 for hg
     protected static final int[][] RESOURCE_REQ = { 
         //mapmem, redmem
         {MEM_STAR,  ALL},     // RNA with shared memory pass1
@@ -52,7 +52,7 @@ public class HalvadeResourceManager {
         
         int mmem = RESOURCE_REQ[type][0];
         int rmem = RESOURCE_REQ[type][1] == ALL ? tmpmem - MEM_AM : RESOURCE_REQ[type][1];
-        if(type == DNA && opt.overrideMem > 0) {
+        if(opt.overrideMem > 0) {
             mmem = opt.overrideMem;
             rmem = opt.overrideMem;
         }

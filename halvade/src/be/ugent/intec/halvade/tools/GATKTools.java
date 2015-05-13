@@ -185,6 +185,7 @@ public class GATKTools {
             "-RMQF", "255",
             "-RMQT", "" + newMaxQualScore,
             "-U", "ALLOW_N_CIGAR_READS",
+            "-fixNDN",
             "-L", region};
         String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "gatk", "splitncigarreads");
         long estimatedTime = runProcessAndWait("GATK SplitNCigarReads", AddCustomArguments(command, customArgs));   
