@@ -79,7 +79,6 @@ public class HalvadeOptions {
     protected String chr = null;
     protected int reducerContainersPerNode = -1;
     protected int mapContainersPerNode = -1;
-    protected boolean reuseJVM = false;
     protected boolean justAlign = false;
     protected String exomeBedFile = null;
     protected double coverage = -1.0;
@@ -134,7 +133,6 @@ public class HalvadeOptions {
             HalvadeConf.clearTaskFiles(hConf);
             HalvadeConf.setUseElPrep(hConf, useElPrep);
             HalvadeConf.setUseUnifiedGenotyper(hConf, useGenotyper);
-            HalvadeConf.setReuseJVM(hConf, reuseJVM);
             HalvadeConf.setRedistribute(hConf, redistribute);
             HalvadeConf.setReadGroup(hConf, "ID:" + RGID + " LB:" + RGLB + " PL:" + RGPL + " PU:" + RGPU + " SM:" + RGSM);
             HalvadeConf.setkeepChrSplitPairs(hConf, keepChrSplitPairs);
@@ -364,7 +362,7 @@ public class HalvadeOptions {
                 .withValueSeparator()
                 .withDescription("Adds custom arguments for a tool. If a module in a tool is used, add the name after an underscore. "
                         + "Possible values: " + getProgramNames())
-                .create("ca");
+                .create("CA");
 
         //flags
         Option optSingle = OptionBuilder.withDescription("Sets the input files to single reads [default is paired-end reads].")
@@ -377,8 +375,6 @@ public class HalvadeOptions {
                 .create("P");
         Option optBed = OptionBuilder.withDescription("Use Bedtools to select an interval of dbsnp.")
                 .create("b");
-        Option optJVM = OptionBuilder.withDescription("Set this to enable reusing JVM (avoids loading reference multiple times).")
-                .create("rjvm");
         Option optJustAlign = OptionBuilder.withDescription("Only align the reads.")
                 .create("justalign");
         Option optSmt = OptionBuilder.withDescription("Enable simultaneous multithreading.")
@@ -387,7 +383,7 @@ public class HalvadeOptions {
                 .create("keep");
         Option optHap = OptionBuilder.withDescription("Use HaplotypeCaller instead of UnifiedGenotyper for Variant Detection.")
                 .create("hc");
-        Option optRna = OptionBuilder.withDescription("Run the RNA Best Practices pipeline by Broad [default is DNA pipeline].")
+        Option optRna = OptionBuilder.withDescription("Run the RNA Best Practices pipeline by Broad [default is DNA pipeline]. SG needs to be set for this.")
                 .create("rna");
         Option optDry = OptionBuilder.withDescription("Execute a dryrun, will calculate task size, split for regions etc, but not execute the MapReduce job.")
                 .create("dryrun");
@@ -420,7 +416,6 @@ public class HalvadeOptions {
         options.addOption(optScc);
         options.addOption(optSec);
         options.addOption(optChr);
-        options.addOption(optJVM);
         options.addOption(optJava);
         options.addOption(optCombine);
         options.addOption(optNodes);
@@ -515,9 +510,6 @@ public class HalvadeOptions {
             justAlign = true;
             combineVcf = false;
         }
-        if (line.hasOption("rjvm")) {
-            reuseJVM = true;
-        }
         if (line.hasOption("bwamem")) {
             aln = false;
         }
@@ -572,8 +564,8 @@ public class HalvadeOptions {
             chr = line.getOptionValue("chr");
         }
 
-        if (line.hasOption("ca")) {
-            Properties props = line.getOptionProperties("ca");
+        if (line.hasOption("CA")) {
+            Properties props = line.getOptionProperties("CA");
             Enumeration names = props.propertyNames();
             while (names.hasMoreElements()) {
                 String name = (String) names.nextElement();

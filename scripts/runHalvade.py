@@ -105,7 +105,7 @@ if "emr_type" in emr_config:
                 argsString+="-"+key+","
         for key in custom_args:
                 argsString+="-ca,"
-                argsString+="-"+key+"="+custom_args[key]+","
+                argsString+=key+"="+custom_args[key]+","
 	argsString = argsString[:-1]+"]"
 	argsArray.append("Name=Halvade,Jar="+emr_config["emr_jar"]+",ActionOnFailure=TERMINATE_CLUSTER,Args="+argsString)
 	print argsArray

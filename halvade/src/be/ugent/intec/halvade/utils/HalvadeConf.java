@@ -119,22 +119,7 @@ public class HalvadeConf {
         else 
             return false;
     }
-    
-    private static final String reuseJVM = "reuseJVM";
-    public static void setReuseJVM(Configuration conf, boolean val) {
-        if(val)
-            conf.set(reuseJVM, "true");
-        else 
-            conf.set(reuseJVM, "false");
-    }
-    public static boolean getReuseJVM(Configuration conf) {
-        String s = conf.get(reuseJVM);
-        if(s.equalsIgnoreCase("true"))
-            return true;
-        else 
-            return false;
-    }
-    
+        
     private static final String paired = "ispaired";
     public static void setIsPaired(Configuration conf, boolean isPaired) {
         if(isPaired)
