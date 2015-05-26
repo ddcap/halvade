@@ -326,16 +326,9 @@ public class CommandGenerator {
         command.add("" + numberOfThreads);
         command.add(starOptions[14]);
         command.add("" + STARBufferSize); // make default buffersize smaller so more threads are started
-        if(passType == STARInstance.PASS1AND2) {
-            command.add(starOptions[5]);
-            command.add("" + nReads);
-            command.add(starOptions[6]);
-            command.add("" + overhang);
-        } else if (passType == STARInstance.PASS2 || passType == STARInstance.PASS1) {
-            command.add(starOptions[9]);
-            command.add(starGenomeLoad[2]);
-        }
-        if(passType == STARInstance.PASS2 || passType == STARInstance.PASS1AND2) {            
+        command.add(starOptions[9]);
+        command.add(starGenomeLoad[2]);
+        if(passType == STARInstance.PASS2) {            
             command.add(starOptions[7]);
             command.add("SAM");
             command.add("Unsorted"); 

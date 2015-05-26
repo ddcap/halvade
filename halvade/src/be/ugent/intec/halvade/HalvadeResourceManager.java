@@ -28,9 +28,8 @@ import org.apache.hadoop.conf.Configuration;
 public class HalvadeResourceManager {
     public static int RNA_SHMEM_PASS1 = 0;
     public static int RNA_SHMEM_PASS2 = 1;
-    public static int RNA = 2;
-    public static int DNA = 3;
-    public static int COMBINE = 4;
+    public static int DNA = 2;
+    public static int COMBINE = 3;
     
     protected static final int ALL = Integer.MAX_VALUE;
     protected static final int MEM_AM = (int) (1.5*1024);
@@ -41,7 +40,6 @@ public class HalvadeResourceManager {
         //mapmem, redmem
         {MEM_STAR,  ALL},     // RNA with shared memory pass1
         {MEM_STAR,  MEM_REF}, // RNA with shared memory pass2
-        {MEM_STAR,  MEM_REF}, // RNA without shared memory <- to be deleted
         {MEM_REF,   MEM_REF}, // DNA
         {4*1024,    4*1024}   // combine
     };

@@ -91,7 +91,6 @@ public class HalvadeOptions {
     protected boolean startupJob = true;
     protected boolean rnaPipeline = false;
     protected boolean reportAll = false;
-    protected boolean useSharedMemory = true;
     protected boolean useBamInput = false;
     protected boolean setMapContainers = true, setReduceContainers = true;
     protected boolean redistribute = false;
@@ -139,7 +138,7 @@ public class HalvadeOptions {
             HalvadeConf.setRedistribute(hConf, redistribute);
             HalvadeConf.setReadGroup(hConf, "ID:" + RGID + " LB:" + RGLB + " PL:" + RGPL + " PU:" + RGPU + " SM:" + RGSM);
             HalvadeConf.setkeepChrSplitPairs(hConf, keepChrSplitPairs);
-            if (STARGenome != null && useSharedMemory) {
+            if (STARGenome != null) {
                 HalvadeConf.setStarDirPass2HDFS(hConf, out);
             }
 
@@ -479,11 +478,7 @@ public class HalvadeOptions {
         }
         if (line.hasOption("smt")) {
             smtEnabled = true;
-//            vcores *= 2;
         }
-//        if (line.hasOption("shmem")) {
-//            useSharedMemory = true;
-//        }
         if (line.hasOption("mem")) {
             mem = Double.parseDouble(line.getOptionValue("mem"));
         }

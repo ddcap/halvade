@@ -65,17 +65,15 @@ public class MapReduceRunner extends Configured implements Tool  {
             String halvadeDir = halvadeOpts.out + "/halvade";
             if(!halvadeOpts.justCombine) {
                 if(halvadeOpts.rnaPipeline) {
-                    if(halvadeOpts.useSharedMemory && !halvadeOpts.useBamInput) {
+                    if(!halvadeOpts.useBamInput) {
                         ret = runPass1RNAJob(halvadeConf, halvadeOpts.out + "/pass1");
                         if(ret != 0) {
                             Logger.DEBUG("Halvade pass 1 job failed.");
                             System.exit(-1);
                         }
                         HalvadeConf.setIsPass2(halvadeConf, true);
-                        ret = runHalvadeJob(halvadeConf, halvadeDir, HalvadeResourceManager.RNA_SHMEM_PASS2);
-                    } else {
-                        ret = runHalvadeJob(halvadeConf, halvadeDir, HalvadeResourceManager.RNA);
                     }
+                    ret = runHalvadeJob(halvadeConf, halvadeDir, HalvadeResourceManager.RNA_SHMEM_PASS2);
                 } else {
                     ret = runHalvadeJob(halvadeConf, halvadeDir, HalvadeResourceManager.DNA);
                 }
@@ -154,9 +152,6 @@ public class MapReduceRunner extends Configured implements Tool  {
             HalvadeConf.setIsPass2(halvadeConf, true);
             HalvadeResourceManager.setJobResources(halvadeOpts, halvadeConf, jobType, false);
             pipeline = RNA_PASS2;
-        } else if(jobType == HalvadeResourceManager.RNA) {
-            HalvadeResourceManager.setJobResources(halvadeOpts, halvadeConf, jobType, false);
-            pipeline = RNA;
         } else if(jobType == HalvadeResourceManager.DNA) {
             HalvadeResourceManager.setJobResources(halvadeOpts, halvadeConf, jobType, false);
             pipeline = DNA; 
@@ -177,9 +172,6 @@ public class MapReduceRunner extends Configured implements Tool  {
 
         if(jobType == HalvadeResourceManager.RNA_SHMEM_PASS2) {
             halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.StarAlignPassXMapper.class);
-            halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.RnaGATKReducer.class);
-        } else if(jobType == HalvadeResourceManager.RNA) {
-            halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.StarAlignMapper.class);
             halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.RnaGATKReducer.class);
         } else if(jobType == HalvadeResourceManager.DNA){ 
             if (halvadeOpts.aln) halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.BWAAlnMapper.class);

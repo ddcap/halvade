@@ -45,7 +45,6 @@ import org.apache.hadoop.mapreduce.TaskInputOutputContext;
 public class STARInstance extends AlignerInstance {
     public static int PASS1 = 1;
     public static int PASS2 = 2;
-    public static int PASS1AND2 = 3;
     private static STARInstance instance;
     private ProcessBuilderWrapper star;
     private SAMStreamHandler ssh;
@@ -163,12 +162,12 @@ public class STARInstance extends AlignerInstance {
         // check if alive
         if(!star.isAlive())
             throw new ProcessException("STAR aligner", star.getExitState());
-        if(starType == PASS2 || starType == PASS1AND2) {
+        if(starType == PASS2) {
             ssh = new SAMStreamHandler(instance, context, false);
             ssh.start();
         }
         int error = star.waitForCompletion();
-        if(starType == PASS2 || starType == PASS1AND2)
+        if(starType == PASS2)
             ssh.join();
         if(error != 0)
             throw new ProcessException("STAR aligner", error);
