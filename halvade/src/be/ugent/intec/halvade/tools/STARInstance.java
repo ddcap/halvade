@@ -33,7 +33,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
-import net.sf.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceDictionary;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.TaskInputOutputContext;
@@ -252,6 +252,26 @@ public class STARInstance extends AlignerInstance {
         context.getCounter(HalvadeCounters.TIME_STAR_REF).increment(star.getExecutionTime());
     }
     
+    /**
+     * <avoid rebuilding genome>
+     * first pass:
+     * ./STAR 
+     *  --runThreadN 2 
+     *  --genomeDir ./genTest/ 
+     *  --genomeLoad LoadAndKeep 
+     *  --readFilesIn ../reads1_m_000001_0.fastq ../reads2_m_000001_0.fastq 
+     * 
+     * second pass:
+     * ./STAR 
+     *  --runThreadN 2 
+     *  --genomeDir ./genTest/ 
+     *  --genomeLoad LoadAndKeep 
+     *  --readFilesIn ../reads1_m_000001_0.fastq ../reads2_m_000001_0.fastq 
+     *  --twopassMode Basic 
+     *  --sjdbFileChrStartEnd FileName.sjdb
+     * 
+     * but cant be used with shared memory yet!
+     */
     protected static boolean sparseGenome = true;
     public static long rebuildStarGenome(TaskInputOutputContext context, String bin, String newGenomeDir, 
             String ref, String SJouttab, int sjoverhang, int threads, long mem) throws InterruptedException {

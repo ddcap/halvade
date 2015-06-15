@@ -11,8 +11,8 @@ import be.ugent.intec.halvade.tools.GATKTools;
 import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
-import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
-import fi.tkk.ics.hadoop.bam.VariantContextWritable;
+import org.seqdoop.hadoop_bam.SAMRecordWritable;
+import org.seqdoop.hadoop_bam.VariantContextWritable;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -20,10 +20,10 @@ import java.net.URISyntaxException;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMReadGroupRecord;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.util.Iso8601Date;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMReadGroupRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.util.Iso8601Date;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -50,19 +50,20 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
     protected String RGPL = "ILLUMINA";
     protected String RGPU = "UNIT1";
     protected String RGSM = "SAMPLE1";
+    protected String python;
     protected int threads;
     protected int taskNr;
     protected String referenceName;
     protected SAMFileHeader outHeader;
     protected boolean keep = false;
     protected SAMReadGroupRecord bamrg;
+    protected String outputdir;
     
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
         super.cleanup(context);
         Logger.DEBUG("count: " + count);
         String output = null;
-        String outputdir = HalvadeConf.getOutDir(context.getConfiguration());   
         if(variantFiles.size() > 1) { // should not happen -> multiple keys per reducer
             GATKTools gatk = new GATKTools(ref, bin);
             gatk.setThreads(threads);
@@ -118,6 +119,8 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
         taskId = context.getTaskAttemptID().toString();
         taskId = taskId.substring(taskId.indexOf("r_"));
         taskNr = Integer.parseInt(taskId.split("_")[1]);
+        python = HalvadeConf.getPython(context.getConfiguration());
+        outputdir = HalvadeConf.getOutDir(context.getConfiguration());   
         header = new SAMFileHeader();
         header.setSequenceDictionary(dict);
         count = 0;

@@ -18,7 +18,7 @@
 package be.ugent.intec.halvade.hadoop.partitioners;
 
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
-import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
+import org.seqdoop.hadoop_bam.SAMRecordWritable;
 import org.apache.hadoop.mapreduce.Partitioner;
 
 /**

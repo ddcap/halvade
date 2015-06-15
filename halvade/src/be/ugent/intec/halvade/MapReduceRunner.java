@@ -17,8 +17,8 @@
 
 package be.ugent.intec.halvade;
 
-import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
-import fi.tkk.ics.hadoop.bam.VariantContextWritable;
+import org.seqdoop.hadoop_bam.SAMRecordWritable;
+import org.seqdoop.hadoop_bam.VariantContextWritable;
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import be.ugent.intec.halvade.hadoop.datatypes.GenomeSJ;
 import be.ugent.intec.halvade.hadoop.mapreduce.HalvadeTextInputFormat;
@@ -35,13 +35,14 @@ import org.apache.hadoop.util.Tool;
 import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.Timer;
-import fi.tkk.ics.hadoop.bam.BAMInputFormat;
-import fi.tkk.ics.hadoop.bam.VCFInputFormat;
+import org.seqdoop.hadoop_bam.BAMInputFormat;
+import org.seqdoop.hadoop_bam.VCFInputFormat;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 
 /**
  *
@@ -82,8 +83,11 @@ public class MapReduceRunner extends Configured implements Tool  {
                     System.exit(-2);
                 }
             }
-            if(halvadeOpts.combineVcf) 
-                runCombineJob(halvadeDir, halvadeOpts.out + "/merge");
+            if(halvadeOpts.combineVcf) {
+                runCombineJob(halvadeDir, halvadeOpts.out + "/merge", false);
+                if(halvadeOpts.gff != null)
+                    runCombineJob(halvadeDir, halvadeOpts.out + "/mergeHTSeq", true);
+            }
         } catch (IOException | ClassNotFoundException | IllegalArgumentException | IllegalStateException | InterruptedException | URISyntaxException e) {
             Logger.EXCEPTION(e);
         }
@@ -201,7 +205,7 @@ public class MapReduceRunner extends Configured implements Tool  {
         return runTimedJob(halvadeJob, "Halvade Job");
     }
     
-    protected int runCombineJob(String halvadeOutDir, String mergeOutDir) throws IOException, URISyntaxException, InterruptedException, ClassNotFoundException {
+    protected int runCombineJob(String halvadeOutDir, String mergeOutDir, boolean HTSeqCount) throws IOException, URISyntaxException, InterruptedException, ClassNotFoundException {
         Configuration combineConf = getConf();
         if(!halvadeOpts.out.endsWith("/")) halvadeOpts.out += "/";  
         HalvadeConf.setInputDir(combineConf, halvadeOutDir);
@@ -217,19 +221,23 @@ public class MapReduceRunner extends Configured implements Tool  {
         Job combineJob = Job.getInstance(combineConf, "HalvadeCombineVCF");            
         combineJob.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
 
-        addInputFiles(halvadeOutDir, combineConf, combineJob, ".vcf");
+        addInputFiles(halvadeOutDir, combineConf, combineJob, HTSeqCount ? ".count" : ".vcf");
         FileOutputFormat.setOutputPath(combineJob, new Path(mergeOutDir));
 
-        combineJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
-        combineJob.setMapOutputKeyClass(LongWritable.class);
-        combineJob.setMapOutputValueClass(VariantContextWritable.class);
-        combineJob.setInputFormatClass(VCFInputFormat.class);
+        combineJob.setMapperClass(HTSeqCount ? 
+                be.ugent.intec.halvade.hadoop.mapreduce.HTSeqCombineMapper.class : 
+                be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
+        combineJob.setMapOutputKeyClass(HTSeqCount ? Text.class : LongWritable.class);
+        combineJob.setMapOutputValueClass(HTSeqCount ? LongWritable.class : VariantContextWritable.class);
+        combineJob.setInputFormatClass(HTSeqCount ? TextInputFormat.class : VCFInputFormat.class);
         combineJob.setNumReduceTasks(1); 
-        combineJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineReducer.class);
+        combineJob.setReducerClass(HTSeqCount ? 
+                be.ugent.intec.halvade.hadoop.mapreduce.HTSeqCombineReducer.class :
+                be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineReducer.class);
         combineJob.setOutputKeyClass(Text.class);
-        combineJob.setOutputValueClass(VariantContextWritable.class);
+        combineJob.setOutputValueClass(HTSeqCount ? LongWritable.class : VariantContextWritable.class);
 
-        return runTimedJob(combineJob, "Combine Job");
+        return runTimedJob(combineJob, (HTSeqCount ? "HTSeqCount" : "VCF")  + " Combine Job");
     }
     
     protected int runTimedJob(Job job, String jobname) throws IOException, InterruptedException, ClassNotFoundException {

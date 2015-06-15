@@ -89,7 +89,7 @@ public class CommandGenerator {
     };
     
     public static String[] bedTools(String bin, String dbsnp, String bed, String customArgs) {        
-        ArrayList<String> command = new ArrayList<String>();
+        ArrayList<String> command = new ArrayList<>();
         if(bin.endsWith("/")) 
             command.add(bin + bedToolsCommand[0]); 
         else
@@ -120,7 +120,7 @@ public class CommandGenerator {
     };*/
     public static String[] elPrep(String bin, String input, String output, int threads, boolean filterUnmapped, 
            String readGroup, String refDict, String customArgs) {
-        ArrayList<String> command = new ArrayList<String>();
+        ArrayList<String> command = new ArrayList<>();
         if(bin.endsWith("/")) 
             command.add(bin + elPrepCommand[0]); 
         else
@@ -155,7 +155,7 @@ public class CommandGenerator {
     private static String[] snpSiftOptions = {"intIdx"};
     //java -jar SnpSift.jar intidx input.vcf intervals.bed > output.vcf
     public static String[] snpSift(String java, String mem, String bin, String input, String bed, int threads) {
-        ArrayList<String> command = new ArrayList<String>();
+        ArrayList<String> command = new ArrayList<>();
         command.add(java);
         command.add(mem);
         command.add("-jar");
@@ -175,7 +175,7 @@ public class CommandGenerator {
     
     
     public static String[] SAMToolsMerge(String bin, String[] input, String output, int threads, String customArgs) {
-        ArrayList<String> command = new ArrayList<String>();
+        ArrayList<String> command = new ArrayList<>();
         if(bin.endsWith("/")) 
             command.add(bin + "samtools"); 
         else
@@ -195,7 +195,7 @@ public class CommandGenerator {
     }
     
     public static String[] SAMToolsView(String bin, String input, String output, int threads, String customArgs) {
-        ArrayList<String> command = new ArrayList<String>();
+        ArrayList<String> command = new ArrayList<>();
         if(bin.endsWith("/")) 
             command.add(bin + "samtools"); 
         else
@@ -222,7 +222,7 @@ public class CommandGenerator {
             boolean isPaired,
             boolean useSTDIN,
             int numberOfThreads, String customArgs) {
-        ArrayList<String> command = new ArrayList<String>();
+        ArrayList<String> command = new ArrayList<>();
         if(bin.endsWith("/")) 
             command.add(bin + bwaCommand[0]); 
         else
@@ -247,7 +247,7 @@ public class CommandGenerator {
     }
     
     public static String[] starGenomeLoad(String bin, String starGenomeDir, boolean unload) {
-        ArrayList<String> command = new ArrayList<String>();
+        ArrayList<String> command = new ArrayList<>();
         if(bin.endsWith("/")) 
             command.add(bin + starBin); 
         else
@@ -350,7 +350,7 @@ public class CommandGenerator {
             String bwaReadsFile,
             String output,
             int numberOfThreads, String customArgs) {
-        ArrayList<String> command = new ArrayList<String>();
+        ArrayList<String> command = new ArrayList<>();
         if(bin.endsWith("/")) 
             command.add(bin + bwaCommand[0]); 
         else
@@ -379,7 +379,7 @@ public class CommandGenerator {
             String bwaReadsFile2,
             boolean paired,
             int numberOfThreads, String customArgs) {
-        ArrayList<String> command = new ArrayList<String>();
+        ArrayList<String> command = new ArrayList<>();
         if(bin.endsWith("/")) 
             command.add(bin + bwaCommand[0]); 
         else
@@ -392,6 +392,29 @@ public class CommandGenerator {
         command.add(bwaReadsFile1);
         if(paired) command.add(bwaReadsFile2);
         command = addToCommand(command, customArgs);
+        Object[] ObjectList = command.toArray();
+        String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
+        return StringArray;
+    }
+    
+    private static String htseqBin = "htseq-count";
+    private static String[] htseqOptions = {"-r", "-f"};
+    public static String[] HTSeqCount(String python, String bin, String samFile, String gff, String customArgs) {
+        ArrayList<String> command = new ArrayList<>();
+        command.add(python);
+        if(bin.endsWith("/")) 
+            command.add(bin + htseqBin); 
+        else
+            command.add(bin + "/" + htseqBin);
+        command.add(htseqOptions[0]);
+        command.add("pos");
+        if(samFile.endsWith("bam")) {
+            command.add(htseqOptions[1]);
+            command.add("bam");
+        }
+        command = addToCommand(command, customArgs);
+        command.add(samFile);
+        command.add(gff);
         Object[] ObjectList = command.toArray();
         String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
         return StringArray;

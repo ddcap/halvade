@@ -8,10 +8,10 @@ package be.ugent.intec.halvade.utils;
 
 import be.ugent.intec.halvade.tools.QualityEncoding;
 import be.ugent.intec.halvade.tools.QualityException;
-import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
+import org.seqdoop.hadoop_bam.SAMRecordWritable;
 import java.util.Iterator;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMRecord;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMRecord;
 
 /**
  *

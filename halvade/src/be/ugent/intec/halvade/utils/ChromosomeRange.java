@@ -72,7 +72,6 @@ public class ChromosomeRange {
     public void writeToPicardRegionFile(String filename) throws IOException {        
         BufferedWriter bedWriter = new BufferedWriter(new FileWriter(filename));
         for(Range r : list) {
-//            Logger.DEBUG("Region: " + r.getPicardRegion());
             bedWriter.write(r.getPicardRegion());
             bedWriter.newLine();
         }

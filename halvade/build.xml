@@ -75,11 +75,8 @@
         <jar jarfile="dist/HalvadeWithLibs.jar">
             <zipfileset src="${dist.jar}" excludes="META-INF/*" />
             <zipfileset src="lib/commons-cli-1.2.jar" excludes="META-INF/*" />
-            <zipfileset src="lib/HadoopBam.jar" excludes="META-INF/*" />
-            <zipfileset src="lib/picard-1.112.jar" excludes="META-INF/*" />
-            <zipfileset src="lib/sam-1.112.jar" excludes="META-INF/*" />
-            <zipfileset src="lib/variant-1.112.jar" excludes="META-INF/*" />
-            <zipfileset src="lib/tribble-1.112.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/hadoop-bam-7.0.0.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/htsjdk-1.118.jar" excludes="META-INF/*" />
             <manifest>
                 <attribute name="Main-Class" value="be.ugent.intec.halvade.Halvade"/>
             </manifest>

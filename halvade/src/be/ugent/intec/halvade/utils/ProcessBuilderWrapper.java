@@ -88,8 +88,11 @@ public class ProcessBuilderWrapper {
                 builder.environment().put(
                         "LD_LIBRARY_PATH",
                         "$LD_LIBRARY_PATH:" + libdir);
-                builder.environment().put("CILK_NWORKERS", "" + threads);
+                builder.environment().put(
+                         "PYTHONPATH",
+                         "$PYTHONPATH:" + libdir);
             }
+            builder.environment().put("CILK_NWORKERS", "" + threads);
             p = builder.start();
             mon = new ProcMon(p);
             Thread t = new Thread(mon);

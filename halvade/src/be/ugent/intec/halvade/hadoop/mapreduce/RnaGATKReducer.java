@@ -14,7 +14,7 @@ import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import be.ugent.intec.halvade.utils.SAMRecordIterator;
-import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
+import org.seqdoop.hadoop_bam.SAMRecordWritable;
 import java.io.IOException;
 import java.net.URISyntaxException;
 

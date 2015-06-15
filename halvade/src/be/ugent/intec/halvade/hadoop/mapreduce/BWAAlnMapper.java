@@ -22,7 +22,7 @@ import be.ugent.intec.halvade.tools.BWAAlnInstance;
 import java.io.IOException;
 import org.apache.hadoop.io.Text;
 import be.ugent.intec.halvade.utils.Logger;
-import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
+import org.seqdoop.hadoop_bam.SAMRecordWritable;
 import java.net.URISyntaxException;
 import org.apache.hadoop.io.LongWritable;
 

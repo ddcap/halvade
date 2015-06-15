@@ -20,7 +20,7 @@ package be.ugent.intec.halvade.hadoop.datatypes;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import net.sf.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceDictionary;
 import org.apache.hadoop.io.WritableComparable;
 
 /**

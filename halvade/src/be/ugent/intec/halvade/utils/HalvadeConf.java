@@ -20,8 +20,8 @@ package be.ugent.intec.halvade.utils;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -188,6 +188,22 @@ public class HalvadeConf {
     }
     public static String getScratchTempDir(Configuration conf) {
         return conf.get(scratchTempDirName);
+    }
+
+    private static final String gff = "gff";
+    public static String getGff(Configuration conf) {
+        return conf.get(gff);
+    }
+    public static void setGff(Configuration conf, String val) {
+        conf.set(gff, val);       
+    }
+    
+    private static final String python = "python";
+    public static String getPython(Configuration conf) {
+        return conf.get(python, "python");
+    }
+    public static void setPython(Configuration conf, String val) {
+        conf.set(python, val);       
     }
     
     private static final String readgroup = "readgroup";
@@ -403,12 +419,19 @@ public class HalvadeConf {
             return conf.getFloat(sec, DEFAULT_DNA_SEC);
     }
 
-    private static final String exomebed = "exomeBed";
-    public static void setExomeBed(Configuration conf, String bed) {
-        conf.set(exomebed, bed);
+    private static final String bed = "fullBed";
+    public static void setBed(Configuration conf, String bed) {
+        conf.set(bed, bed);
     }
-    public static String getExomeBed(Configuration conf) {
-        return conf.get(exomebed);
+    public static String getBed(Configuration conf) {
+        return conf.get(bed);
+    }
+    private static final String bedRegions = "regionsBed";
+    public static void setBedRegions(Configuration conf, String bed) {
+        conf.set(bedRegions, bed);
+    }
+    public static String getBedRegions(Configuration conf) {
+        return conf.get(bedRegions);
     }
     
     private static final String reportAllVariant = "reportAllVariant";

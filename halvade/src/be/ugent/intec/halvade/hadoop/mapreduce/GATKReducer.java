@@ -18,11 +18,11 @@
 package be.ugent.intec.halvade.hadoop.mapreduce;
 
 import be.ugent.intec.halvade.utils.SAMRecordIterator;
-import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
+import org.seqdoop.hadoop_bam.SAMRecordWritable;
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import java.io.File;
 import java.io.IOException;
-import net.sf.samtools.*;
+import htsjdk.samtools.*;
 import org.apache.hadoop.fs.FileSystem;
 import be.ugent.intec.halvade.tools.GATKTools;
 import be.ugent.intec.halvade.tools.PreprocessingTools;
@@ -52,6 +52,7 @@ public abstract class GATKReducer extends HalvadeReducer {
     protected boolean redistribute;
     protected int containers;
     protected int tasksLeft;
+    protected String gff;
     
     @Override
     protected void reduce(ChromosomeRegion key, Iterable<SAMRecordWritable> values, Context context) throws IOException, InterruptedException {
@@ -82,7 +83,8 @@ public abstract class GATKReducer extends HalvadeReducer {
         isRNA = HalvadeConf.getIsRNA(context.getConfiguration());
         scc = HalvadeConf.getSCC(context.getConfiguration(), isRNA);
         sec = HalvadeConf.getSEC(context.getConfiguration(), isRNA);
-        exomeBedFile = HalvadeConf.getExomeBed(context.getConfiguration());
+        gff = HalvadeConf.getGff(context.getConfiguration());
+        exomeBedFile = HalvadeConf.getBed(context.getConfiguration());
         useBedTools = HalvadeConf.getUseBedTools(context.getConfiguration());
         useUnifiedGenotyper = HalvadeConf.getUseUnifiedGenotyper(context.getConfiguration());
         redistribute = HalvadeConf.getRedistribute(context.getConfiguration());
@@ -98,11 +100,12 @@ public abstract class GATKReducer extends HalvadeReducer {
             throws IOException, InterruptedException, URISyntaxException, QualityException;
 
     
-    protected void elPrepPreprocess(Context context, PreprocessingTools tools, SAMRecordIterator input, String output) throws InterruptedException, IOException, QualityException {
+    protected void elPrepPreprocess(Context context, PreprocessingTools tools, SAMRecordIterator input, String output) throws InterruptedException, IOException, QualityException, URISyntaxException {
         String dictF = ref.substring(0, ref.lastIndexOf('.')) + ".dict";
         String rg = createReadGroupRecordString(RGID, RGLB, RGPL, RGPU, RGSM);
         String preSamOut = tmpFileBase + "-p1.sam";
         String samOut = tmpFileBase + "-p2.sam";
+        String htseq = tmpFileBase + "-htseq.count";
         
         outHeader = header.clone();
         outHeader.setSortOrder(SAMFileHeader.SortOrder.coordinate);
@@ -117,6 +120,14 @@ public abstract class GATKReducer extends HalvadeReducer {
         
         Logger.DEBUG(reads + " reads processed in elPrep");
         context.getCounter(HalvadeCounters.IN_PREP_READS).increment(reads);
+        
+        if(gff != null) {      
+            Logger.DEBUG("htseq-count");
+            context.setStatus("htseq-count");
+            tools.runHTSeqCount(python, samOut, htseq, gff);
+            HalvadeFileUtils.uploadFileToHDFS(context, FileSystem.get(new URI(outputdir), context.getConfiguration()),
+                        htseq, outputdir + context.getTaskAttemptID().toString() + ".count");
+        }
         context.setStatus("convert SAM to BAM");
         Logger.DEBUG("convert SAM to BAM");
         tools.callSAMToBAM(samOut, output, threads);
@@ -126,15 +137,17 @@ public abstract class GATKReducer extends HalvadeReducer {
         // remove temporary files
         HalvadeFileUtils.removeLocalFile(keep, preSamOut, context, HalvadeCounters.FOUT_GATK_TMP);
         HalvadeFileUtils.removeLocalFile(keep, samOut, context, HalvadeCounters.FOUT_GATK_TMP);
+        HalvadeFileUtils.removeLocalFile(keep, htseq);
     }
     
-    protected void PicardPreprocess(Context context, PreprocessingTools tools, SAMRecordIterator input, String output) throws InterruptedException, QualityException {
+    protected void PicardPreprocess(Context context, PreprocessingTools tools, SAMRecordIterator input, String output) throws InterruptedException, QualityException, IOException, URISyntaxException {
         outHeader = header.clone();
         outHeader.setSortOrder(SAMFileHeader.SortOrder.coordinate);
         // tmp files
         String tmpOut1 = tmpFileBase + "-p1.bam";
         String tmpOut2 = tmpFileBase + "-p2.bam";
-        String tmpOut3 = tmpFileBase + "-p3.bam";
+        String tmpOut3 = tmpFileBase + "-p3.sam"; // test with 1 sam output for htseq count and then back to bam!
+        String htseq = tmpFileBase + "-htseq.count";
         String tmpMetrics = tmpFileBase + "-p3-metrics.txt";
         SAMFileWriterFactory factory = new SAMFileWriterFactory();
         outHeader.addReadGroup(bamrg);
@@ -163,6 +176,15 @@ public abstract class GATKReducer extends HalvadeReducer {
         Logger.DEBUG("mark duplicates");
         context.setStatus("mark duplicates");
         tools.runMarkDuplicates(tmpOut2, tmpOut3, tmpMetrics);
+        if(gff != null) {
+            // tmpOut3 is sam for htseq count!        
+            Logger.DEBUG("htseq-count");
+            context.setStatus("htseq-count");
+            tools.runHTSeqCount(python, tmpOut3, htseq, gff);
+            HalvadeFileUtils.uploadFileToHDFS(context, FileSystem.get(new URI(outputdir), context.getConfiguration()),
+                        htseq, outputdir + context.getTaskAttemptID().toString() + ".count");
+            HalvadeFileUtils.uploadFileToHDFS(context, null, ref, tmp);
+        }  
         Logger.DEBUG("add read-group");
         context.setStatus("add read-group");
         tools.runAddOrReplaceReadGroups(tmpOut3, output, RGID, RGLB, RGPL, RGPU, RGSM);
@@ -177,7 +199,8 @@ public abstract class GATKReducer extends HalvadeReducer {
         HalvadeFileUtils.removeLocalFile(keep, tmpMetrics, context, HalvadeCounters.FOUT_GATK_TMP);
         HalvadeFileUtils.removeLocalFile(keep, tmpOut1, context, HalvadeCounters.FOUT_GATK_TMP);
         HalvadeFileUtils.removeLocalFile(keep, tmpOut2, context, HalvadeCounters.FOUT_GATK_TMP);
-        HalvadeFileUtils.removeLocalFile(keep, tmpOut3, context, HalvadeCounters.FOUT_GATK_TMP);       
+        HalvadeFileUtils.removeLocalFile(keep, tmpOut3, context, HalvadeCounters.FOUT_GATK_TMP);  
+        HalvadeFileUtils.removeLocalFile(keep, htseq);     
     }
 
     protected String makeRegionFile(Context context, ChromosomeRange r, PreprocessingTools tools, String region) throws URISyntaxException, IOException, InterruptedException {        

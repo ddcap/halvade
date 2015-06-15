@@ -11,7 +11,7 @@ import be.ugent.intec.halvade.tools.AlignerInstance;
 import be.ugent.intec.halvade.tools.DummyAlignerInstance;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.Logger;
-import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
+import org.seqdoop.hadoop_bam.SAMRecordWritable;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import org.apache.hadoop.io.LongWritable;

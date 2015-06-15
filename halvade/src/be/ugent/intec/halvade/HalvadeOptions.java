@@ -26,8 +26,8 @@ import java.net.URISyntaxException;
 import java.text.DecimalFormat;
 import java.util.Enumeration;
 import java.util.Properties;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMSequenceRecord;
+import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMSequenceRecord;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.CommandLineParser;
 import org.apache.commons.cli.GnuParser;
@@ -54,6 +54,8 @@ public class HalvadeOptions {
     protected String ref;
     protected String STARGenome = null;
     protected String java = null;
+    protected String python = null;
+    protected String gff = null;
     protected String tmpDir = "/tmp/halvade/";
     protected String localRefDir = null;
     protected String sites;
@@ -80,7 +82,8 @@ public class HalvadeOptions {
     protected int reducerContainersPerNode = -1;
     protected int mapContainersPerNode = -1;
     protected boolean justAlign = false;
-    protected String exomeBedFile = null;
+    protected String bedFile = null;
+    protected String bedRegion = null;
     protected double coverage = -1.0;
     protected String halvadeBinaries;
     protected String bin;
@@ -124,8 +127,8 @@ public class HalvadeOptions {
             HalvadeConf.setKnownSitesOnHDFS(hConf, hdfsSites);
             HalvadeConf.setIsPaired(hConf, paired);
             HalvadeConf.setIsRNA(hConf, rnaPipeline);
-            if (exomeBedFile != null) {
-                HalvadeConf.setExomeBed(hConf, exomeBedFile);
+            if (bedFile != null) {
+                HalvadeConf.setBed(hConf, bedFile);
             }
             HalvadeConf.setOutDir(hConf, out);
             HalvadeConf.setKeepFiles(hConf, keepFiles);
@@ -146,6 +149,12 @@ public class HalvadeOptions {
             if (java != null) {
                 HalvadeConf.setJava(hConf, java);
             }
+            if (python != null) {
+                HalvadeConf.setPython(hConf, python);
+            }
+            if (gff != null) {
+                HalvadeConf.setGff(hConf, gff);
+            }
 
             if (stand_call_conf > 0) {
                 HalvadeConf.setSCC(hConf, stand_call_conf);
@@ -162,9 +171,17 @@ public class HalvadeOptions {
             Logger.DEBUG("Estimated coverage: " + roundOneDecimal(coverage));
             // set a minimum first where the real amount is based on
             reduces = (int) (coverage * REDUCE_TASKS_FACTOR);
-            ChromosomeSplitter splitter = new ChromosomeSplitter(dict, chr, reduces);
-            HalvadeConf.setMinChrLength(hConf, splitter.getRegionSize());
-            reduces = splitter.getRegionCount() + 1;
+            Logger.DEBUG("estimated # reducers: " + reduces);
+            ChromosomeSplitter splitter;
+            if(bedFile != null)
+                splitter = new ChromosomeSplitter(dict, bedFile, reduces);
+            else
+                splitter = new ChromosomeSplitter(dict, reduces);
+            String bedRegions = out + "HalvadeRegions.bed";
+            splitter.exportSplitter(bedRegions, hConf);
+            reduces = splitter.getRegionCount();
+            Logger.DEBUG("actual # reducers: " + reduces);
+            HalvadeConf.setBedRegions(hConf, bedRegions);
 
         } catch (ParseException e) {
             Logger.DEBUG(e.getMessage());
@@ -209,7 +226,6 @@ public class HalvadeOptions {
             dict = new SAMSequenceDictionary();
             line = getLine(stream);
             while (line != null) {
-                // @SQ	SN:chrM	LN:16571
                 String[] lineData = line.split("\\s+");
                 String seqName = lineData[1].substring(lineData[1].indexOf(':') + 1);
                 int seqLength = 0;
@@ -339,15 +355,19 @@ public class HalvadeOptions {
                 .hasArg()
                 .withDescription("Sets stand_emit_conf for gatk Variant Caller.")
                 .create("sec");
-        Option optChr = OptionBuilder.withArgName("chr1,chr2,...")
+        Option optBed = OptionBuilder.withArgName("bedfile")
                 .hasArg()
-                .withDescription("Sets the chromosomes if reads don't cover the full reference (chrM,chr2,...)."
-                        + "This only changes how the regions will be distributed not the reference.")
-                .create("chr");
-        Option optEx = OptionBuilder.withArgName("bed file")
+                .withDescription("Sets the bed file containing relevant (Exome) regions which "
+                        + "will be used to split the genome into genomic regions.")
+                .create("bed");
+        Option optPython = OptionBuilder.withArgName("python")
                 .hasArg()
-                .withDescription("Gives the location of a bed file for exome target regions. Required for exome sequences. ")
-                .create("exome");
+                .withDescription("Sets the location of the python file if regular python command doesn't work.")
+                .create("python");
+        Option optGff = OptionBuilder.withArgName("gff")
+                .hasArg()
+                .withDescription("Sets the gff file to be used with HTSeq-Count. This is required to run HTSeq-Count.")
+                .create("gff");
         Option optMpn = OptionBuilder.withArgName("tasks")
                 .hasArg()
                 .withDescription("Overrides the number of map tasks running simultaneously on each node. ")
@@ -373,8 +393,8 @@ public class HalvadeOptions {
                 .create("c");
         Option optPp = OptionBuilder.withDescription("Uses Picard to preprocess the data for GATK.")
                 .create("P");
-        Option optBed = OptionBuilder.withDescription("Use Bedtools to select an interval of dbsnp.")
-                .create("b");
+        Option optBedtools = OptionBuilder.withDescription("Use Bedtools to select an interval of dbsnp.")
+                .create("bedtools");
         Option optJustAlign = OptionBuilder.withDescription("Only align the reads.")
                 .create("justalign");
         Option optSmt = OptionBuilder.withDescription("Enable simultaneous multithreading.")
@@ -411,11 +431,11 @@ public class HalvadeOptions {
         options.addOption(optPU);
         options.addOption(optSM);
         options.addOption(optPp);
-        options.addOption(optBed);
+        options.addOption(optBedtools);
         options.addOption(optHap);
         options.addOption(optScc);
         options.addOption(optSec);
-        options.addOption(optChr);
+        options.addOption(optBed);
         options.addOption(optJava);
         options.addOption(optCombine);
         options.addOption(optNodes);
@@ -424,8 +444,9 @@ public class HalvadeOptions {
         options.addOption(optKeep);
         options.addOption(optJustAlign);
         options.addOption(optCov);
-        options.addOption(optEx);
         options.addOption(optMpn);
+        options.addOption(optGff);
+        options.addOption(optPython);
         options.addOption(optRpn);
         options.addOption(optDry);
         options.addOption(optDrop);
@@ -516,8 +537,11 @@ public class HalvadeOptions {
         if (line.hasOption("J")) {
             java = line.getOptionValue("J");
         }
-        if (line.hasOption("exome")) {
-            exomeBedFile = line.getOptionValue("exome");
+        if (line.hasOption("python")) {
+            python = line.getOptionValue("python");
+        }
+        if (line.hasOption("gff")) {
+            gff = line.getOptionValue("gff");
         }
         if (line.hasOption("dryrun")) {
             dryRun = true;
@@ -533,7 +557,7 @@ public class HalvadeOptions {
             justCombine = true;
             combineVcf = true;
         }
-        if (line.hasOption("b")) {
+        if (line.hasOption("bedtools")) {
             useBedTools = true;
         }
         if (line.hasOption("hc")) {
@@ -560,8 +584,8 @@ public class HalvadeOptions {
         if (line.hasOption("sm")) {
             RGSM = line.getOptionValue("sm");
         }
-        if (line.hasOption("chr")) {
-            chr = line.getOptionValue("chr");
+        if (line.hasOption("bed")) {
+            bedFile = line.getOptionValue("bed");
         }
 
         if (line.hasOption("CA")) {

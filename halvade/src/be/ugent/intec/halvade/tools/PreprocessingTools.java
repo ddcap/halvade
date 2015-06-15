@@ -25,23 +25,21 @@ import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import be.ugent.intec.halvade.utils.ProcessBuilderWrapper;
 import be.ugent.intec.halvade.utils.SAMRecordIterator;
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import net.sf.samtools.SAMFileHeader;
-import net.sf.samtools.SAMFileWriter;
-import net.sf.samtools.SAMFileWriterFactory;
-import net.sf.samtools.SAMRecord;
-import net.sf.samtools.SAMSequenceDictionary;
-import net.sf.samtools.SAMTextHeaderCodec;
+import htsjdk.samtools.SAMFileHeader;
+import htsjdk.samtools.SAMFileWriter;
+import htsjdk.samtools.SAMFileWriterFactory;
+import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMTextHeaderCodec;
 import org.apache.hadoop.mapreduce.Reducer;
 
 /**
@@ -55,10 +53,6 @@ public class PreprocessingTools {
     String java;
     String mem = "-Xmx2g";
 
-    /**
-     * class that wraps several picard commands
-     * and calls them from java itself
-     */
     public void setContext(Reducer.Context context) {
         this.context = context;
         mem = "-Xmx" + context.getConfiguration().get("mapreduce.reduce.memory.mb") + "m";
@@ -366,5 +360,34 @@ public class PreprocessingTools {
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_PICARD_CLEANSAM).increment(estimatedTime);
         return 0;
+    }
+
+    public void runHTSeqCount(String python, String sam, String htseq, String gff) throws InterruptedException, IOException {
+        long startTime = System.currentTimeMillis();
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "htseq", "count");  
+        String[] command = CommandGenerator.HTSeqCount(python, bin, sam, gff, customArgs);
+        
+        ProcessBuilderWrapper builder = new ProcessBuilderWrapper(command, null);
+        builder.startProcess(true);        
+        InputStream is = builder.getSTDOUTStream();
+        
+        File targetFile = new File(htseq);
+        OutputStream outStream = new FileOutputStream(targetFile);
+ 
+        byte[] buffer = new byte[8 * 1024];
+        int bytesRead;
+        while ((bytesRead = is.read(buffer)) != -1) {
+            outStream.write(buffer, 0, bytesRead);
+        }
+        is.close();
+        outStream.close();
+        int error = builder.waitForCompletion();
+        if(error != 0)
+            throw new ProcessException("htseq", error);
+        long estimatedTime = System.currentTimeMillis() - startTime;
+        Logger.DEBUG("estimated time: " + estimatedTime / 1000);
+        if(context != null)
+            context.getCounter(HalvadeCounters.TIME_HTSEQ).increment(estimatedTime);
+        
     }
 }

@@ -17,14 +17,14 @@
 
 package be.ugent.intec.halvade.utils;
 
-import fi.tkk.ics.hadoop.bam.SAMRecordWritable;
+import org.seqdoop.hadoop_bam.SAMRecordWritable;
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import be.ugent.intec.halvade.tools.AlignerInstance;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import net.sf.samtools.*;
-import net.sf.samtools.util.BufferedLineReader;
+import htsjdk.samtools.*;
+import htsjdk.samtools.util.BufferedLineReader;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Mapper.Context;
@@ -47,8 +47,8 @@ public class SAMStreamHandler extends Thread {
     SAMFileHeader mFileHeader;
     String mCurrentLine;
     File mFile;
-    SAMFileReader.ValidationStringency validationStringency;
-    SAMFileReader mParentReader;
+    ValidationStringency validationStringency;
+    SamReader mParentReader;
     SAMLineParser parser;
     TaskInputOutputContext<LongWritable, Text, ChromosomeRegion, SAMRecordWritable> context;
     SAMRecordWritable writableRecord;
@@ -64,7 +64,7 @@ public class SAMStreamHandler extends Thread {
         this.useCompact = useCompact;
         mCurrentLine = null;
         mFile = null;
-        this.validationStringency = SAMFileReader.ValidationStringency.LENIENT;
+        validationStringency = ValidationStringency.LENIENT;
         mReader = new BufferedLineReader(this.is);
         samRecordFactory = new DefaultSAMRecordFactory();
         this.context = context;

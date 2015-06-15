@@ -7,7 +7,7 @@
 package be.ugent.intec.halvade.tools;
 
 import be.ugent.intec.halvade.utils.Logger;
-import net.sf.samtools.SAMRecord;
+import htsjdk.samtools.SAMRecord;
 
 /**
  *

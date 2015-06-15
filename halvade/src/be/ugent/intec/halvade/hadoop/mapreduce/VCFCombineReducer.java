@@ -19,9 +19,9 @@ package be.ugent.intec.halvade.hadoop.mapreduce;
 
 import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
-import fi.tkk.ics.hadoop.bam.KeyIgnoringVCFOutputFormat;
-import fi.tkk.ics.hadoop.bam.VCFFormat;
-import fi.tkk.ics.hadoop.bam.VariantContextWritable;
+import org.seqdoop.hadoop_bam.KeyIgnoringVCFOutputFormat;
+import org.seqdoop.hadoop_bam.VCFFormat;
+import org.seqdoop.hadoop_bam.VariantContextWritable;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;

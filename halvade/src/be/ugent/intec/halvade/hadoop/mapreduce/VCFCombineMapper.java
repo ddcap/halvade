@@ -17,7 +17,7 @@
 
 package be.ugent.intec.halvade.hadoop.mapreduce;
 
-import fi.tkk.ics.hadoop.bam.VariantContextWritable;
+import org.seqdoop.hadoop_bam.VariantContextWritable;
 import java.io.IOException;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.Mapper;
