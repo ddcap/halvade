@@ -28,6 +28,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Reducer;
+import org.seqdoop.hadoop_bam.util.SAMHeaderReader;
 
 /**
  *
@@ -56,6 +57,7 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
     protected String referenceName;
     protected SAMFileHeader outHeader;
     protected boolean keep = false;
+    protected boolean inputIsBam = false;
     protected SAMReadGroupRecord bamrg;
     protected String outputdir;
     
@@ -111,26 +113,31 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
     protected void setup(Context context) throws IOException, InterruptedException {
         super.setup(context);
         keep = HalvadeConf.getKeepFiles(context.getConfiguration());
+        inputIsBam = HalvadeConf.inputIsBam(context.getConfiguration());
         java = HalvadeConf.getJava(context.getConfiguration());
         tmp = HalvadeConf.getScratchTempDir(context.getConfiguration());
         threads = HalvadeConf.getReducerThreads(context.getConfiguration());
         dict = HalvadeConf.getSequenceDictionary(context.getConfiguration());
-        getReadGroupData(context.getConfiguration());
         taskId = context.getTaskAttemptID().toString();
         taskId = taskId.substring(taskId.indexOf("r_"));
         taskNr = Integer.parseInt(taskId.split("_")[1]);
         python = HalvadeConf.getPython(context.getConfiguration());
-        outputdir = HalvadeConf.getOutDir(context.getConfiguration());   
-        header = new SAMFileHeader();
-        header.setSequenceDictionary(dict);
+        outputdir = HalvadeConf.getOutDir(context.getConfiguration());
+        if(inputIsBam) {
+            header = SAMHeaderReader.readSAMHeaderFrom(new Path(HalvadeConf.getHeaderFile(context.getConfiguration())), context.getConfiguration());
+        } else {
+            getReadGroupData(context.getConfiguration());
+            header = new SAMFileHeader();
+            header.setSequenceDictionary(dict);
+            bamrg = new SAMReadGroupRecord(RGID);
+            bamrg.setLibrary(RGLB);
+            bamrg.setPlatform(RGPL);
+            bamrg.setPlatformUnit(RGPU);
+            bamrg.setSample(RGSM);
+        }
         count = 0;
         variantFiles = new ArrayList<>();
         bin  = checkBinaries(context);
-        bamrg = new SAMReadGroupRecord(RGID);
-        bamrg.setLibrary(RGLB);
-        bamrg.setPlatform(RGPL);
-        bamrg.setPlatformUnit(RGPU);
-        bamrg.setSample(RGSM);
         try {
             ref = HalvadeFileUtils.downloadGATKIndex(context, taskId);
         } catch (URISyntaxException ex) {

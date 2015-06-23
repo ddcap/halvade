@@ -114,9 +114,9 @@ public abstract class GATKReducer extends HalvadeReducer {
         context.setStatus("call elPrep");
         int reads;
         if(keep) 
-            reads = tools.callElPrep(preSamOut, samOut, rg, threads, input, outHeader, dictF);
+            reads = tools.callElPrep(preSamOut, samOut, inputIsBam ? null : rg, threads, input, outHeader, dictF);
         else
-            reads = tools.streamElPrep(context, samOut, rg, threads, input, outHeader, dictF);
+            reads = tools.streamElPrep(context, samOut, inputIsBam ? null : rg, threads, input, outHeader, dictF);
         
         Logger.DEBUG(reads + " reads processed in elPrep");
         context.getCounter(HalvadeCounters.IN_PREP_READS).increment(reads);
@@ -150,7 +150,8 @@ public abstract class GATKReducer extends HalvadeReducer {
         String htseq = tmpFileBase + "-htseq.count";
         String tmpMetrics = tmpFileBase + "-p3-metrics.txt";
         SAMFileWriterFactory factory = new SAMFileWriterFactory();
-        outHeader.addReadGroup(bamrg);
+        if(!inputIsBam)
+            outHeader.addReadGroup(bamrg);
         SAMFileWriter writer = factory.makeBAMWriter(outHeader, true, new File(tmpOut1));
         
         long startTime = System.currentTimeMillis();
@@ -185,9 +186,11 @@ public abstract class GATKReducer extends HalvadeReducer {
                         htseq, outputdir + context.getTaskAttemptID().toString() + ".count");
             HalvadeFileUtils.uploadFileToHDFS(context, null, ref, tmp);
         }  
-        Logger.DEBUG("add read-group");
-        context.setStatus("add read-group");
-        tools.runAddOrReplaceReadGroups(tmpOut3, output, RGID, RGLB, RGPL, RGPU, RGSM);
+        if(!inputIsBam) {
+            Logger.DEBUG("add read-group");
+            context.setStatus("add read-group");
+            tools.runAddOrReplaceReadGroups(tmpOut3, output, RGID, RGLB, RGPL, RGPU, RGSM);
+        }
         Logger.DEBUG("build bam index");
         context.setStatus("build bam index");
         tools.runBuildBamIndex(output);

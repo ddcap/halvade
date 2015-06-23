@@ -48,60 +48,62 @@ import org.apache.hadoop.fs.Path;
  */
 public class HalvadeOptions {
 
-    protected Options options = new Options();
-    protected String in;
-    protected String out;
-    protected String ref;
-    protected String STARGenome = null;
-    protected String java = null;
-    protected String python = null;
-    protected String gff = null;
-    protected String tmpDir = "/tmp/halvade/";
-    protected String localRefDir = null;
-    protected String sites;
-    protected int nodes, vcores;
-    protected double mem;
-    protected int maps = 1, reduces = 1, mthreads = 1, rthreads = 1;
-    protected String[] hdfsSites;
-    protected boolean paired = true;
-    protected boolean aln = true;
-    protected boolean justCombine = false;
-    protected boolean useBedTools = false;
-    protected boolean useGenotyper = true;
-    protected String RGID = "GROUP1";
-    protected String RGLB = "LIB1";
-    protected String RGPL = "ILLUMINA";
-    protected String RGPU = "UNIT1";
-    protected String RGSM = "SAMPLE1";
-    protected boolean useElPrep = true;
-    protected boolean keepFiles = false;
-    protected int stand_call_conf = -1;
-    protected int stand_emit_conf = -1;
-    protected SAMSequenceDictionary dict;
-    protected String chr = null;
-    protected int reducerContainersPerNode = -1;
-    protected int mapContainersPerNode = -1;
-    protected boolean justAlign = false;
-    protected String bedFile = null;
-    protected String bedRegion = null;
-    protected double coverage = -1.0;
-    protected String halvadeBinaries;
-    protected String bin;
-    protected boolean combineVcf = true;
-    protected boolean dryRun = false;
-    protected boolean keepChrSplitPairs = true;
-    protected boolean startupJob = true;
-    protected boolean rnaPipeline = false;
-    protected boolean reportAll = false;
-    protected boolean useBamInput = false;
-    protected boolean setMapContainers = true, setReduceContainers = true;
-    protected boolean redistribute = false;
+    public Options options = new Options();
+    public String in;
+    public String out;
+    public String ref;
+    public String STARGenome = null;
+    public String java = null;
+    public String python = null;
+    public String gff = null;
+    public String tmpDir = "/tmp/halvade/";
+    public String localRefDir = null;
+    public String sites;
+    public int nodes, vcores;
+    public double mem;
+    public int maps = 1, reduces = 1, mthreads = 1, rthreads = 1;
+    public String[] hdfsSites;
+    public boolean paired = true;
+    public boolean aln = true;
+    public boolean justCombine = false;
+    public boolean useBedTools = false;
+    public boolean useGenotyper = true;
+    public String RGID = "GROUP1";
+    public String RGLB = "LIB1";
+    public String RGPL = "ILLUMINA";
+    public String RGPU = "UNIT1";
+    public String RGSM = "SAMPLE1";
+    public boolean useElPrep = true;
+    public boolean keepFiles = false;
+    public int stand_call_conf = -1;
+    public int stand_emit_conf = -1;
+    public SAMSequenceDictionary dict;
+    public String chr = null;
+    public int reducerContainersPerNode = -1;
+    public int mapContainersPerNode = -1;
+    public boolean justAlign = false;
+    public String bedFile = null;
+    public String bedRegion = null;
+    public double coverage = -1.0;
+    public String halvadeBinaries;
+    public String bin;
+    public boolean combineVcf = true;
+    public boolean dryRun = false;
+    public boolean keepChrSplitPairs = true;
+    public boolean startupJob = true;
+    public boolean rnaPipeline = false;
+    public boolean reportAll = false;
+    public boolean useBamInput = false;
+    public boolean setMapContainers = true, setReduceContainers = true;
+    public boolean redistribute = false;
+    public boolean smtEnabled = false;
+    public int overrideMem = -1;
+    
     protected DecimalFormat onedec;
-    private static final double REDUCE_TASKS_FACTOR = 1.68 * 15;
-    private static final double DEFAULT_COVERAGE = 50;
-    private static final double DEFAULT_COVERAGE_SIZE = 86;
-    protected boolean smtEnabled = false;
-    protected int overrideMem = -1;
+    protected static final double REDUCE_TASKS_FACTOR = 1.68 * 15;
+    protected static final double DEFAULT_COVERAGE = 50;
+    protected static final double DEFAULT_COVERAGE_SIZE = 86;
+    protected static final String DICT_SUFFIX = ".dict";
 
     public int GetOptions(String[] args, Configuration hConf) throws IOException, URISyntaxException {
         try {
@@ -130,6 +132,7 @@ public class HalvadeOptions {
             if (bedFile != null) {
                 HalvadeConf.setBed(hConf, bedFile);
             }
+            HalvadeConf.setInputIsBam(hConf, useBamInput);
             HalvadeConf.setOutDir(hConf, out);
             HalvadeConf.setKeepFiles(hConf, keepFiles);
             HalvadeConf.setUseBedTools(hConf, useBedTools);
@@ -194,7 +197,7 @@ public class HalvadeOptions {
         return 0;
     }
 
-    public String roundOneDecimal(double val) {
+    protected String roundOneDecimal(double val) {
         return onedec.format(val);
     }
 
@@ -215,9 +218,8 @@ public class HalvadeOptions {
         return (size / (1024 * 1024 * 1024));
     }
 
-    private static final String DICT_SUFFIX = ".dict";
 
-    private void parseDictFile(Configuration conf) {
+    protected void parseDictFile(Configuration conf) {
         be.ugent.intec.halvade.utils.Logger.DEBUG("parsing dictionary " + ref + DICT_SUFFIX);
         try {
             FileSystem fs = FileSystem.get(new URI(ref + DICT_SUFFIX), conf);
@@ -246,7 +248,7 @@ public class HalvadeOptions {
 
     }
 
-    private String getLine(FSDataInputStream stream) throws IOException {
+    protected String getLine(FSDataInputStream stream) throws IOException {
         String tmp = "";
         try {
             char c = (char) stream.readByte();
@@ -362,7 +364,7 @@ public class HalvadeOptions {
                 .create("bed");
         Option optPython = OptionBuilder.withArgName("python")
                 .hasArg()
-                .withDescription("Sets the location of the python file if regular python command doesn't work.")
+                .withDescription("Sets the location of the python binary if regular python command doesn't work.")
                 .create("python");
         Option optGff = OptionBuilder.withArgName("gff")
                 .hasArg()
@@ -471,12 +473,15 @@ public class HalvadeOptions {
         sites = line.getOptionValue("D");
         halvadeBinaries = line.getOptionValue("B");
         hdfsSites = sites.split(",");
+        if (line.hasOption("bam")) {
+            useBamInput = true;
+        }
         if (line.hasOption("rna")) {
             rnaPipeline = true;
-            if (line.hasOption("SG")) {
+            if (line.hasOption("SG"))
                 STARGenome = line.getOptionValue("SG");
-            } else {
-                throw new ParseException("the '-rna' option requires -SG, pointing to the location of the STAR reference directory.");
+            if(!useBamInput && STARGenome == null) {
+                throw new ParseException("the '-rna' option requires -SG, pointing to the location of the STAR reference directory if alignment with STAR aligner is required (fastq).");
             }
         }
 
@@ -563,9 +568,6 @@ public class HalvadeOptions {
         if (line.hasOption("hc")) {
             useGenotyper = false;
         }
-        if (line.hasOption("bam")) {
-            useBamInput = true;
-        }
         if (line.hasOption("P")) {
             useElPrep = false;
         }
@@ -617,7 +619,7 @@ public class HalvadeOptions {
         return names;
     }
 
-    private void addCustomArguments(Configuration halvadeConf, String name, String property) throws ParseException {
+    protected void addCustomArguments(Configuration halvadeConf, String name, String property) throws ParseException {
         boolean found = false;
         int i = 0;
         while (!found && i < programNames.length) {

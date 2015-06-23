@@ -471,7 +471,13 @@ public class HalvadeConf {
     public static String getInputDir(Configuration conf) {
         return conf.get(inputDir);
     }
-
+    private static final String headerFile = "headerf";
+    public static void setHeaderFile(Configuration conf, String val) {
+        conf.set(headerFile, val);
+    }
+    public static String getHeaderFile(Configuration conf) {
+        return conf.get(headerFile);        
+    }
     
     /*
     * Custom Arguments for all commands used in Halvade
@@ -499,4 +505,20 @@ public class HalvadeConf {
         else 
             return false;
     }
+
+    private static final String inputIsBam = "inputIsBam";
+    public static void setInputIsBam(Configuration conf, boolean val) {
+        if(val)
+            conf.set(inputIsBam, "true");
+        else 
+            conf.set(inputIsBam, "false");
+    }
+    public static boolean inputIsBam(Configuration conf) {
+        String s = conf.get(inputIsBam);
+        if(s.equalsIgnoreCase("true"))
+            return true;
+        else 
+            return false;
+    }
+
 }

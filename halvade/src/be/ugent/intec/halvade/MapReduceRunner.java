@@ -254,17 +254,22 @@ public class MapReduceRunner extends Configured implements Tool  {
     
     protected void addInputFiles(String input, Configuration conf, Job job) throws URISyntaxException, IOException {
         FileSystem fs = FileSystem.get(new URI(input), conf);
+        String headerFile = null;
         if (fs.getFileStatus(new Path(input)).isDirectory()) {
             // add every file in directory
             FileStatus[] files = fs.listStatus(new Path(input));
             for(FileStatus file : files) {
                 if (!file.isDirectory()) {
                     FileInputFormat.addInputPath(job, file.getPath());
+                    if(headerFile == null)
+                        headerFile = file.getPath().toString();
                 }
             }
         } else {
             FileInputFormat.addInputPath(job, new Path(input));
+            headerFile = input;
         }
+        if(headerFile != null) HalvadeConf.setHeaderFile(conf, headerFile);
     }
     
     protected void addInputFiles(String input, Configuration conf, Job job, String filter) throws URISyntaxException, IOException {
