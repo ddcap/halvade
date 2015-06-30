@@ -41,6 +41,7 @@ import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.mapreduce.Mapper;
 
 /**
  *
@@ -64,7 +65,13 @@ public class HalvadeOptions {
     public int maps = 1, reduces = 1, mthreads = 1, rthreads = 1;
     public String[] hdfsSites;
     public boolean paired = true;
-    public boolean aln = true;
+    public int aln = 0;
+    public Class<? extends Mapper>[] alignmentTools = new Class[]{
+        be.ugent.intec.halvade.hadoop.mapreduce.BWAAlnMapper.class,
+        be.ugent.intec.halvade.hadoop.mapreduce.BWAMemMapper.class,
+        be.ugent.intec.halvade.hadoop.mapreduce.Bowtie2Mapper.class,
+        be.ugent.intec.halvade.hadoop.mapreduce.Cushaw2Mapper.class
+    };
     public boolean justCombine = false;
     public boolean useBedTools = false;
     public boolean useGenotyper = true;
@@ -385,12 +392,14 @@ public class HalvadeOptions {
                 .withDescription("Adds custom arguments for a tool. If a module in a tool is used, add the name after an underscore. "
                         + "Possible values: " + getProgramNames())
                 .create("CA");
+        Option optAln = OptionBuilder.withArgName("num")
+                .hasArg()
+                .withDescription("Sets the aligner used in Halvade. Possible values are 0 (bwa aln+sampe)[default], 1 (bwa mem), 2 (bowtie2), 3 (cushaw2).")
+                .create("aln");
 
         //flags
         Option optSingle = OptionBuilder.withDescription("Sets the input files to single reads [default is paired-end reads].")
                 .create("s");
-        Option optBmem = OptionBuilder.withDescription("Use BWA mem instead of default BWA aln & sampe/samse (better for longer reads).")
-                .create("bwamem");
         Option optCombine = OptionBuilder.withDescription("Just Combines the vcf on HDFS [out dir] and doesn't run the hadoop job.")
                 .create("c");
         Option optPp = OptionBuilder.withDescription("Uses Picard to preprocess the data for GATK.")
@@ -426,7 +435,7 @@ public class HalvadeOptions {
         options.addOption(optTmp);
         options.addOption(optrefdir);
         options.addOption(optSingle);
-        options.addOption(optBmem);
+        options.addOption(optAln);
         options.addOption(optID);
         options.addOption(optLB);
         options.addOption(optPL);
@@ -536,8 +545,10 @@ public class HalvadeOptions {
             justAlign = true;
             combineVcf = false;
         }
-        if (line.hasOption("bwamem")) {
-            aln = false;
+        if (line.hasOption("aln")) {
+            aln = Integer.parseInt(line.getOptionValue("aln"));
+            if(aln < 0 || aln > 3)
+                aln = 0; // default value
         }
         if (line.hasOption("J")) {
             java = line.getOptionValue("J");

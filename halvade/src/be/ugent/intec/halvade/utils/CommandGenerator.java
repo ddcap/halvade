@@ -58,6 +58,10 @@ public class CommandGenerator {
     private static String[] starGenomeLoad = {
         "LoadAndExit" , "Remove", "LoadAndKeep"
     };
+    private static String bowtie2Command = "bowtie2";
+    private static String[] bowtie2Options = {"-p", "-x", "-1", "-2"};
+    private static String cushaw2Command = "cushaw2";
+    private static String[] cushaw2Options = {"-r", "-q", "-t"};
     private static String bwaCommand[] = {"bwa", "samxe"};
     private static String bwaTool[] = {"mem", "aln", "sampe", "samse"};
     private static String bwaOptions[] = 
@@ -187,8 +191,7 @@ public class CommandGenerator {
         }
         command = addToCommand(command, customArgs);
         command.add(output);
-        for(String in : input)
-            command.add(in);
+        command.addAll(Arrays.asList(input));
         Object[] ObjectList = command.toArray();
         String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
         return StringArray;
@@ -244,6 +247,53 @@ public class CommandGenerator {
         Object[] ObjectList = command.toArray();
         String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
         return StringArray;        
+    }
+    
+    public static String[] bowtie2(String bin,
+            String bowtie2ReferenceIndex, 
+            String bowtie2ReadFileA,
+            String bowtie2ReadFileB,
+            int numberOfThreads, String customArgs) {
+        ArrayList<String> command = new ArrayList<>();
+        if(bin.endsWith("/")) 
+            command.add(bin + bowtie2Command); 
+        else
+            command.add(bin + "/" + bowtie2Command);
+        command.add(bowtie2Options[0]);
+        command.add(new Integer(numberOfThreads).toString());
+        command.add(bowtie2Options[1]);
+        command.add(bowtie2ReferenceIndex);
+        command.add(bowtie2Options[2]);
+        command.add(bowtie2ReadFileA);
+        command.add(bowtie2Options[3]);
+        command.add(bowtie2ReadFileB);
+        command = addToCommand(command, customArgs);
+        Object[] ObjectList = command.toArray();
+        String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
+        return StringArray;
+    }
+
+    public static String[] cushaw2(String bin,
+            String cushaw2ReferenceIndex, 
+            String cushaw2ReadFileA,
+            String cushaw2ReadFileB,
+            int numberOfThreads, String customArgs) {
+        ArrayList<String> command = new ArrayList<>();
+        if(bin.endsWith("/")) 
+            command.add(bin + cushaw2Command); 
+        else
+            command.add(bin + "/" + cushaw2Command);
+        command.add(cushaw2Options[0]);
+        command.add(cushaw2ReferenceIndex);
+        command.add(cushaw2Options[1]);
+        command.add(cushaw2ReadFileA);
+        command.add(cushaw2ReadFileB);
+        command.add(cushaw2Options[2]);
+        command.add(new Integer(numberOfThreads).toString());
+        command = addToCommand(command, customArgs);
+        Object[] ObjectList = command.toArray();
+        String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
+        return StringArray;
     }
     
     public static String[] starGenomeLoad(String bin, String starGenomeDir, boolean unload) {

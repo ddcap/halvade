@@ -177,15 +177,24 @@ public class HalvadeFileUtils {
     protected static String REF_LOCK = "down_ref.lock";
     protected static String STARG_LOCK = "down_starg.lock";
     protected static String DBSNP_LOCK = "down_snpdb.lock";
+    
+    
     protected static int REF_BOTH = 2;
     protected static int DEFAULT_LOCK_VAL = 1;
     protected static String HALVADE_BWA_SUFFIX = ".bwa_ref";
+    protected static String HALVADE_BOWTIE2_SUFFIX = ".bowtie2_ref";
+    protected static String HALVADE_CUSHAW2_SUFFIX = ".cushaw2_ref";
     protected static String HALVADE_GATK_SUFFIX = ".gatk_ref";
     protected static String HALVADE_STAR_SUFFIX_P1 = ".star_ref";
     public static String HALVADE_STAR_SUFFIX_P2 = ".star_ref_p2";
     protected static String HALVADE_DBSNP_SUFFIX = ".dbsnp";
+    
     protected static String[] BWA_REF_FILES = 
         {".fasta", ".fasta.amb", ".fasta.ann", ".fasta.bwt", ".fasta.pac", ".fasta.sa", ".fasta.fai", ".dict" }; 
+    protected static String[] BOWTIE2_REF_FILES = 
+        {".fasta", ".fasta.1.bt2",".fasta.2.bt2",".fasta.3.bt2",".fasta.4.bt2",".fasta.rev.1.bt2",".fasta.rev.2.bt2", ".fasta.fai", ".dict" }; 
+    protected static String[] CUSHAW2_REF_FILES = 
+        {".fasta", ".fasta.amb", ".fasta.ann", ".fasta.pac", ".fasta.rbwt", ".fasta.rpac", ".fasta.rsa", ".fasta.fai", ".dict" }; 
     protected static String[] GATK_REF_FILES =  {".fasta", ".fasta.fai", ".dict" }; 
     protected static String[] STAR_REF_FILES = 
         {"chrLength.txt", "chrNameLength.txt", "chrName.txt", "chrStart.txt", 
@@ -212,10 +221,19 @@ public class HalvadeFileUtils {
         } else 
             return null;
     }
-    
+        
     public static String downloadBWAIndex(TaskInputOutputContext context, String id) throws IOException, URISyntaxException {
+        return downloadAlignerIndex(context, id, "bwa_ref-", HALVADE_BWA_SUFFIX, BWA_REF_FILES);
+    }   
+    public static String downloadBowtie2Index(TaskInputOutputContext context, String id) throws IOException, URISyntaxException {
+        return downloadAlignerIndex(context, id, "bowtie2_ref-", HALVADE_BOWTIE2_SUFFIX, BOWTIE2_REF_FILES);
+    }   
+    public static String downloadCushaw2Index(TaskInputOutputContext context, String id) throws IOException, URISyntaxException {
+        return downloadAlignerIndex(context, id, "cushaw2_ref-", HALVADE_CUSHAW2_SUFFIX, CUSHAW2_REF_FILES);
+    }
+    
+    protected static String downloadAlignerIndex(TaskInputOutputContext context, String id, String refName, String refSuffix, String[] refFiles) throws IOException, URISyntaxException {
         Configuration conf = context.getConfiguration();
-        String tmpDir = HalvadeConf.getScratchTempDir(conf);
         String refDir = HalvadeConf.getRefDirOnScratch(conf);
         if(!refDir.endsWith("/")) refDir = refDir + "/";
         HalvadeFileLock lock = new HalvadeFileLock(context, refDir, REF_LOCK);
@@ -233,17 +251,17 @@ public class HalvadeFileUtils {
                     Logger.INFO("downloading missing reference index files to local scratch");
                     String HDFSRef = HalvadeConf.getRefOnHDFS(conf);
                     FileSystem fs = FileSystem.get(new URI(HDFSRef), conf);
-                    refBase = findFile(refDir, HALVADE_BWA_SUFFIX, false);
+                    refBase = findFile(refDir, refSuffix, false); // refSuffix = HALVADE_BWA_SUFFIX
                     boolean foundExisting = (refBase != null);
                     if (!foundExisting)
-                        refBase = refDir + "bwa_ref-" + id;
+                        refBase = refDir + refName + id; // refName = bwa_ref-
 
-                    for (String suffix : BWA_REF_FILES) {
+                    for (String suffix : refFiles) { //  refFiles = BWA_REF_FILES
                         attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES);                
                     }
                     Logger.INFO("FINISHED downloading the complete reference index to local scratch");
                     if(!foundExisting) {
-                        File f = new File(refBase + HALVADE_BWA_SUFFIX);
+                        File f = new File(refBase + refSuffix);
                         f.createNewFile();
                         f = new File(refBase + HALVADE_GATK_SUFFIX);
                         f.createNewFile();
@@ -256,17 +274,17 @@ public class HalvadeFileUtils {
                 Logger.INFO("downloading missing reference index files to local scratch");
                 String HDFSRef = HalvadeConf.getRefOnHDFS(conf);
                 FileSystem fs = FileSystem.get(new URI(HDFSRef), conf);
-                refBase = findFile(refDir, HALVADE_BWA_SUFFIX, false);
+                refBase = findFile(refDir, refSuffix, false);
                 boolean foundExisting = (refBase != null);
                 if (!foundExisting)
-                    refBase = refDir + "bwa_ref-" + id;
+                    refBase = refDir + refName + id;
 
-                for (String suffix : BWA_REF_FILES) {
+                for (String suffix : refFiles) {
                     attemptDownloadFileFromHDFS(context, fs, HDFSRef + suffix, refBase + suffix, RETRIES);                
                 }
                 Logger.INFO("FINISHED downloading the complete reference index to local scratch");
                 if(!foundExisting) {
-                    File f = new File(refBase + HALVADE_BWA_SUFFIX);
+                    File f = new File(refBase + refSuffix);
                     f.createNewFile();
                     f = new File(refBase + HALVADE_GATK_SUFFIX);
                     f.createNewFile();
@@ -282,8 +300,8 @@ public class HalvadeFileUtils {
             lock.releaseLock();
         }
         if(refBase == null)
-            refBase = findFile(refDir, HALVADE_BWA_SUFFIX, false);
-        return refBase + BWA_REF_FILES[0];
+            refBase = findFile(refDir, refSuffix, false);
+        return refBase + refFiles[0];
     }
     
     public static String downloadGATKIndex(TaskInputOutputContext context, String id) throws IOException, URISyntaxException {

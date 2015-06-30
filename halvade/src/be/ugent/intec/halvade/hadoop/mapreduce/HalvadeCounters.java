@@ -23,6 +23,8 @@ package be.ugent.intec.halvade.hadoop.mapreduce;
 public enum HalvadeCounters {
     TIME_BWA_ALN,
     TIME_BWA_MEM,
+    TIME_BOWTIE2,
+    TIME_CUSHAW2,
     TIME_BWA_SAMPE,
     TIME_STAR,
     TIME_STAR_REF,

@@ -178,8 +178,7 @@ public class MapReduceRunner extends Configured implements Tool  {
             halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.StarAlignPassXMapper.class);
             halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.RnaGATKReducer.class);
         } else if(jobType == HalvadeResourceManager.DNA){ 
-            if (halvadeOpts.aln) halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.BWAAlnMapper.class);
-            else halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.BWAMemMapper.class);
+            halvadeJob.setMapperClass(halvadeOpts.alignmentTools[halvadeOpts.aln]);
             halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.DnaGATKReducer.class);  
         }
         
