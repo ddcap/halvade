@@ -172,9 +172,77 @@ public class HalvadeFileUtils {
     }   
 
     
+    protected String downloadGFF(TaskInputOutputContext context, String id) {
+        Configuration conf = context.getConfiguration();
+        String refDir = HalvadeConf.getRefDirOnScratch(conf);
+        if(!refDir.endsWith("/")) refDir = refDir + "/";
+        HalvadeFileLock lock = new HalvadeFileLock(context, refDir, GFF_LOCK);
+        String gffFile = null;
+        String gffSuffix = null;
+        try {
+            lock.getLock();
+
+            ByteBuffer bytes = ByteBuffer.allocate(4);
+            if (lock.read(bytes) > 0) {
+                bytes.flip();
+                long val = bytes.getInt();
+                if(val == DEFAULT_LOCK_VAL)
+                    Logger.DEBUG("gff has been downloaded to local scratch: " + val);
+                else {
+                    Logger.INFO("downloading missing gff file to local scratch");
+                    String gff = HalvadeConf.getGff(context.getConfiguration());
+                    FileSystem fs = FileSystem.get(new URI(gff), conf);
+                    int si = gff.lastIndexOf('.');
+                    if (si > 0)
+                        suffix = gff.substring(si);
+                    else 
+                        Throw new InterruptedException("Illegal filename for gff file: " + gff);
+                    gffFile = findFile(refDir, suffix, false);
+                    if (gffFile == null)
+                        gffFile = refDir + id; 
+
+                    attemptDownloadFileFromHDFS(context, fs, gff, gffFile + suffix, RETRIES);
+                    Logger.INFO("FINISHED downloading the complete reference index to local scratch");
+                    bytes.clear();
+                    bytes.putInt(DEFAULT_LOCK_VAL).flip();
+                    lock.forceWrite(bytes);
+                }
+            } else {
+                Logger.INFO("downloading missing gff file to local scratch");
+                String gff = HalvadeConf.getGff(context.getConfiguration());
+                FileSystem fs = FileSystem.get(new URI(gff), conf);
+                int si = gff.lastIndexOf('.');
+                if (si > 0)
+                    suffix = gff.substring(si);
+                else 
+                    Throw new InterruptedException("Illegal filename for gff file: " + gff);
+                gffFile = findFile(refDir, suffix, false);
+                if (gffFile == null)
+                    gffFile = refDir + id; 
+
+                attemptDownloadFileFromHDFS(context, fs, gff, gffFile + suffix, RETRIES);
+                Logger.INFO("FINISHED downloading the complete reference index to local scratch");
+                bytes.clear();
+                bytes.putInt(DEFAULT_LOCK_VAL).flip();
+                lock.forceWrite(bytes);
+            }
+            
+        } catch (InterruptedException ex) {
+            Logger.EXCEPTION(ex);
+        } finally {
+            lock.releaseLock();
+        }
+        if(gffFile == null)
+            gffFile = findFile(refDir, ".gff", false);
+        return gffFile + ".gff";
+
+    }
+
+
     // functions download BWA/STAR/GATK references/dbSNP database
     
     protected static String REF_LOCK = "down_ref.lock";
+    protected static String GFF_LOCK = "down_gff.lock";
     protected static String STARG_LOCK = "down_starg.lock";
     protected static String DBSNP_LOCK = "down_snpdb.lock";
     

@@ -83,7 +83,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         isRNA = HalvadeConf.getIsRNA(context.getConfiguration());
         scc = HalvadeConf.getSCC(context.getConfiguration(), isRNA);
         sec = HalvadeConf.getSEC(context.getConfiguration(), isRNA);
-        gff = HalvadeConf.getGff(context.getConfiguration());
+        gff = HalvadeFileUtils.downloadGFF(context, taskId);
         exomeBedFile = HalvadeConf.getBed(context.getConfiguration());
         useBedTools = HalvadeConf.getUseBedTools(context.getConfiguration());
         useUnifiedGenotyper = HalvadeConf.getUseUnifiedGenotyper(context.getConfiguration());
@@ -96,6 +96,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         }
     }
     
+
     protected abstract void processAlignments(Iterable<SAMRecordWritable> values, Context context, PreprocessingTools tools, GATKTools gatk) 
             throws IOException, InterruptedException, URISyntaxException, QualityException;
 
@@ -105,7 +106,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         String rg = createReadGroupRecordString(RGID, RGLB, RGPL, RGPU, RGSM);
         String preSamOut = tmpFileBase + "-p1.sam";
         String samOut = tmpFileBase + "-p2.sam";
-        String htseq = tmpFileBase + "-htseq.count";
+        String fCounts = tmpFileBase + "-features.count";
         
         outHeader = header.clone();
         outHeader.setSortOrder(SAMFileHeader.SortOrder.coordinate);
@@ -122,11 +123,11 @@ public abstract class GATKReducer extends HalvadeReducer {
         context.getCounter(HalvadeCounters.IN_PREP_READS).increment(reads);
         
         if(gff != null) {      
-            Logger.DEBUG("htseq-count");
-            context.setStatus("htseq-count");
-            tools.runHTSeqCount(python, samOut, htseq, gff);
+            Logger.DEBUG("featureCounts");
+            context.setStatus("featureCounts");
+            tools.runFeatureCounts(gff, samOut, fCounts);
             HalvadeFileUtils.uploadFileToHDFS(context, FileSystem.get(new URI(outputdir), context.getConfiguration()),
-                        htseq, outputdir + context.getTaskAttemptID().toString() + ".count");
+                        fCounts, outputdir + context.getTaskAttemptID().toString() + ".count");
         }
         context.setStatus("convert SAM to BAM");
         Logger.DEBUG("convert SAM to BAM");
@@ -137,7 +138,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         // remove temporary files
         HalvadeFileUtils.removeLocalFile(keep, preSamOut, context, HalvadeCounters.FOUT_GATK_TMP);
         HalvadeFileUtils.removeLocalFile(keep, samOut, context, HalvadeCounters.FOUT_GATK_TMP);
-        HalvadeFileUtils.removeLocalFile(keep, htseq);
+        HalvadeFileUtils.removeLocalFile(keep, fCounts);
     }
     
     protected void PicardPreprocess(Context context, PreprocessingTools tools, SAMRecordIterator input, String output) throws InterruptedException, QualityException, IOException, URISyntaxException {
@@ -147,7 +148,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         String tmpOut1 = tmpFileBase + "-p1.bam";
         String tmpOut2 = tmpFileBase + "-p2.bam";
         String tmpOut3 = tmpFileBase + "-p3.sam"; // test with 1 sam output for htseq count and then back to bam!
-        String htseq = tmpFileBase + "-htseq.count";
+        String fCounts = tmpFileBase + "-features.count";
         String tmpMetrics = tmpFileBase + "-p3-metrics.txt";
         SAMFileWriterFactory factory = new SAMFileWriterFactory();
         if(!inputIsBam)
@@ -179,11 +180,11 @@ public abstract class GATKReducer extends HalvadeReducer {
         tools.runMarkDuplicates(tmpOut2, tmpOut3, tmpMetrics);
         if(gff != null) {
             // tmpOut3 is sam for htseq count!        
-            Logger.DEBUG("htseq-count");
-            context.setStatus("htseq-count");
-            tools.runHTSeqCount(python, tmpOut3, htseq, gff);
+            Logger.DEBUG("featureCounts");
+            context.setStatus("featureCounts");
+            tools.runFeatureCounts(gff, tmpOut3, fCounts);
             HalvadeFileUtils.uploadFileToHDFS(context, FileSystem.get(new URI(outputdir), context.getConfiguration()),
-                        htseq, outputdir + context.getTaskAttemptID().toString() + ".count");
+                        fCounts, outputdir + context.getTaskAttemptID().toString() + ".count");
             HalvadeFileUtils.uploadFileToHDFS(context, null, ref, tmp);
         }  
         if(!inputIsBam) {

@@ -362,32 +362,14 @@ public class PreprocessingTools {
         return 0;
     }
 
-    public void runHTSeqCount(String python, String sam, String htseq, String gff) throws InterruptedException, IOException {
+    public void runFeatureCounts(String gff, String bam, String count) throws InterruptedException, IOException {
         long startTime = System.currentTimeMillis();
-        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "htseq", "count");  
-        String[] command = CommandGenerator.HTSeqCount(python, bin, sam, gff, customArgs);
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "featureCounts", "");  
+        String[] command = CommandGenerator.featureCounts(bin, gff ,bam, count, customArgs);
         
-        ProcessBuilderWrapper builder = new ProcessBuilderWrapper(command, null);
-        builder.startProcess(true);        
-        InputStream is = builder.getSTDOUTStream();
-        
-        File targetFile = new File(htseq);
-        OutputStream outStream = new FileOutputStream(targetFile);
- 
-        byte[] buffer = new byte[8 * 1024];
-        int bytesRead;
-        while ((bytesRead = is.read(buffer)) != -1) {
-            outStream.write(buffer, 0, bytesRead);
-        }
-        is.close();
-        outStream.close();
-        int error = builder.waitForCompletion();
-        if(error != 0)
-            throw new ProcessException("htseq", error);
-        long estimatedTime = System.currentTimeMillis() - startTime;
-        Logger.DEBUG("estimated time: " + estimatedTime / 1000);
+        long estimatedTime = runProcessAndWait("FeatureCounts", GetStringVector(command));
         if(context != null)
-            context.getCounter(HalvadeCounters.TIME_HTSEQ).increment(estimatedTime);
+            context.getCounter(HalvadeCounters.TIME_FEATURECOUNTS).increment(estimatedTime);
         
     }
 }

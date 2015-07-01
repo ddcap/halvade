@@ -62,6 +62,8 @@ public class CommandGenerator {
     private static String[] bowtie2Options = {"-p", "-x", "-1", "-2"};
     private static String cushaw2Command = "cushaw2";
     private static String[] cushaw2Options = {"-r", "-q", "-t"};
+    private static String featureCountsCommand = "featureCounts";
+    private static String[] featureCountsOptions = {"-T", "-a", "-o", "-s", "-Q", "-p", "-P", "-B", "-C"}
     private static String bwaCommand[] = {"bwa", "samxe"};
     private static String bwaTool[] = {"mem", "aln", "sampe", "samse"};
     private static String bwaOptions[] = 
@@ -249,6 +251,37 @@ public class CommandGenerator {
         return StringArray;        
     }
     
+    public static String[] featureCounts(String bin,
+            String gffFile, 
+            String bamFile,
+            String outFile,
+            int numberOfThreads, String customArgs) {
+        ArrayList<String> command = new ArrayList<>();
+        if(bin.endsWith("/")) 
+            command.add(bin + featureCountsCommand); 
+        else
+            command.add(bin + "/" + featureCountsCommand);
+        command = addToCommand(command, customArgs);
+        command.add(featureCountsOptions[0]);
+        command.add(new Integer(numberOfThreads).toString());
+        command.add(bowtie2Options[3]);
+        command.add("1");
+        command.add(bowtie2Options[4]);
+        command.add("10");
+        command.add(bowtie2Options[5]);
+        command.add(bowtie2Options[6]);
+        command.add(bowtie2Options[7]);
+        command.add(bowtie2Options[8]);
+        command.add(featureCountsOptions[1]);
+        command.add(gffFile);
+        command.add(featureCountsOptions[2]);
+        command.add(outFile);
+        command.add(bamFile);
+        Object[] ObjectList = command.toArray();
+        String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
+        return StringArray;
+    }
+
     public static String[] bowtie2(String bin,
             String bowtie2ReferenceIndex, 
             String bowtie2ReadFileA,
@@ -442,29 +475,6 @@ public class CommandGenerator {
         command.add(bwaReadsFile1);
         if(paired) command.add(bwaReadsFile2);
         command = addToCommand(command, customArgs);
-        Object[] ObjectList = command.toArray();
-        String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
-        return StringArray;
-    }
-    
-    private static String htseqBin = "htseq-count";
-    private static String[] htseqOptions = {"-r", "-f"};
-    public static String[] HTSeqCount(String python, String bin, String samFile, String gff, String customArgs) {
-        ArrayList<String> command = new ArrayList<>();
-        command.add(python);
-        if(bin.endsWith("/")) 
-            command.add(bin + htseqBin); 
-        else
-            command.add(bin + "/" + htseqBin);
-        command.add(htseqOptions[0]);
-        command.add("pos");
-        if(samFile.endsWith("bam")) {
-            command.add(htseqOptions[1]);
-            command.add("bam");
-        }
-        command = addToCommand(command, customArgs);
-        command.add(samFile);
-        command.add(gff);
         Object[] ObjectList = command.toArray();
         String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
         return StringArray;
