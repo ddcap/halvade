@@ -362,12 +362,11 @@ public class PreprocessingTools {
         return 0;
     }
 
-    public void runFeatureCounts(String gff, String bam, String count) throws InterruptedException, IOException {
-        long startTime = System.currentTimeMillis();
+    public void runFeatureCounts(String gff, String bam, String count, int threads) throws InterruptedException, IOException {
         String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "featureCounts", "");  
-        String[] command = CommandGenerator.featureCounts(bin, gff ,bam, count, customArgs);
+        String[] command = CommandGenerator.featureCounts(bin, gff ,bam, count, threads, customArgs);
         
-        long estimatedTime = runProcessAndWait("FeatureCounts", GetStringVector(command));
+        long estimatedTime = runProcessAndWait("FeatureCounts", command);
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_FEATURECOUNTS).increment(estimatedTime);
         

@@ -63,7 +63,7 @@ public class CommandGenerator {
     private static String cushaw2Command = "cushaw2";
     private static String[] cushaw2Options = {"-r", "-q", "-t"};
     private static String featureCountsCommand = "featureCounts";
-    private static String[] featureCountsOptions = {"-T", "-a", "-o", "-s", "-Q", "-p", "-P", "-B", "-C"}
+    private static String[] featureCountsOptions = {"-T", "-a", "-o", "-s", "-Q", "-p", "-P", "-B", "-C"};
     private static String bwaCommand[] = {"bwa", "samxe"};
     private static String bwaTool[] = {"mem", "aln", "sampe", "samse"};
     private static String bwaOptions[] = 

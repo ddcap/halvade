@@ -130,7 +130,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         if(gff != null) {      
             Logger.DEBUG("featureCounts");
             context.setStatus("featureCounts");
-            tools.runFeatureCounts(gff, samOut, fCounts);
+            tools.runFeatureCounts(gff, samOut, fCounts, threads);
             HalvadeFileUtils.uploadFileToHDFS(context, FileSystem.get(new URI(outputdir), context.getConfiguration()),
                         fCounts, outputdir + context.getTaskAttemptID().toString() + ".count");
         }
@@ -187,7 +187,7 @@ public abstract class GATKReducer extends HalvadeReducer {
             // tmpOut3 is sam for htseq count!        
             Logger.DEBUG("featureCounts");
             context.setStatus("featureCounts");
-            tools.runFeatureCounts(gff, tmpOut3, fCounts);
+            tools.runFeatureCounts(gff, tmpOut3, fCounts, threads);
             HalvadeFileUtils.uploadFileToHDFS(context, FileSystem.get(new URI(outputdir), context.getConfiguration()),
                         fCounts, outputdir + context.getTaskAttemptID().toString() + ".count");
             HalvadeFileUtils.uploadFileToHDFS(context, null, ref, tmp);
