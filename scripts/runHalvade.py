@@ -69,10 +69,14 @@ def spawnDaemon(args):
 
 
 # read config
-print "*** Reading configuration from %s:" % halvade
-readConfig(halvade)
-print "*** Reading configuration from %s:" % arguments
-readConfig(arguments)
+if (len(sys.argv) > 1):
+	print "*** Reading configuration from %s:" % sys.argv[1]
+	readConfig(sys.argv[1])
+else:
+	print "*** Reading configuration from %s:" % halvade
+	readConfig(halvade)
+	print "*** Reading configuration from %s:" % arguments
+	readConfig(arguments)
 
 print jar
 # determine if S3 is used -> use amazon EMR
