@@ -83,7 +83,12 @@ public abstract class GATKReducer extends HalvadeReducer {
         isRNA = HalvadeConf.getIsRNA(context.getConfiguration());
         scc = HalvadeConf.getSCC(context.getConfiguration(), isRNA);
         sec = HalvadeConf.getSEC(context.getConfiguration(), isRNA);
-        gff = HalvadeFileUtils.downloadGFF(context, taskId);
+        try {
+            gff = HalvadeFileUtils.downloadGFF(context, taskId);
+        } catch (URISyntaxException ex) {
+            Logger.EXCEPTION(ex);
+            throw new InterruptedException("Error when downloading GFF file");
+        }
         exomeBedFile = HalvadeConf.getBed(context.getConfiguration());
         useBedTools = HalvadeConf.getUseBedTools(context.getConfiguration());
         useUnifiedGenotyper = HalvadeConf.getUseUnifiedGenotyper(context.getConfiguration());
@@ -204,7 +209,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         HalvadeFileUtils.removeLocalFile(keep, tmpOut1, context, HalvadeCounters.FOUT_GATK_TMP);
         HalvadeFileUtils.removeLocalFile(keep, tmpOut2, context, HalvadeCounters.FOUT_GATK_TMP);
         HalvadeFileUtils.removeLocalFile(keep, tmpOut3, context, HalvadeCounters.FOUT_GATK_TMP);  
-        HalvadeFileUtils.removeLocalFile(keep, htseq);     
+        HalvadeFileUtils.removeLocalFile(keep, fCounts);     
     }
 
     protected String makeRegionFile(Context context, ChromosomeRange r, PreprocessingTools tools, String region) throws URISyntaxException, IOException, InterruptedException {        

@@ -172,7 +172,7 @@ public class HalvadeFileUtils {
     }   
 
     
-    protected String downloadGFF(TaskInputOutputContext context, String id) {
+    public static String downloadGFF(TaskInputOutputContext context, String id) throws IOException, URISyntaxException {
         Configuration conf = context.getConfiguration();
         String refDir = HalvadeConf.getRefDirOnScratch(conf);
         if(!refDir.endsWith("/")) refDir = refDir + "/";
@@ -194,14 +194,14 @@ public class HalvadeFileUtils {
                     FileSystem fs = FileSystem.get(new URI(gff), conf);
                     int si = gff.lastIndexOf('.');
                     if (si > 0)
-                        suffix = gff.substring(si);
+                        gffSuffix = gff.substring(si);
                     else 
-                        Throw new InterruptedException("Illegal filename for gff file: " + gff);
-                    gffFile = findFile(refDir, suffix, false);
+                        throw new InterruptedException("Illegal filename for gff file: " + gff);
+                    gffFile = findFile(refDir, gffSuffix, false);
                     if (gffFile == null)
                         gffFile = refDir + id; 
 
-                    attemptDownloadFileFromHDFS(context, fs, gff, gffFile + suffix, RETRIES);
+                    attemptDownloadFileFromHDFS(context, fs, gff, gffFile + gffSuffix, RETRIES);
                     Logger.INFO("FINISHED downloading the complete reference index to local scratch");
                     bytes.clear();
                     bytes.putInt(DEFAULT_LOCK_VAL).flip();
@@ -213,14 +213,14 @@ public class HalvadeFileUtils {
                 FileSystem fs = FileSystem.get(new URI(gff), conf);
                 int si = gff.lastIndexOf('.');
                 if (si > 0)
-                    suffix = gff.substring(si);
+                    gffSuffix = gff.substring(si);
                 else 
-                    Throw new InterruptedException("Illegal filename for gff file: " + gff);
-                gffFile = findFile(refDir, suffix, false);
+                    throw new InterruptedException("Illegal filename for gff file: " + gff);
+                gffFile = findFile(refDir, gffSuffix, false);
                 if (gffFile == null)
                     gffFile = refDir + id; 
 
-                attemptDownloadFileFromHDFS(context, fs, gff, gffFile + suffix, RETRIES);
+                attemptDownloadFileFromHDFS(context, fs, gff, gffFile + gffSuffix, RETRIES);
                 Logger.INFO("FINISHED downloading the complete reference index to local scratch");
                 bytes.clear();
                 bytes.putInt(DEFAULT_LOCK_VAL).flip();
