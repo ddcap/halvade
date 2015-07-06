@@ -336,8 +336,6 @@ public class ChromosomeSplitter {
         } finally {
             if(dos != null)
                 dos.close();
-            if(hdfs != null)
-                hdfs.close();
         }
     }
     
@@ -366,8 +364,6 @@ public class ChromosomeSplitter {
         } finally {
             if(dis != null)
                 dis.close();
-            if(hdfs != null)
-                hdfs.close();
         }
     }
 }

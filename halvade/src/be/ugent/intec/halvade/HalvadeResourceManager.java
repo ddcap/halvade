@@ -35,7 +35,7 @@ public class HalvadeResourceManager {
     protected static final int MEM_AM = (int) (1.5*1024);
     protected static final int VCORES_AM = 1;
     protected static final int MEM_STAR = (int) (16*1024); // 16 for hg -> reduced reference
-    protected static final int MEM_REF = (int) (16*1024); // 16 for hg
+    protected static final int MEM_REF = (int) (4   *1024); // 16 for hg
     protected static final int[][] RESOURCE_REQ = { 
         //mapmem, redmem
         {MEM_STAR,  ALL},     // RNA with shared memory pass1
@@ -44,7 +44,7 @@ public class HalvadeResourceManager {
         {4*1024,    4*1024}   // combine
     };
     
-    public static void setJobResources(HalvadeOptions opt, Configuration conf, int type, boolean subtractAM) {
+    public static void setJobResources(HalvadeOptions opt, Configuration conf, int type, boolean subtractAM) throws InterruptedException {
         int tmpmem = (int) (opt.mem * 1024);
         int tmpvcores = opt.vcores;
         
@@ -54,6 +54,8 @@ public class HalvadeResourceManager {
             mmem = opt.overrideMem;
             rmem = opt.overrideMem;
         }
+        if(mmem > opt.mem*1024 || rmem > opt.mem*1024)
+            throw new InterruptedException("Not enough memory available on system; memory requirements: " + opt.mem*1024 + "/" + Math.max(rmem, mmem));
         if (opt.setMapContainers)
             opt.mapContainersPerNode = Math.min(tmpvcores, Math.max(tmpmem / mmem,1));
         if (opt.setReduceContainers) 
