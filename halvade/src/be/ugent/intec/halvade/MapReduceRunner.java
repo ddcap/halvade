@@ -96,7 +96,7 @@ public class MapReduceRunner extends Configured implements Tool  {
     
     protected int runPass1RNAJob(Configuration pass1Conf, String tmpOutDir) throws IOException, InterruptedException, ClassNotFoundException, URISyntaxException {
         HalvadeConf.setIsPass2(pass1Conf, false);
-        HalvadeResourceManager.setJobResources(halvadeOpts, pass1Conf, HalvadeResourceManager.RNA_SHMEM_PASS1, true);
+        HalvadeResourceManager.setJobResources(halvadeOpts, pass1Conf, HalvadeResourceManager.RNA_SHMEM_PASS1, true, halvadeOpts.useBamInput);
         Job pass1Job = Job.getInstance(pass1Conf, "Halvade pass 1 RNA pipeline");
         pass1Job.addCacheArchive(new URI(halvadeOpts.halvadeBinaries));
         pass1Job.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.HalvadeMapper.class);
@@ -154,10 +154,10 @@ public class MapReduceRunner extends Configured implements Tool  {
         String pipeline = "";
         if(jobType == HalvadeResourceManager.RNA_SHMEM_PASS2) {
             HalvadeConf.setIsPass2(halvadeConf, true);
-            HalvadeResourceManager.setJobResources(halvadeOpts, halvadeConf, jobType, false);
+            HalvadeResourceManager.setJobResources(halvadeOpts, halvadeConf, jobType, false, halvadeOpts.useBamInput);
             pipeline = RNA_PASS2;
         } else if(jobType == HalvadeResourceManager.DNA) {
-            HalvadeResourceManager.setJobResources(halvadeOpts, halvadeConf, jobType, false);
+            HalvadeResourceManager.setJobResources(halvadeOpts, halvadeConf, jobType, false, halvadeOpts.useBamInput);
             pipeline = DNA; 
         }
         HalvadeConf.setOutDir(halvadeConf, tmpOutDir);
@@ -167,6 +167,8 @@ public class MapReduceRunner extends Configured implements Tool  {
             Logger.INFO("ERROR: Please remove this directory before trying again.");
             System.exit(-2);
         }
+        if(halvadeOpts.useBamInput)
+            setHeaderFile(halvadeOpts.in, halvadeConf);
         
         Job halvadeJob = Job.getInstance(halvadeConf, "Halvade" + pipeline);
         halvadeJob.addCacheArchive(new URI(halvadeOpts.halvadeBinaries));
@@ -204,7 +206,7 @@ public class MapReduceRunner extends Configured implements Tool  {
         return runTimedJob(halvadeJob, "Halvade Job");
     }
     
-    protected int runCombineJob(String halvadeOutDir, String mergeOutDir, boolean HTSeqCount) throws IOException, URISyntaxException, InterruptedException, ClassNotFoundException {
+    protected int runCombineJob(String halvadeOutDir, String mergeOutDir, boolean featureCount) throws IOException, URISyntaxException, InterruptedException, ClassNotFoundException {
         Configuration combineConf = getConf();
         if(!halvadeOpts.out.endsWith("/")) halvadeOpts.out += "/";  
         HalvadeConf.setInputDir(combineConf, halvadeOutDir);
@@ -216,27 +218,27 @@ public class MapReduceRunner extends Configured implements Tool  {
             System.exit(-2);
         }
         HalvadeConf.setReportAllVariant(combineConf, halvadeOpts.reportAll);
-        HalvadeResourceManager.setJobResources(halvadeOpts, combineConf, HalvadeResourceManager.COMBINE, false);
+        HalvadeResourceManager.setJobResources(halvadeOpts, combineConf, HalvadeResourceManager.COMBINE, false, halvadeOpts.useBamInput);
         Job combineJob = Job.getInstance(combineConf, "HalvadeCombineVCF");            
         combineJob.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
 
-        addInputFiles(halvadeOutDir, combineConf, combineJob, HTSeqCount ? ".count" : ".vcf");
+        addInputFiles(halvadeOutDir, combineConf, combineJob, featureCount ? ".count" : ".vcf");
         FileOutputFormat.setOutputPath(combineJob, new Path(mergeOutDir));
 
-        combineJob.setMapperClass(HTSeqCount ? 
+        combineJob.setMapperClass(featureCount ? 
                 be.ugent.intec.halvade.hadoop.mapreduce.HTSeqCombineMapper.class : 
                 be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
-        combineJob.setMapOutputKeyClass(HTSeqCount ? Text.class : LongWritable.class);
-        combineJob.setMapOutputValueClass(HTSeqCount ? LongWritable.class : VariantContextWritable.class);
-        combineJob.setInputFormatClass(HTSeqCount ? TextInputFormat.class : VCFInputFormat.class);
+        combineJob.setMapOutputKeyClass(featureCount ? Text.class : LongWritable.class);
+        combineJob.setMapOutputValueClass(featureCount ? LongWritable.class : VariantContextWritable.class);
+        combineJob.setInputFormatClass(featureCount ? TextInputFormat.class : VCFInputFormat.class);
         combineJob.setNumReduceTasks(1); 
-        combineJob.setReducerClass(HTSeqCount ? 
+        combineJob.setReducerClass(featureCount ? 
                 be.ugent.intec.halvade.hadoop.mapreduce.HTSeqCombineReducer.class :
                 be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineReducer.class);
         combineJob.setOutputKeyClass(Text.class);
-        combineJob.setOutputValueClass(HTSeqCount ? LongWritable.class : VariantContextWritable.class);
+        combineJob.setOutputValueClass(featureCount ? LongWritable.class : VariantContextWritable.class);
 
-        return runTimedJob(combineJob, (HTSeqCount ? "HTSeqCount" : "VCF")  + " Combine Job");
+        return runTimedJob(combineJob, (featureCount ? "featureCounts" : "VCF")  + " Combine Job");
     }
     
     protected int runTimedJob(Job job, String jobname) throws IOException, InterruptedException, ClassNotFoundException {
@@ -251,24 +253,31 @@ public class MapReduceRunner extends Configured implements Tool  {
         return ret;
     }
     
-    protected void addInputFiles(String input, Configuration conf, Job job) throws URISyntaxException, IOException {
+    protected void setHeaderFile(String input, Configuration conf) throws IOException, URISyntaxException {
         FileSystem fs = FileSystem.get(new URI(input), conf);
         String headerFile = null;
+        if (fs.getFileStatus(new Path(input)).isDirectory()) {
+            FileStatus[] files = fs.listStatus(new Path(input));
+            if (files.length > 0)
+                headerFile = files[0].getPath().toString();
+        } else 
+            headerFile = input;
+        if(headerFile != null)
+            HalvadeConf.setHeaderFile(conf, headerFile);
+    }
+    
+    protected void addInputFiles(String input, Configuration conf, Job job) throws URISyntaxException, IOException {
+        FileSystem fs = FileSystem.get(new URI(input), conf);
         if (fs.getFileStatus(new Path(input)).isDirectory()) {
             // add every file in directory
             FileStatus[] files = fs.listStatus(new Path(input));
             for(FileStatus file : files) {
                 if (!file.isDirectory()) {
                     FileInputFormat.addInputPath(job, file.getPath());
-                    if(headerFile == null)
-                        headerFile = file.getPath().toString();
                 }
             }
-        } else {
+        } else
             FileInputFormat.addInputPath(job, new Path(input));
-            headerFile = input;
-        }
-        if(headerFile != null) HalvadeConf.setHeaderFile(conf, headerFile);
     }
     
     protected void addInputFiles(String input, Configuration conf, Job job, String filter) throws URISyntaxException, IOException {

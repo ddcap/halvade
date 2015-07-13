@@ -30,7 +30,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -55,7 +54,7 @@ public class PreprocessingTools {
 
     public void setContext(Reducer.Context context) {
         this.context = context;
-        mem = "-Xmx" + context.getConfiguration().get("mapreduce.reduce.memory.mb") + "m";
+        mem = context.getConfiguration().get("mapreduce.reduce.java.opts");
     }
     
     public PreprocessingTools(String bin) {

@@ -175,6 +175,9 @@ public class HalvadeFileUtils {
     public static String downloadGFF(TaskInputOutputContext context, String id) throws IOException, URISyntaxException {
         Configuration conf = context.getConfiguration();
         String refDir = HalvadeConf.getRefDirOnScratch(conf);
+        String gff = HalvadeConf.getGff(context.getConfiguration());
+        if(gff == null) 
+            return null;
         if(!refDir.endsWith("/")) refDir = refDir + "/";
         HalvadeFileLock lock = new HalvadeFileLock(context, refDir, GFF_LOCK);
         String gffFile = null;
@@ -190,7 +193,6 @@ public class HalvadeFileUtils {
                     Logger.DEBUG("gff has been downloaded to local scratch: " + val);
                 else {
                     Logger.INFO("downloading missing gff file to local scratch");
-                    String gff = HalvadeConf.getGff(context.getConfiguration());
                     FileSystem fs = FileSystem.get(new URI(gff), conf);
                     int si = gff.lastIndexOf('.');
                     if (si > 0)
@@ -209,7 +211,7 @@ public class HalvadeFileUtils {
                 }
             } else {
                 Logger.INFO("downloading missing gff file to local scratch");
-                String gff = HalvadeConf.getGff(context.getConfiguration());
+                Logger.DEBUG("gff file: " + gff);
                 FileSystem fs = FileSystem.get(new URI(gff), conf);
                 int si = gff.lastIndexOf('.');
                 if (si > 0)

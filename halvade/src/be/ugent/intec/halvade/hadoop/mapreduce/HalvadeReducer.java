@@ -24,6 +24,9 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
 import htsjdk.samtools.util.Iso8601Date;
+import java.io.BufferedReader;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -79,7 +82,7 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
         } else if (variantFiles.size() == 1) {
             output = variantFiles.get(0);
         }
-        if(output != null) {        
+        if(output != null && checkVcfIsNotEmpty(output)) {        
             try {
                 HalvadeFileUtils.uploadFileToHDFS(context, FileSystem.get(new URI(outputdir), context.getConfiguration()),
                         output, outputdir + context.getTaskAttemptID().toString() + ".vcf");
@@ -89,6 +92,8 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
                 Logger.EXCEPTION(ex);
                 throw new InterruptedException();
             }
+        } else if (output !=null) {
+            Logger.DEBUG("empty vcf file, not uploaded to vcf to avoid error when merging.");
         }
         
         // delete the files from local scratch
@@ -102,6 +107,20 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
             HalvadeFileUtils.removeLocalFile(keep, output, context, HalvadeCounters.FOUT_GATK_VCF);
             HalvadeFileUtils.removeLocalFile(keep, output + ".idx");
         }
+    }
+    
+    protected boolean checkVcfIsNotEmpty(String vcfFile) throws FileNotFoundException, IOException {
+        int recordCount = 0;
+        try (BufferedReader br = new BufferedReader(new FileReader(vcfFile))) {
+            String line = br.readLine();
+            while (recordCount == 0  && line != null) {
+                if(!line.startsWith("#"))
+                    recordCount++;
+                line = br.readLine();
+            }
+            br.close();
+        }
+        return recordCount > 0;        
     }
 
     @Override
