@@ -100,6 +100,7 @@ public class HalvadeFileUtils {
     }
     
     protected static int attemptDownloadFileFromHDFS(TaskInputOutputContext context, FileSystem fs, String from, String to, int tries) throws IOException {
+        if(from.equalsIgnoreCase(to)) return 0;
         int val = privateDownloadFileFromHDFS(context, fs, from, to);
         int try_ = 1;
         while (val != 0 && try_ < tries) {
@@ -172,16 +173,22 @@ public class HalvadeFileUtils {
     }   
 
     
-    public static String downloadGFF(TaskInputOutputContext context, String id) throws IOException, URISyntaxException {
+    public static String downloadGFF(TaskInputOutputContext context, String id) throws IOException, URISyntaxException, InterruptedException {
         Configuration conf = context.getConfiguration();
         String refDir = HalvadeConf.getRefDirOnScratch(conf);
-        String gff = HalvadeConf.getGff(context.getConfiguration());
+        String gff = HalvadeConf.getGff(context.getConfiguration());    
         if(gff == null) 
-            return null;
+            return null;    
+        String gffSuffix = null;
+        int si = gff.lastIndexOf('.');
+        if (si > 0)
+            gffSuffix = gff.substring(si);
+        else 
+            throw new InterruptedException("Illegal filename for gff file: " + gff);
+        Logger.DEBUG("suffix: " + gffSuffix);
         if(!refDir.endsWith("/")) refDir = refDir + "/";
         HalvadeFileLock lock = new HalvadeFileLock(context, refDir, GFF_LOCK);
         String gffFile = null;
-        String gffSuffix = null;
         try {
             lock.getLock();
 
@@ -194,11 +201,6 @@ public class HalvadeFileUtils {
                 else {
                     Logger.INFO("downloading missing gff file to local scratch");
                     FileSystem fs = FileSystem.get(new URI(gff), conf);
-                    int si = gff.lastIndexOf('.');
-                    if (si > 0)
-                        gffSuffix = gff.substring(si);
-                    else 
-                        throw new InterruptedException("Illegal filename for gff file: " + gff);
                     gffFile = findFile(refDir, gffSuffix, false);
                     if (gffFile == null)
                         gffFile = refDir + id; 
@@ -213,15 +215,9 @@ public class HalvadeFileUtils {
                 Logger.INFO("downloading missing gff file to local scratch");
                 Logger.DEBUG("gff file: " + gff);
                 FileSystem fs = FileSystem.get(new URI(gff), conf);
-                int si = gff.lastIndexOf('.');
-                if (si > 0)
-                    gffSuffix = gff.substring(si);
-                else 
-                    throw new InterruptedException("Illegal filename for gff file: " + gff);
                 gffFile = findFile(refDir, gffSuffix, false);
                 if (gffFile == null)
                     gffFile = refDir + id; 
-
                 attemptDownloadFileFromHDFS(context, fs, gff, gffFile + gffSuffix, RETRIES);
                 Logger.INFO("FINISHED downloading the complete reference index to local scratch");
                 bytes.clear();
@@ -235,8 +231,8 @@ public class HalvadeFileUtils {
             lock.releaseLock();
         }
         if(gffFile == null)
-            gffFile = findFile(refDir, ".gff", false);
-        return gffFile + ".gff";
+            gffFile = findFile(refDir, gffSuffix, false);
+        return gffFile + gffSuffix;
 
     }
 

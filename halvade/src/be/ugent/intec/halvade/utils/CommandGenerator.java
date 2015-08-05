@@ -63,7 +63,7 @@ public class CommandGenerator {
     private static String cushaw2Command = "cushaw2";
     private static String[] cushaw2Options = {"-r", "-q", "-t"};
     private static String featureCountsCommand = "featureCounts";
-    private static String[] featureCountsOptions = {"-T", "-a", "-o", "-s", "-Q", "-p", "-P", "-B", "-C"};
+    private static String[] featureCountsOptions = {"-T", "-a", "-o", "-s", "-Q", "-p", "-P", "-B", "-C", "-M"};
     private static String bwaCommand[] = {"bwa", "samxe"};
     private static String bwaTool[] = {"mem", "aln", "sampe", "samse"};
     private static String bwaOptions[] = 
@@ -264,14 +264,16 @@ public class CommandGenerator {
         command = addToCommand(command, customArgs);
         command.add(featureCountsOptions[0]);
         command.add(new Integer(numberOfThreads).toString());
+        int strandedness = 0;
         command.add(featureCountsOptions[3]);
-        command.add("1");
+        command.add(strandedness + "");
         command.add(featureCountsOptions[4]);
         command.add("10");
         command.add(featureCountsOptions[5]);
-        command.add(featureCountsOptions[6]);
-        command.add(featureCountsOptions[7]);
-        command.add(featureCountsOptions[8]);
+//        command.add(featureCountsOptions[6]);
+//        command.add(featureCountsOptions[7]);
+//        command.add(featureCountsOptions[8]);
+//        command.add(featureCountsOptions[9]);
         command.add(featureCountsOptions[1]);
         command.add(gffFile);
         command.add(featureCountsOptions[2]);

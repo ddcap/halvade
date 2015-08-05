@@ -23,7 +23,7 @@ public class HTSeqCombineMapper extends Mapper<LongWritable,Text, Text, LongWrit
     protected void map(LongWritable key, Text value, Mapper.Context context) throws IOException, InterruptedException {
         String[] split = value.toString().split("\t");
         k.set(split[0]);
-        v.set(Integer.parseInt(split[1]));
+        v.set(Integer.parseInt(split[split.length - 1]));
         context.write(k, v);
     }
     
