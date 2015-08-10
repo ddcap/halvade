@@ -6,6 +6,7 @@
 
 package be.ugent.intec.halvade.hadoop.mapreduce;
 
+import be.ugent.intec.halvade.utils.Logger;
 import java.io.IOException;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
@@ -22,9 +23,13 @@ public class HTSeqCombineMapper extends Mapper<LongWritable,Text, Text, LongWrit
     @Override
     protected void map(LongWritable key, Text value, Mapper.Context context) throws IOException, InterruptedException {
         String[] split = value.toString().split("\t");
-        k.set(split[0]);
-        v.set(Integer.parseInt(split[split.length - 1]));
-        context.write(k, v);
+        try {
+            k.set(split[0]);
+            v.set(Integer.parseInt(split[split.length - 1]));
+            context.write(k, v);
+        } catch (NumberFormatException nfe) {
+            Logger.DEBUG("invalid line ignored; " + value.toString());
+        }
     }
     
 }

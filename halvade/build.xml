@@ -77,7 +77,7 @@
             <zipfileset src="lib/commons-cli-1.2.jar" excludes="META-INF/*" />
             <zipfileset src="lib/hadoop-bam-7.0.0.jar" excludes="META-INF/*" />
             <zipfileset src="lib/bzip2.jar" excludes="META-INF/*" />
-            <zipfileset src="lib/htsjdk-1.118.jar" excludes="META-INF/*" />
+            <zipfileset src="lib/htsjdk-1.137.jar" excludes="META-INF/*" />
             <manifest>
                 <attribute name="Main-Class" value="be.ugent.intec.halvade.Halvade"/>
             </manifest>

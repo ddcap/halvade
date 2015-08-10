@@ -478,6 +478,7 @@ public class HalvadeOptions {
 
         in = line.getOptionValue("I");
         out = line.getOptionValue("O");
+        if(!out.endsWith("/")) out += "/";
         ref = line.getOptionValue("R");
         sites = line.getOptionValue("D");
         halvadeBinaries = line.getOptionValue("B");
