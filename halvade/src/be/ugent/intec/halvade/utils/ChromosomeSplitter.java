@@ -62,6 +62,7 @@ public class ChromosomeSplitter {
     protected HashMap<String, ArrayList<BedRegion> > regions;
     protected static final double MIN_THRESHOLD = 1.25;
     protected static final double LT_FACTOR = 5.0;    
+    protected final int MIN_GENE_SEPARATION = 100000;
     protected int regionLength;
     protected HashMap<String ,Integer> lengthByContig;
     protected int regionCount;
@@ -70,6 +71,7 @@ public class ChromosomeSplitter {
     public ChromosomeSplitter(SAMSequenceDictionary dict, String bedfile, int reduceCount) throws IOException {
         this.dict = dict;
         getMinRegionLength(bedfile, reduceCount);
+        getMinRegionLength(reduceCount);
         calculateRegionsPerChromosome(bedfile);
     }
     public ChromosomeSplitter(SAMSequenceDictionary dict, int reduceCount) throws URISyntaxException, IOException {
@@ -192,58 +194,67 @@ public class ChromosomeSplitter {
         return regionLength;
     }
     
-    private void calculateRegionsPerChromosome(String bedFile) throws IOException {
+    private void calculateRegionsPerChromosome(String bedFile) throws IOException { // , boolean coverAll
         regions = new HashMap();
         String currentContig = "";
         int currentStart = 0;
         int currentEnd = 0;
-        int currentSize = 0;
         int tmpLength = 0;
-        int i = 0;
+        int i = 0, start, end;
         regionCount = 0;
         BufferedReader br = new BufferedReader(new FileReader(bedFile));
         try {
             String line = br.readLine();
             String[] bedRegion = line.split("\t");
-            int start = Integer.parseInt(bedRegion[1]) + 1;
-            int end = Integer.parseInt(bedRegion[2]) + 1;
+            end = Integer.parseInt(bedRegion[2]) + 1;
             currentContig = bedRegion[0];
-            tmpLength = lengthByContig.get(currentContig) / 
-                    (lengthByContig.get(currentContig) / regionLength + 1);
-            currentStart = start;
+            currentStart = 0;
             currentEnd = end;
-            currentSize = end - start;
             line = br.readLine();
             while (line != null) {
                 bedRegion = line.split("\t");
                 start = Integer.parseInt(bedRegion[1]) + 1;
                 end = Integer.parseInt(bedRegion[2]) + 1;
-                if(bedRegion[0].equalsIgnoreCase(currentContig) && 
-                        currentSize < tmpLength &&
-                        currentSize + (start - end) < tmpLength*MIN_THRESHOLD)  {
-                    currentEnd = end;
-                    currentSize += end - start;
-                } else {
-                    if(!regions.containsKey(currentContig)) regions.put(currentContig, new ArrayList());
-                    regions.get(currentContig).add(new BedRegion(currentStart, currentEnd, i));
-                    
+                
+                if(!bedRegion[0].equalsIgnoreCase(currentContig)) {
+                    // new region -> end to chr end!
+                    if(dict.getSequence(currentContig) != null) {
+                        if(!regions.containsKey(currentContig)) regions.put(currentContig, new ArrayList());
+                        regions.get(currentContig).add(new BedRegion(currentStart, dict.getSequence(currentContig).getSequenceLength(), i));
+                        i++;
+                    }
                     currentContig = bedRegion[0];
-                    tmpLength = lengthByContig.get(currentContig) / (lengthByContig.get(currentContig) / regionLength + 1);
-                    currentStart = start;
+                    currentStart = 0;
                     currentEnd = end;
-                    currentSize = end - start;
-                    i++;
+                } else if(bedRegion[0].equalsIgnoreCase(currentContig)) {
+                    if ((currentEnd - currentStart) < regionLength) {
+                        currentEnd = Math.max(end, currentEnd);
+                    } else if (start < currentEnd + MIN_GENE_SEPARATION) {
+                        currentEnd = Math.max(end, currentEnd);
+                    } else {
+                        if(dict.getSequence(currentContig) != null) {
+                            currentEnd = currentEnd + (start - currentEnd) / 2;
+                            if(!regions.containsKey(currentContig)) regions.put(currentContig, new ArrayList());
+                            regions.get(currentContig).add(new BedRegion(currentStart, currentEnd, i));
+                            i++;
+                        }
+                        currentContig = bedRegion[0];
+                        currentStart = currentEnd + 1;
+                        currentEnd = end;
+                    }
                 }
                 line = br.readLine();
             }
-            if(!regions.containsKey(currentContig)) regions.put(currentContig, new ArrayList());
-            regions.get(currentContig).add(new BedRegion(currentStart, currentEnd, i));
+            if(dict.getSequence(currentContig) != null) {
+                if(!regions.containsKey(currentContig)) regions.put(currentContig, new ArrayList());
+                regions.get(currentContig).add(new BedRegion(currentStart, dict.getSequence(currentContig).getSequenceLength(), i));
+            }
             for(Entry<String, ArrayList<BedRegion>> region : regions.entrySet()) {
                 String contig = region.getKey();
                 for (BedRegion breg : region.getValue()) {
                     regionCount++;
                     Logger.DEBUG("region: " + breg.key + ", " + contig + 
-                            " (" + breg.start + " _ " + breg.end + " -> " + (breg.end - breg.start) + ")", 3);
+                            " (" + breg.start + " _ " + breg.end + " -> " + (breg.end - breg.start) + ")", 2);
                 }
             }                    
         } finally {

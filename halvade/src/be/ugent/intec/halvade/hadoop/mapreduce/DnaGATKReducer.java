@@ -54,7 +54,7 @@ public class DnaGATKReducer extends GATKReducer {
         
         indelRealignment(context, region, gatk, preprocess, tmpFile1);        
         baseQualityScoreRecalibration(context, region, r, tools, gatk, tmpFile1, tmpFile2);        
-        DnaVariantCalling(context, region, gatk, tmpFile2, snps);     
+        DnaVariantCalling(context, region, gatk, tmpFile2, snps);
         variantFiles.add(snps);
            
         HalvadeFileUtils.removeLocalFile(region);

@@ -24,7 +24,7 @@ public class HTSeqCombineReducer extends Reducer<Text, LongWritable, Text, LongW
         Iterator<LongWritable> it = values.iterator();
         long t = 0;
         while(it.hasNext()){
-            t += it.next().get();         
+            t = Math.max(t,it.next().get()); 
         }
         val.set(t);
         context.write(key, val);

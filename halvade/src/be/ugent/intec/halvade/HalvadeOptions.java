@@ -73,7 +73,7 @@ public class HalvadeOptions {
         be.ugent.intec.halvade.hadoop.mapreduce.Cushaw2Mapper.class
     };
     public boolean justCombine = false;
-    public boolean useBedTools = false;
+    public boolean filterDBSnp = false;
     public boolean useGenotyper = true;
     public String RGID = "GROUP1";
     public String RGLB = "LIB1";
@@ -90,6 +90,7 @@ public class HalvadeOptions {
     public int mapContainersPerNode = -1;
     public boolean justAlign = false;
     public String bedFile = null;
+    public String filterBed = null;
     public String bedRegion = null;
     public double coverage = -1.0;
     public String halvadeBinaries;
@@ -136,13 +137,16 @@ public class HalvadeOptions {
             HalvadeConf.setKnownSitesOnHDFS(hConf, hdfsSites);
             HalvadeConf.setIsPaired(hConf, paired);
             HalvadeConf.setIsRNA(hConf, rnaPipeline);
-            if (bedFile != null) {
+            if (bedFile != null) {            
                 HalvadeConf.setBed(hConf, bedFile);
+            }
+            if (filterBed != null) {            
+                HalvadeConf.setFilterBed(hConf, filterBed);
             }
             HalvadeConf.setInputIsBam(hConf, useBamInput);
             HalvadeConf.setOutDir(hConf, out);
             HalvadeConf.setKeepFiles(hConf, keepFiles);
-            HalvadeConf.setUseBedTools(hConf, useBedTools);
+            HalvadeConf.setFilterDBSnp(hConf, filterDBSnp);
             HalvadeConf.clearTaskFiles(hConf);
             HalvadeConf.setUseElPrep(hConf, useElPrep);
             HalvadeConf.setUseUnifiedGenotyper(hConf, useGenotyper);
@@ -366,9 +370,14 @@ public class HalvadeOptions {
                 .create("sec");
         Option optBed = OptionBuilder.withArgName("bedfile")
                 .hasArg()
-                .withDescription("Sets the bed file containing relevant (Exome) regions which "
+                .withDescription("Sets the bed file containing relevant (Genes) regions which "
                         + "will be used to split the genome into genomic regions.")
                 .create("bed");
+        Option optFilterBed = OptionBuilder.withArgName("bedfile")
+                .hasArg()
+                .withDescription("Sets the bed file containing relevant (Exome) regions which "
+                        + " will be used to filter in the GATK steps.")
+                .create("fbed");
         Option optPython = OptionBuilder.withArgName("python")
                 .hasArg()
                 .withDescription("Sets the location of the python binary if regular python command doesn't work.")
@@ -404,8 +413,8 @@ public class HalvadeOptions {
                 .create("c");
         Option optPp = OptionBuilder.withDescription("Uses Picard to preprocess the data for GATK.")
                 .create("P");
-        Option optBedtools = OptionBuilder.withDescription("Use Bedtools to select an interval of dbsnp.")
-                .create("bedtools");
+        Option optFilterDBsnp = OptionBuilder.withDescription("Use Bedtools to select the needed interval of dbsnp.")
+                .create("filter_dbsnp");
         Option optJustAlign = OptionBuilder.withDescription("Only align the reads.")
                 .create("justalign");
         Option optSmt = OptionBuilder.withDescription("Enable simultaneous multithreading.")
@@ -442,11 +451,12 @@ public class HalvadeOptions {
         options.addOption(optPU);
         options.addOption(optSM);
         options.addOption(optPp);
-        options.addOption(optBedtools);
+        options.addOption(optFilterDBsnp);
         options.addOption(optHap);
         options.addOption(optScc);
         options.addOption(optSec);
         options.addOption(optBed);
+        options.addOption(optFilterBed);
         options.addOption(optJava);
         options.addOption(optCombine);
         options.addOption(optNodes);
@@ -574,8 +584,8 @@ public class HalvadeOptions {
             justCombine = true;
             combineVcf = true;
         }
-        if (line.hasOption("bedtools")) {
-            useBedTools = true;
+        if (line.hasOption("filter_dbsnp")) {
+            filterDBSnp = true;
         }
         if (line.hasOption("hc")) {
             useGenotyper = false;
@@ -600,6 +610,9 @@ public class HalvadeOptions {
         }
         if (line.hasOption("bed")) {
             bedFile = line.getOptionValue("bed");
+        }
+        if (line.hasOption("fbed")) {
+            filterBed = line.getOptionValue("fbed");
         }
 
         if (line.hasOption("CA")) {

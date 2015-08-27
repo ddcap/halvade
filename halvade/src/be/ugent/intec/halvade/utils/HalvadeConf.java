@@ -45,15 +45,15 @@ public class HalvadeConf {
         return conf.get(java);
     }
     
-    private static final String bedtools = "usebedtools";
-    public static void setUseBedTools(Configuration conf, boolean useBedTools) {
-        if(useBedTools)
-            conf.set(bedtools, "true");
+    private static final String filterDBSnp = "filterSNPs";
+    public static void setFilterDBSnp(Configuration conf, boolean filter) {
+        if(filter)
+            conf.set(filterDBSnp, "true");
         else 
-            conf.set(bedtools, "false");
+            conf.set(filterDBSnp, "false");
     }
-    public static boolean getUseBedTools(Configuration conf) {
-        String s = conf.get(bedtools);
+    public static boolean getFilterDBSnp(Configuration conf) {
+        String s = conf.get(filterDBSnp);
         if(s.equalsIgnoreCase("true"))
             return true;
         else 
@@ -419,9 +419,16 @@ public class HalvadeConf {
             return conf.getFloat(sec, DEFAULT_DNA_SEC);
     }
 
+    private static final String fbed = "filterBed";
+    public static void setFilterBed(Configuration conf, String bed_) {
+        conf.set(fbed, bed_);
+    }
+    public static String getFilterBed(Configuration conf) {
+        return conf.get(fbed);
+    }
     private static final String bed = "fullBed";
-    public static void setBed(Configuration conf, String bed) {
-        conf.set(bed, bed);
+    public static void setBed(Configuration conf, String bed_) {
+        conf.set(bed, bed_);
     }
     public static String getBed(Configuration conf) {
         return conf.get(bed);

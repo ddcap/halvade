@@ -640,7 +640,7 @@ public class HalvadeFileUtils {
                 }
                 if(found != HDFSsites.length) {
                     throw new IOException(refBase + " has different number of files: " + 
-                            directoryListing.length + " vs " + localSites.length);
+                            found + " vs " + localSites.length);
                 }
             } else {
                 throw new IOException(refBase + " has no files");

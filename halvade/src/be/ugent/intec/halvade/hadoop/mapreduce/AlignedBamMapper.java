@@ -32,6 +32,9 @@ public class AlignedBamMapper extends Mapper<LongWritable,SAMRecordWritable,
             value.get().getSAMString();
         } catch(StringIndexOutOfBoundsException e) {
             Logger.DEBUG("incorrect samstring, skipping...");
+        } catch(IllegalArgumentException ex) {
+            Logger.DEBUG("error in : " + value.get().getReadName());
+            Logger.EXCEPTION(ex);
         }
         instance.writePairedSAMRecordToContext(value.get(), false);
     }

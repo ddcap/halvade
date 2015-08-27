@@ -297,6 +297,7 @@ public class GATKTools {
         String[] command = {
             java, mem, "-jar", gatk,
             "-T", "PrintReads",
+//            multiThreadingTypes[1], "" + threads, 
             "-R", ref,
             "-I", input,
             "-o", output,

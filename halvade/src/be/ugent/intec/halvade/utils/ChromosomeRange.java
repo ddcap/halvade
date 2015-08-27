@@ -61,7 +61,8 @@ public class ChromosomeRange {
     
     public void addRange(String chr, int start, int stop) {
         Logger.DEBUG("adding range: " + chr + " [" + start + " - " + stop + "]", 3);
-        list.add(new Range(chr, start, stop));
+        if(stop >= start)
+            list.add(new Range(chr, start, stop));
     }
 
     @Override

@@ -83,11 +83,10 @@ public class MapReduceRunner extends Configured implements Tool  {
                     System.exit(-2);
                 }
             }
-            if(halvadeOpts.combineVcf) {
+            if(halvadeOpts.combineVcf)
                 runCombineJob(halvadeDir, halvadeOpts.out + "/merge", false);
-                if(halvadeOpts.gff != null)
-                    runCombineJob(halvadeDir, halvadeOpts.out + "/mergeHTSeq", true);
-            }
+            if(halvadeOpts.gff != null)
+                runCombineJob(halvadeDir, halvadeOpts.out + "/mergeHTSeq", true);
         } catch (IOException | ClassNotFoundException | IllegalArgumentException | IllegalStateException | InterruptedException | URISyntaxException e) {
             Logger.EXCEPTION(e);
         }
