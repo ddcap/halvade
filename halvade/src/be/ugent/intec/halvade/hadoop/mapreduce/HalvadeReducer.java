@@ -54,7 +54,6 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
     protected String RGPL = "ILLUMINA";
     protected String RGPU = "UNIT1";
     protected String RGSM = "SAMPLE1";
-    protected String python;
     protected int threads;
     protected int taskNr;
     protected String referenceName;
@@ -140,7 +139,6 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
         taskId = context.getTaskAttemptID().toString();
         taskId = taskId.substring(taskId.indexOf("r_"));
         taskNr = Integer.parseInt(taskId.split("_")[1]);
-        python = HalvadeConf.getPython(context.getConfiguration());
         outputdir = HalvadeConf.getOutDir(context.getConfiguration());
         if(inputIsBam) {
             header = SAMHeaderReader.readSAMHeaderFrom(new Path(HalvadeConf.getHeaderFile(context.getConfiguration())), context.getConfiguration());

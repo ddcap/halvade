@@ -198,14 +198,6 @@ public class HalvadeConf {
         conf.set(gff, val);       
     }
     
-    private static final String python = "python";
-    public static String getPython(Configuration conf) {
-        return conf.get(python, "python");
-    }
-    public static void setPython(Configuration conf, String val) {
-        conf.set(python, val);       
-    }
-    
     private static final String readgroup = "readgroup";
     public static void setReadGroup(Configuration conf, String val) {
         conf.set(readgroup, val);

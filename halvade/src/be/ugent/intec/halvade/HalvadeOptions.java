@@ -55,7 +55,6 @@ public class HalvadeOptions {
     public String ref;
     public String STARGenome = null;
     public String java = null;
-    public String python = null;
     public String gff = null;
     public String tmpDir = "/tmp/halvade/";
     public String localRefDir = null;
@@ -162,9 +161,6 @@ public class HalvadeOptions {
             }
             if (java != null) {
                 HalvadeConf.setJava(hConf, java);
-            }
-            if (python != null) {
-                HalvadeConf.setPython(hConf, python);
             }
             if (gff != null) {
                 HalvadeConf.setGff(hConf, gff);
@@ -378,10 +374,6 @@ public class HalvadeOptions {
                 .withDescription("Sets the bed file containing relevant (Exome) regions which "
                         + " will be used to filter in the GATK steps.")
                 .create("fbed");
-        Option optPython = OptionBuilder.withArgName("python")
-                .hasArg()
-                .withDescription("Sets the location of the python binary if regular python command doesn't work.")
-                .create("python");
         Option optGff = OptionBuilder.withArgName("gff")
                 .hasArg()
                 .withDescription("Sets the gff file to be used with HTSeq-Count. This is required to run HTSeq-Count.")
@@ -467,7 +459,6 @@ public class HalvadeOptions {
         options.addOption(optCov);
         options.addOption(optMpn);
         options.addOption(optGff);
-        options.addOption(optPython);
         options.addOption(optRpn);
         options.addOption(optDry);
         options.addOption(optDrop);
@@ -563,9 +554,6 @@ public class HalvadeOptions {
         }
         if (line.hasOption("J")) {
             java = line.getOptionValue("J");
-        }
-        if (line.hasOption("python")) {
-            python = line.getOptionValue("python");
         }
         if (line.hasOption("gff")) {
             gff = line.getOptionValue("gff");
