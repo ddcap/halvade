@@ -83,10 +83,12 @@ public class MapReduceRunner extends Configured implements Tool  {
                     System.exit(-2);
                 }
             }
-            if(halvadeOpts.combineVcf)
-                runCombineJob(halvadeDir, halvadeOpts.out + "/merge", false);
-            if(halvadeOpts.gff != null)
-                runCombineJob(halvadeDir, halvadeOpts.out + "/mergeHTSeq", true);
+            if(!halvadeOpts.dryRun) {
+                if(halvadeOpts.combineVcf)
+                    runCombineJob(halvadeDir, halvadeOpts.out + "/merge", false);
+                if(halvadeOpts.gff != null)
+                    runCombineJob(halvadeDir, halvadeOpts.out + "/mergeHTSeq", true);
+            }
         } catch (IOException | ClassNotFoundException | IllegalArgumentException | IllegalStateException | InterruptedException | URISyntaxException e) {
             Logger.EXCEPTION(e);
         }
@@ -183,20 +185,29 @@ public class MapReduceRunner extends Configured implements Tool  {
             halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.DnaGATKReducer.class);  
         }
         
-        if(halvadeOpts.justAlign)
-            halvadeJob.setNumReduceTasks(0);
-        else
-            halvadeJob.setNumReduceTasks(halvadeOpts.reduces);    
         
         halvadeJob.setMapOutputKeyClass(ChromosomeRegion.class);
         halvadeJob.setMapOutputValueClass(SAMRecordWritable.class);
         halvadeJob.setInputFormatClass(HalvadeTextInputFormat.class);
-        halvadeJob.setPartitionerClass(ChrRgPartitioner.class);
-        halvadeJob.setSortComparatorClass(ChrRgSortComparator.class);
-        halvadeJob.setGroupingComparatorClass(ChrRgGroupingComparator.class);
         halvadeJob.setOutputKeyClass(Text.class);
-        halvadeJob.setOutputValueClass(VariantContextWritable.class);
+        if(halvadeOpts.mergeBam) {
+            halvadeJob.setSortComparatorClass(SimpleChrRegionComparator.class);
+            halvadeJob.setOutputValueClass(SAMRecordWritable.class);
+        } else {
+            halvadeJob.setPartitionerClass(ChrRgPartitioner.class);
+            halvadeJob.setSortComparatorClass(ChrRgSortComparator.class);
+            halvadeJob.setGroupingComparatorClass(ChrRgGroupingComparator.class);
+            halvadeJob.setOutputValueClass(VariantContextWritable.class);
+        }
 
+        if(halvadeOpts.justAlign)
+            halvadeJob.setNumReduceTasks(0);
+        else if (halvadeOpts.mergeBam) {
+            halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.BamMergeReducer.class);
+            halvadeJob.setNumReduceTasks(1);
+        } else
+            halvadeJob.setNumReduceTasks(halvadeOpts.reduces);    
+        
         if(halvadeOpts.useBamInput) {
             halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.AlignedBamMapper.class);
             halvadeJob.setInputFormatClass(BAMInputFormat.class);
@@ -267,6 +278,7 @@ public class MapReduceRunner extends Configured implements Tool  {
     
     protected void addInputFiles(String input, Configuration conf, Job job) throws URISyntaxException, IOException {
         FileSystem fs = FileSystem.get(new URI(input), conf);
+        Logger.DEBUG("adding input files from " + input);
         if (fs.getFileStatus(new Path(input)).isDirectory()) {
             // add every file in directory
             FileStatus[] files = fs.listStatus(new Path(input));

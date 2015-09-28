@@ -267,8 +267,8 @@ public class CommandGenerator {
         int strandedness = 0;
         command.add(featureCountsOptions[3]);
         command.add(strandedness + "");
-        command.add(featureCountsOptions[4]);
-        command.add("10");
+//        command.add(featureCountsOptions[4]);
+//        command.add("10");
         command.add(featureCountsOptions[5]);
 //        command.add(featureCountsOptions[6]);
 //        command.add(featureCountsOptions[7]);

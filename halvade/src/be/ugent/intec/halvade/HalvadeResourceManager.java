@@ -52,7 +52,8 @@ public class HalvadeResourceManager {
         int mmem = RESOURCE_REQ[BAMinput? 3 : type][0];
         int rmem = RESOURCE_REQ[type][1] == ALL ? tmpmem - MEM_AM : RESOURCE_REQ[type][1];
         if(opt.overrideMem > 0) {
-            mmem = opt.overrideMem;
+            if(!BAMinput)
+                mmem = opt.overrideMem;
             rmem = opt.overrideMem;
         }
         if(mmem > opt.mem*1024 || rmem > opt.mem*1024)

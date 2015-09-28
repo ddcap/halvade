@@ -87,7 +87,8 @@ public class HalvadeOptions {
     public String chr = null;
     public int reducerContainersPerNode = -1;
     public int mapContainersPerNode = -1;
-    public boolean justAlign = false;
+    public boolean justAlign = false;;
+    public boolean mergeBam = false;
     public String bedFile = null;
     public String filterBed = null;
     public String bedRegion = null;
@@ -427,6 +428,8 @@ public class HalvadeOptions {
                 .create("bam");
         Option optRedis = OptionBuilder.withDescription("This will enable Halvade to redistribute resources when possible when not all containers are used.")
                 .create("redistribute");
+        Option optMergeBam = OptionBuilder.withDescription("Merges all bam output from either bam input or the aligned reads from the fastq input files.")
+                .create("merge_bam");
 
         options.addOption(optIn);
         options.addOption(optOut);
@@ -470,6 +473,7 @@ public class HalvadeOptions {
         options.addOption(optCustomArgs);
         options.addOption(optRedis);
         options.addOption(optRmem);
+        options.addOption(optMergeBam);
     }
 
     protected boolean parseArguments(String[] args, Configuration halvadeConf) throws ParseException {
@@ -566,7 +570,10 @@ public class HalvadeOptions {
             keepChrSplitPairs = false;
         }
         if (line.hasOption("cov")) {
-            coverage = Integer.parseInt(line.getOptionValue("cov"));
+            coverage = Double.parseDouble(line.getOptionValue("cov"));
+        }
+        if (line.hasOption("merge_bam")) {
+            mergeBam = true;
         }
         if (line.hasOption("c")) {
             justCombine = true;
