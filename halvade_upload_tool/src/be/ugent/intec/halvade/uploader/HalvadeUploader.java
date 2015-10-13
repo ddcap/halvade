@@ -18,10 +18,10 @@
 package be.ugent.intec.halvade.uploader;
 
 import be.ugent.intec.halvade.uploader.input.FileReaderFactory;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.amazonaws.auth.AWSCredentials;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
@@ -50,12 +50,10 @@ public class HalvadeUploader  extends Configured implements Tool {
     private String file1;
     private String file2;
     private String outputDir;
-    private String credFile;
     private int bestFileSize = 60000000; // <64MB
     
     
-    private String accessKey;
-    private String secretKey;
+    private AWSCredentials credentials;
     /**
      * @param args the command line arguments
      */
@@ -92,9 +90,9 @@ public class HalvadeUploader  extends Configured implements Tool {
         boolean useAWS = false;
         if(outputDir.startsWith("s3")) {
             useAWS = true;
-            readCredentials();
-            String existingBucketName = outputDir;
-            upl = new AWSUploader(existingBucketName, accessKey, secretKey);
+            String existingBucketName = outputDir.replace("s3://","").split("/")[0];
+            outputDir = outputDir.replace("s3://" + existingBucketName, "");
+            upl = new AWSUploader(existingBucketName);
         } else {
             Configuration conf = getConf();
             fs = FileSystem.get(new URI(outputDir), conf);
@@ -175,12 +173,6 @@ public class HalvadeUploader  extends Configured implements Tool {
         return bestFileSize;
     }
     
-    private void readCredentials() throws FileNotFoundException, IOException {        
-        ObjectMapper jsonMapper = new ObjectMapper();
-        JsonNode root = jsonMapper.readTree(new File(credFile));
-        accessKey = root.get("access_id").asText();
-        secretKey = root.get("private_key").asText();    
-    }
     
     public void createOptions() {
         Option optOut = OptionBuilder.withArgName( "output" )
@@ -198,10 +190,6 @@ public class HalvadeUploader  extends Configured implements Tool {
                                 .hasArg()
                                 .withDescription(  "The second fastq file." )
                                 .create( "2" );
-        Option optCred = OptionBuilder.withArgName( "credentials" )
-                                .hasArg()
-                                .withDescription(  "Give the credential file to access AWS." )
-                                .create( "cred" );
         Option optSize = OptionBuilder.withArgName( "size" )
                                 .hasArg()
                                 .withDescription(  "Sets the maximum filesize of each split in MB." )
@@ -224,7 +212,6 @@ public class HalvadeUploader  extends Configured implements Tool {
         options.addOption(optFile1);
         options.addOption(optFile2);
         options.addOption(optThreads);
-        options.addOption(optCred);
         options.addOption(optSize);
         options.addOption(optInter);
         options.addOption(optSnappy);
@@ -244,9 +231,7 @@ public class HalvadeUploader  extends Configured implements Tool {
         if(!outputDir.endsWith("/")) outputDir += "/";
         
         if (line.hasOption("2"))
-            file2 = line.getOptionValue("2");
-        if (line.hasOption("cred"))
-            credFile = line.getOptionValue("cred");        
+            file2 = line.getOptionValue("2");     
         if(line.hasOption("t"))
             mthreads = Integer.parseInt(line.getOptionValue("t"));
         if(line.hasOption("i"))

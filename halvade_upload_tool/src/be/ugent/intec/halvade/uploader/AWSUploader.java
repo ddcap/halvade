@@ -18,10 +18,16 @@
 package be.ugent.intec.halvade.uploader;
 
 import com.amazonaws.AmazonClientException;
+import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.BasicAWSCredentials;
+import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
+import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.transfer.TransferManager;
 import com.amazonaws.services.s3.transfer.Upload;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.io.InputStream;
 
 /**
@@ -31,13 +37,32 @@ import java.io.InputStream;
 public class AWSUploader {
     
     private String existingBucketName;
-    private BasicAWSCredentials credentials;
     private TransferManager tm;
 
-    public AWSUploader(String existingBucketName, String accessKey, String secretKey) {
+    
+    public AWSUploader(String existingBucketName) throws IOException {
         this.existingBucketName = existingBucketName;
-        this.credentials = new BasicAWSCredentials(accessKey, secretKey);
-        this.tm = new TransferManager(credentials);
+        AWSCredentials c;
+        try{
+            DefaultAWSCredentialsProviderChain prov = new DefaultAWSCredentialsProviderChain();
+            c= prov.getCredentials();
+        } catch(AmazonClientException ex) {
+            // read from ~/.aws/credentials
+            String access = null;
+            String secret = null;
+            try (BufferedReader br = new BufferedReader(new FileReader(System.getProperty("user.home") + "/.aws/credentials"))) {
+                String line;
+                while ((line = br.readLine()) != null && !line.contains("[default]")) {}
+                line = br.readLine();
+                if(line != null)
+                    access = line.split(" = ")[1];
+                line = br.readLine();
+                if(line != null)
+                    secret = line.split(" = ")[1];
+            }
+            c = new BasicAWSCredentials(access, secret);
+        }
+        this.tm = new TransferManager(c);
     }
     
     public void shutDownNow() {
@@ -46,6 +71,7 @@ public class AWSUploader {
     
     public void Upload(String key, InputStream input, long size) throws InterruptedException {
         ObjectMetadata meta = new ObjectMetadata();
+        meta.setServerSideEncryption(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION);   
         meta.setContentLength(size);
         Upload upload = tm.upload(existingBucketName, key, input, meta);
         
