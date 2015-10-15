@@ -51,6 +51,8 @@ public class HalvadeUploader  extends Configured implements Tool {
     private String file2;
     private String outputDir;
     private int bestFileSize = 60000000; // <64MB
+    private boolean SSE = false;
+    private String profile = "default";
     
     
     private AWSCredentials credentials;
@@ -91,8 +93,8 @@ public class HalvadeUploader  extends Configured implements Tool {
         if(outputDir.startsWith("s3")) {
             useAWS = true;
             String existingBucketName = outputDir.replace("s3://","").split("/")[0];
-            outputDir = outputDir.replace("s3://" + existingBucketName, "");
-            upl = new AWSUploader(existingBucketName);
+            outputDir = outputDir.replace("s3://" + existingBucketName + "/", "");
+            upl = new AWSUploader(existingBucketName, SSE, profile);
         } else {
             Configuration conf = getConf();
             fs = FileSystem.get(new URI(outputDir), conf);
@@ -198,6 +200,10 @@ public class HalvadeUploader  extends Configured implements Tool {
                                 .hasArg()
                                 .withDescription(  "Sets the available threads [1]." )
                                 .create( "t" );
+        Option optProfile = OptionBuilder.withArgName( "profilename" )
+                                .hasArg()
+                                .withDescription(  "Sets the profile name to be used when looking for AWS credentials in the credentials file (~/.aws/credentials). [default]" )
+                                .create( "profile" );
         Option optInter = OptionBuilder.withArgName( "" )
                                 .withDescription(  "The single file input files contain interleaved paired-end reads." )
                                 .create( "i" );
@@ -207,15 +213,20 @@ public class HalvadeUploader  extends Configured implements Tool {
         Option optLz4 = OptionBuilder.withArgName( "" )
                                 .withDescription(  "Compress the output files with lz4 (faster) instead of gzip. The lz4 library needs to be installed in Hadoop." )
                                 .create( "lz4" );
+        Option optSSE = OptionBuilder.withArgName( "" )
+                                .withDescription(  "Enables Server Side Encryption to transfer the files to amazon S3." )
+                                .create( "sse" );
         
         options.addOption(optOut);
         options.addOption(optFile1);
         options.addOption(optFile2);
         options.addOption(optThreads);
+        options.addOption(optProfile);
         options.addOption(optSize);
         options.addOption(optInter);
         options.addOption(optSnappy);
         options.addOption(optLz4);
+        options.addOption(optSSE);
     }
     
     public void parseArguments(String[] args) throws ParseException {
@@ -231,11 +242,15 @@ public class HalvadeUploader  extends Configured implements Tool {
         if(!outputDir.endsWith("/")) outputDir += "/";
         
         if (line.hasOption("2"))
-            file2 = line.getOptionValue("2");     
+            file2 = line.getOptionValue("2");   
+        if (line.hasOption("profile"))
+            profile = line.getOptionValue("profile");    
         if(line.hasOption("t"))
             mthreads = Integer.parseInt(line.getOptionValue("t"));
         if(line.hasOption("i"))
             isInterleaved = true;
+        if(line.hasOption("sse"))
+            SSE = true;
         if(line.hasOption("snappy")) {       
             CompressionCodecFactory codecFactory = new CompressionCodecFactory(getConf());
             codec = codecFactory.getCodecByClassName("org.apache.hadoop.io.compress.SnappyCodec");

@@ -21,7 +21,6 @@ import com.amazonaws.AmazonClientException;
 import com.amazonaws.auth.AWSCredentials;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
-import com.amazonaws.auth.profile.ProfileCredentialsProvider;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.transfer.TransferManager;
 import com.amazonaws.services.s3.transfer.Upload;
@@ -38,9 +37,13 @@ public class AWSUploader {
     
     private String existingBucketName;
     private TransferManager tm;
+    private boolean SSE;
+    private String profile;
 
     
-    public AWSUploader(String existingBucketName) throws IOException {
+    public AWSUploader(String existingBucketName, boolean sse, String profile) throws IOException {
+        SSE = sse;
+        this.profile = profile;
         this.existingBucketName = existingBucketName;
         AWSCredentials c;
         try{
@@ -52,7 +55,7 @@ public class AWSUploader {
             String secret = null;
             try (BufferedReader br = new BufferedReader(new FileReader(System.getProperty("user.home") + "/.aws/credentials"))) {
                 String line;
-                while ((line = br.readLine()) != null && !line.contains("[default]")) {}
+                while ((line = br.readLine()) != null && !line.contains("["+ this.profile +"]")) {}
                 line = br.readLine();
                 if(line != null)
                     access = line.split(" = ")[1];
@@ -71,7 +74,8 @@ public class AWSUploader {
     
     public void Upload(String key, InputStream input, long size) throws InterruptedException {
         ObjectMetadata meta = new ObjectMetadata();
-        meta.setServerSideEncryption(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION);   
+        if(SSE)
+            meta.setServerSideEncryption(ObjectMetadata.AES_256_SERVER_SIDE_ENCRYPTION);   
         meta.setContentLength(size);
         Upload upload = tm.upload(existingBucketName, key, input, meta);
         
