@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/bin/python
 
 import subprocess
 import os
@@ -8,7 +8,6 @@ import sys
 halvade = "halvade.config"
 arguments = "halvade_run.config"
 jar = "HalvadeWithLibs.jar"
-s3logging = "s3://itx-abt-jnj-exasci/ddecap/halvade/logs/"
 emr_config = dict()
 config = dict()
 flags = dict()
@@ -71,13 +70,13 @@ def spawnDaemon(args):
 
 # read config
 if (len(sys.argv) > 1):
-        print "*** Reading configuration from %s:" % sys.argv[1]
-        readConfig(sys.argv[1])
-else:   
-        print "*** Reading configuration from %s:" % halvade
-        readConfig(halvade)
-        print "*** Reading configuration from %s:" % arguments
-        readConfig(arguments)
+	print "*** Reading configuration from %s:" % sys.argv[1]
+	readConfig(sys.argv[1])
+else:
+	print "*** Reading configuration from %s:" % halvade
+	readConfig(halvade)
+	print "*** Reading configuration from %s:" % arguments
+	readConfig(arguments)
 
 print jar
 # determine if S3 is used -> use amazon EMR
@@ -97,12 +96,10 @@ if "emr_type" in emr_config:
 	argsArray.append("--instance-count")
 	argsArray.append(config["nodes"])
 	argsArray.append("--enable-debugging")
-	argsArray.append("--log-uri")
-	argsArray.append(s3logging)
 	argsArray.append("--ami-version")
 	argsArray.append(emr_config["emr_ami_v"])
         argsArray.append("--bootstrap-actions")
-        argsArray.append("Path=s3://elasticmapreduce/bootstrap-actions/configure-hadoop,Name=configuration,Args="+hadoopArgs+ ",Path="+emr_config["emr_script"]+",Name=maketmpdir")
+        argsArray.append("Path=s3://elasticmapreduce/bootstrap-actions/configure-hadoop,Name=configuration,Args="+hadoopArgs+ " Path="+emr_config["emr_script"]+",Name=maketmpdir")
 	argsArray.append("--steps")
 	argsString ="["
         for key in config:
@@ -116,7 +113,7 @@ if "emr_type" in emr_config:
 	argsString = argsString[:-1]+"]"
 	argsArray.append("Name=Halvade,Jar="+emr_config["emr_jar"]+",ActionOnFailure=TERMINATE_CLUSTER,Args="+argsString)
 	print argsArray
-        spawnDaemon(argsArray)
+        #spawnDaemon(argsArray)
 
 else:
 	print "Running Halvade on local cluster:"

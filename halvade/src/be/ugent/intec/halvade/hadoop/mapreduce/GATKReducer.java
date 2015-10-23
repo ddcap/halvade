@@ -169,7 +169,7 @@ public abstract class GATKReducer extends HalvadeReducer {
             writer.addAlignment(sam);
             count++;
         }
-        int reads = input.getCount();
+        int reads = count;
         writer.close();
 
         context.getCounter(HalvadeCounters.IN_PREP_READS).increment(reads);

@@ -163,11 +163,12 @@ public class PreprocessingTools {
         SAMFileWriterFactory factory = new SAMFileWriterFactory();
         SAMFileWriter Swriter = factory.makeSAMWriter(header, true, new File(input));
         
+        int reads = 0;
         while(SAMit.hasNext()) {
             sam = SAMit.next();
             Swriter.addAlignment(sam);
+            reads++;
         }
-        int reads = SAMit.getCount();
         Swriter.close();
         
         String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "elprep", "");  
@@ -198,12 +199,13 @@ public class PreprocessingTools {
         
         
         SAMRecord sam;
+        int reads = 0;
         while(SAMit.hasNext()) {
             sam = SAMit.next();
             String samString = sam.getSAMString();
             localWriter.write(samString, 0, samString.length());
+            reads++;
         }
-        int reads = SAMit.getCount();
         localWriter.flush();
         localWriter.close();
                 
