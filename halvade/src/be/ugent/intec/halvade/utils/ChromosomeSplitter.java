@@ -111,24 +111,25 @@ public class ChromosomeSplitter {
     }
     
     public HashSet<Integer> getRegions(SAMRecord sam, int read1Ref, int read2Ref) {  
-        int readLength = sam.getReadLength();      
         int beginpos1 = sam.getAlignmentStart();
+        int endpos1 = sam.getAlignmentEnd();
         int beginpos2 = sam.getMateAlignmentStart();
+        int endpos2 =  sam.getMateAlignmentStart() + sam.getReadLength();      // is approximation, but is best we can currently do!
         HashSet<Integer> keys = new HashSet();
         if(read1Ref >= 0)
-            Collections.addAll(keys, getKey(sam.getReferenceName(),beginpos1,beginpos1 + readLength));
+            Collections.addAll(keys, getKey(sam.getReferenceName(),beginpos1, endpos1));
         if(read2Ref >= 0)
-            Collections.addAll(keys, getKey(sam.getMateReferenceName(),beginpos2,beginpos2 + readLength));
+            Collections.addAll(keys, getKey(sam.getMateReferenceName(),beginpos2,endpos2));
         keys.removeAll(Collections.singleton(null));
         return keys;
     }
     
-    public HashSet<Integer> getRegions(SAMRecord sam, int read1Ref) {  
-        int readLength = sam.getReadLength();      
+    public HashSet<Integer> getRegions(SAMRecord sam, int read1Ref) { 
         int beginpos1 = sam.getAlignmentStart();
+        int endpos1 = sam.getAlignmentEnd();      
         HashSet<Integer> keys = new HashSet();
         if(read1Ref >= 0)
-            Collections.addAll(keys, getKey(sam.getReferenceName(),beginpos1,beginpos1 + readLength));
+            Collections.addAll(keys, getKey(sam.getReferenceName(),beginpos1,endpos1));
         return keys;
     }
     
