@@ -182,7 +182,7 @@ public class MapReduceRunner extends Configured implements Tool  {
             halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.RnaGATKReducer.class);
         } else if(jobType == HalvadeResourceManager.DNA){ 
             halvadeJob.setMapperClass(halvadeOpts.alignmentTools[halvadeOpts.aln]);
-            halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.DnaGATKReducer.class);  
+            halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.DnaGATKReducer.class);
         }
         
         

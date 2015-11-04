@@ -6,6 +6,7 @@
 
 package be.ugent.intec.halvade.hadoop.mapreduce;
 
+import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
@@ -25,11 +26,11 @@ import org.seqdoop.hadoop_bam.util.SAMHeaderReader;
  *
  * @author ddecap
  */
-public class BamMergeReducer extends Reducer<LongWritable, SAMRecordWritable, LongWritable, SAMRecordWritable> {
+public class BamMergeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable, LongWritable, SAMRecordWritable> {
     
     protected SAMFileHeader header;
     protected SAMSequenceDictionary dict;
-    KeyIgnoringBAMOutputFormat outpFormat;
+    protected KeyIgnoringBAMOutputFormat outpFormat;
     protected String RGID = "GROUP1";    
     protected String RGLB = "LIB1";
     protected String RGPL = "ILLUMINA";
@@ -37,7 +38,8 @@ public class BamMergeReducer extends Reducer<LongWritable, SAMRecordWritable, Lo
     protected String RGSM = "SAMPLE1";
     protected SAMReadGroupRecord bamrg;
     protected boolean inputIsBam = false;
-    RecordWriter<LongWritable,SAMRecordWritable> recordWriter;
+    protected RecordWriter<LongWritable,SAMRecordWritable> recordWriter;
+    protected LongWritable outKey;
     boolean reportBest = false;
 
     @Override
@@ -47,10 +49,10 @@ public class BamMergeReducer extends Reducer<LongWritable, SAMRecordWritable, Lo
     }
 
     @Override
-    protected void reduce(LongWritable key, Iterable<SAMRecordWritable> values, Context context) throws IOException, InterruptedException {
+    protected void reduce(ChromosomeRegion key, Iterable<SAMRecordWritable> values, Context context) throws IOException, InterruptedException {
         Iterator<SAMRecordWritable> it = values.iterator();
         while(it.hasNext())
-            recordWriter.write(key, it.next());
+            recordWriter.write(outKey, it.next());
     }
 
     @Override
@@ -58,6 +60,7 @@ public class BamMergeReducer extends Reducer<LongWritable, SAMRecordWritable, Lo
         outpFormat = new KeyIgnoringBAMOutputFormat();
         String output = HalvadeConf.getOutDir(context.getConfiguration());
         inputIsBam = HalvadeConf.inputIsBam(context.getConfiguration());
+        dict = HalvadeConf.getSequenceDictionary(context.getConfiguration());
         if(inputIsBam) {
             header = SAMHeaderReader.readSAMHeaderFrom(new Path(HalvadeConf.getHeaderFile(context.getConfiguration())), context.getConfiguration());
         } else {
@@ -74,6 +77,8 @@ public class BamMergeReducer extends Reducer<LongWritable, SAMRecordWritable, Lo
         
         outpFormat.setSAMHeader(header);
         recordWriter = outpFormat.getRecordWriter(context, new Path(output + "mergedBam.bam"));
+        outKey = new LongWritable();
+        outKey.set(0);
     }
     
         protected void getReadGroupData(Configuration conf) {

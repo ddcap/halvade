@@ -394,6 +394,10 @@ public class HalvadeOptions {
                 .withDescription("Adds custom arguments for a tool. If a module in a tool is used, add the name after an underscore. "
                         + "Possible values: " + getProgramNames())
                 .create("CA");
+        Option optVerbose = OptionBuilder.withArgName("num")
+                .hasArg()
+                .withDescription("Sets verbosity of debugging [2].")
+                .create("v");
         Option optAln = OptionBuilder.withArgName("num")
                 .hasArg()
                 .withDescription("Sets the aligner used in Halvade. Possible values are 0 (bwa aln+sampe)[default], 1 (bwa mem), 2 (bowtie2), 3 (cushaw2).")
@@ -474,6 +478,7 @@ public class HalvadeOptions {
         options.addOption(optRedis);
         options.addOption(optRmem);
         options.addOption(optMergeBam);
+        options.addOption(optVerbose);
     }
 
     protected boolean parseArguments(String[] args, Configuration halvadeConf) throws ParseException {
@@ -608,6 +613,9 @@ public class HalvadeOptions {
         }
         if (line.hasOption("fbed")) {
             filterBed = line.getOptionValue("fbed");
+        }
+        if (line.hasOption("v")) {
+            Logger.SETLEVEL(Integer.parseInt(line.getOptionValue("v")));
         }
 
         if (line.hasOption("CA")) {

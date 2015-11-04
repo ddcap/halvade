@@ -255,7 +255,7 @@ public class ChromosomeSplitter {
                 for (BedRegion breg : region.getValue()) {
                     regionCount++;
                     Logger.DEBUG("region: " + breg.key + ", " + contig + 
-                            " (" + breg.start + " _ " + breg.end + " -> " + (breg.end - breg.start) + ")", 2);
+                            " (" + breg.start + " _ " + breg.end + " -> " + (breg.end - breg.start) + ")", 3);
                 }
             }                    
         } finally {
