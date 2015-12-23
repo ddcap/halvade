@@ -29,7 +29,7 @@ def readConfig(filename):
 					if key.startswith("emr"):
 						emr_config[key] = val
 						print "EMR %s: %s" % (key, val)
-					elif key == "ca":
+					elif key == "CA":
 						tca = val.split('=', 1)
 						custom_args[tca[0]] = tca[1]
 						print "CA %s: %s" % (tca[0], tca[1])
@@ -111,7 +111,7 @@ if "emr_type" in emr_config:
         for key in flags:
                 argsString+="-"+key+","
         for key in custom_args:
-                argsString+="-ca,"
+                argsString+="-CA,"
                 argsString+=key+"="+custom_args[key]+","
 	argsString = argsString[:-1]+"]"
 	argsArray.append("Name=Halvade,Jar="+emr_config["emr_jar"]+",ActionOnFailure=TERMINATE_CLUSTER,Args="+argsString)
@@ -130,7 +130,7 @@ else:
 	for key in flags:
 		argsArray.append("-"+key)
 	for key in custom_args:
-		argsArray.append("-ca")
+		argsArray.append("-CA")
 		argsArray.append(key+"="+custom_args[key])
 	print argsArray
         spawnDaemon(argsArray)

@@ -83,7 +83,7 @@ public class MapReduceRunner extends Configured implements Tool  {
                     System.exit(-2);
                 }
             }
-            if(!halvadeOpts.dryRun) {
+            if(!halvadeOpts.dryRun &&  !halvadeOpts.mergeBam) {
                 if(halvadeOpts.combineVcf)
                     runCombineJob(halvadeDir, halvadeOpts.out + "/merge", false);
                 if(halvadeOpts.gff != null)

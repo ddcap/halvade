@@ -86,7 +86,7 @@ public class HalvadeResourceManager {
         else 
             conf.set("mapreduce.reduce.cpu.vcores", "" + opt.rthreads );
         conf.set("mapreduce.reduce.memory.mb", "" + rmem);        
-        conf.set("mapreduce.reduce.java.opts", "-Xmx" + (int)(0.8*rmem) + "m");
+        conf.set("mapreduce.reduce.java.opts", "-Xmx" + (int)(0.7*rmem) + "m");
         conf.set("mapreduce.map.java.opts", "-Xmx" + (int)(0.8*mmem) + "m");
 //                + " -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -Xloggc:/tmp/halvade/@taskid@.gc"); 
         conf.set("mapreduce.job.reduce.slowstart.completedmaps", "0.99");

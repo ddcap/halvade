@@ -133,6 +133,8 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
         keep = HalvadeConf.getKeepFiles(context.getConfiguration());
         inputIsBam = HalvadeConf.inputIsBam(context.getConfiguration());
         java = HalvadeConf.getJava(context.getConfiguration());
+        // get java extra arguments!
+        
         tmp = HalvadeConf.getScratchTempDir(context.getConfiguration());
         threads = HalvadeConf.getReducerThreads(context.getConfiguration());
         dict = HalvadeConf.getSequenceDictionary(context.getConfiguration());
@@ -219,7 +221,7 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
         URI[] localPaths = context.getCacheArchives();
         for(int i = 0; i < localPaths.length; i++ ) {
             Path path = new Path(localPaths[i].getPath());
-            if(path.getName().endsWith(".tar.gz")) {
+            if(path.getName().endsWith("bin.tar.gz")) {
                 binDir = "./" + path.getName() + "/bin/";
             }
         }

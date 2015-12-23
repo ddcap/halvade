@@ -95,6 +95,7 @@ public class HalvadeOptions {
     public double coverage = -1.0;
     public String halvadeBinaries;
     public String bin;
+    public String readCountsPerRegionFile = null;
     public boolean combineVcf = true;
     public boolean dryRun = false;
     public boolean keepChrSplitPairs = true;
@@ -105,6 +106,7 @@ public class HalvadeOptions {
     public boolean setMapContainers = true, setReduceContainers = true;
     public boolean redistribute = false;
     public boolean smtEnabled = false;
+    public boolean reorderRegions = false;
     public int overrideMem = -1;
     
     protected DecimalFormat onedec;
@@ -186,8 +188,11 @@ public class HalvadeOptions {
             ChromosomeSplitter splitter;
             if(bedFile != null)
                 splitter = new ChromosomeSplitter(dict, bedFile, reduces);
+            else if (readCountsPerRegionFile != null)
+                splitter = new ChromosomeSplitter(dict, readCountsPerRegionFile, reduces, reorderRegions);
             else
                 splitter = new ChromosomeSplitter(dict, reduces);
+            
             String bedRegions = out + "HalvadeRegions.bed";
             splitter.exportSplitter(bedRegions, hConf);
             reduces = splitter.getRegionCount();
@@ -402,6 +407,10 @@ public class HalvadeOptions {
                 .hasArg()
                 .withDescription("Sets the aligner used in Halvade. Possible values are 0 (bwa aln+sampe)[default], 1 (bwa mem), 2 (bowtie2), 3 (cushaw2).")
                 .create("aln");
+        Option optReadsPerRegion = OptionBuilder.withArgName("file")
+                .hasArg()
+                .withDescription("Give a file with read counts per region to better distribute the regions (split by readcount [default] or reorder regions by size [-reorder_regions]).")
+                .create("rpr");
 
         //flags
         Option optSingle = OptionBuilder.withDescription("Sets the input files to single reads [default is paired-end reads].")
@@ -434,6 +443,8 @@ public class HalvadeOptions {
                 .create("redistribute");
         Option optMergeBam = OptionBuilder.withDescription("Merges all bam output from either bam input or the aligned reads from the fastq input files.")
                 .create("merge_bam");
+        Option optReorderRegions = OptionBuilder.withDescription("Use the default split way but reorder tasks by size based on the read count file given by -rpr option.")
+                .create("reorder_regions");
 
         options.addOption(optIn);
         options.addOption(optOut);
@@ -472,6 +483,7 @@ public class HalvadeOptions {
         options.addOption(optReportAll);
         options.addOption(optSmt);
         options.addOption(optRna);
+        options.addOption(optReadsPerRegion);
         options.addOption(optStarGenome);
         options.addOption(optBamIn);
         options.addOption(optCustomArgs);
@@ -479,6 +491,7 @@ public class HalvadeOptions {
         options.addOption(optRmem);
         options.addOption(optMergeBam);
         options.addOption(optVerbose);
+        options.addOption(optReorderRegions);
     }
 
     protected boolean parseArguments(String[] args, Configuration halvadeConf) throws ParseException {
@@ -522,6 +535,9 @@ public class HalvadeOptions {
         }
         if (line.hasOption("mem")) {
             mem = Double.parseDouble(line.getOptionValue("mem"));
+        }
+        if (line.hasOption("rpr")) {
+            readCountsPerRegionFile = line.getOptionValue("rpr");
         }
         if (line.hasOption("mpn")) {
             setMapContainers = false;
@@ -587,6 +603,9 @@ public class HalvadeOptions {
         if (line.hasOption("filter_dbsnp")) {
             filterDBSnp = true;
         }
+        if (line.hasOption("reorder_regions")) {
+            reorderRegions = true;
+        }
         if (line.hasOption("hc")) {
             useGenotyper = false;
         }
@@ -633,6 +652,7 @@ public class HalvadeOptions {
         "bwa_aln", "bwa_mem", "bwa_sampe",
         "star",
         "elprep",
+        "java",
         "samtools_view",
         "bedtools_bdsnp", "bedtools_exome",
         "picard_buildbamindex", "picard_addorreplacereadgroup", "picard_markduplicates", "picard_cleansam",

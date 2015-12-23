@@ -25,6 +25,7 @@ import be.ugent.intec.halvade.utils.ProcessBuilderWrapper;
 import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import java.text.DecimalFormat;
+import java.util.Collections;
 import org.apache.hadoop.mapreduce.Reducer;
 
 /**
@@ -38,7 +39,7 @@ public class GATKTools {
     String reference;
     String bin;
     String gatk;
-    String java;
+    ArrayList<String> java;
     String mem = "-Xmx2g";
     int threadingType = 0; // [default] 0 = data multithreading (1 = cpu multithreading)
     int threads = 1; 
@@ -66,28 +67,33 @@ public class GATKTools {
     public GATKTools(String reference, String bin) {
         this.reference = reference;
         this.bin = bin;
-        this.java = "java";
+        java = new ArrayList<>();
+        java.add("java");
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "java", "");  
+        java.add(customArgs);
         this.gatk = bin + "/GenomeAnalysisTK.jar" ;
         onedec = new DecimalFormat("###0.0");
     }
 
     public String getJava() {
-        return java;
+        return java.get(0);
     }
 
     public void setJava(String java) {
-        this.java = java;
+        this.java.set(0, java);
     }  
     
     public String roundOneDecimal(double val) {
         return onedec.format(val);
     }
     
-    private static String[] AddCustomArguments(String[] command, String customArgs) {
-        if(customArgs == null || customArgs.isEmpty()) return command;
-        ArrayList<String> tmp = new ArrayList(Arrays.asList(command));
-        tmp = CommandGenerator.addToCommand(tmp, customArgs);  
-        Object[] ObjectList = tmp.toArray();
+    private String[] AddCustomArguments(String[] args, String customArgs) {
+        ArrayList<String> command = new ArrayList<>();
+        command.addAll(java);
+        Collections.addAll(command, args);
+        
+        command = CommandGenerator.addToCommand(command, customArgs);  
+        Object[] ObjectList = command.toArray();
         return Arrays.copyOf(ObjectList,ObjectList.length,String[].class);  
     }
     
@@ -114,8 +120,9 @@ public class GATKTools {
          */
 
         ArrayList<String> command = new ArrayList<>();
+        command.addAll(java);
         String[] gatkcmd = {
-            java, mem, "-jar", gatk,
+            mem, "-jar", gatk,
             "-T", "BaseRecalibrator",
             multiThreadingTypes[1], "" + threads, // only -nct
             "-R", ref,
@@ -148,7 +155,7 @@ public class GATKTools {
          * 
          */
         String[] command = {
-            java, mem, "-jar", gatk,
+            mem, "-jar", gatk,
             "-T", "RealignerTargetCreator",
             multiThreadingTypes[0], "" + threads, // only supports -nt
             "-R", ref,
@@ -176,7 +183,7 @@ public class GATKTools {
          * 
          */
         String[] command = {
-            java, mem, "-jar", gatk,
+            mem, "-jar", gatk,
             "-T", "SplitNCigarReads",
             "-R", ref,
             "-I", input,
@@ -211,7 +218,7 @@ public class GATKTools {
          * 
          */
         String[] command = {
-            java, mem, "-jar", gatk,
+            mem, "-jar", gatk,
             "-T", "VariantFiltration",
             "-R", ref,
             "-V", input,
@@ -246,7 +253,7 @@ public class GATKTools {
          * 
          */
         String[] command = {
-            java, mem, "-jar", gatk,
+            mem, "-jar", gatk,
             "-T", "VariantAnnotator",
             multiThreadingTypes[0], "" + threads, 
             "-R", ref,
@@ -273,7 +280,7 @@ public class GATKTools {
          * 
          */
         String[] command = {
-            java, mem, "-jar", gatk,
+            mem, "-jar", gatk,
             "-T", "IndelRealigner",
             "-R", ref,
             "-I", input,
@@ -295,7 +302,7 @@ public class GATKTools {
          ***************************************************************************
          */
         String[] command = {
-            java, mem, "-jar", gatk,
+            mem, "-jar", gatk,
             "-T", "PrintReads",
 //            multiThreadingTypes[1], "" + threads, 
             "-R", ref,
@@ -320,9 +327,10 @@ public class GATKTools {
          *  -genotypeMergeOptions UNIQUIFY
          */
         ArrayList<String> command = new ArrayList<String>();
+        command.addAll(java);
         
         String[] gatkcmd = {
-            java, mem, "-jar", gatk,
+            mem, "-jar", gatk,
             "-T", "CombineVariants",
             multiThreadingTypes[0], "" + threads,
             "-R", ref,
@@ -349,10 +357,11 @@ public class GATKTools {
          * example:
          * -I recalibrated.bam -T UnifiedGenotyper -o output.vcf -R ref
          */
-        ArrayList<String> command = new ArrayList<String>();            
+        ArrayList<String> command = new ArrayList<String>();    
+        command.addAll(java);        
         
         String[] gatkcmd = {
-            java, mem, "-jar", gatk,
+            mem, "-jar", gatk,
             "-T", "UnifiedGenotyper",
             multiThreadingTypes[threadingType], "" + threads, 
             "-R", ref,
@@ -385,9 +394,10 @@ public class GATKTools {
          * -I recalibrated.bam -T UnifiedGenotyper -o output.vcf -R ref
          */
         ArrayList<String> command = new ArrayList<String>();
+        command.addAll(java);
         
         String[] gatkcmd = {
-            java, mem, "-jar", gatk,
+            mem, "-jar", gatk,
             "-T", "HaplotypeCaller",
             multiThreadingTypes[1], "" + threads, 
             "-R", ref,

@@ -160,9 +160,9 @@ public class CommandGenerator {
     private static String snpSiftBin = "SnpSift.jar";
     private static String[] snpSiftOptions = {"intIdx"};
     //java -jar SnpSift.jar intidx input.vcf intervals.bed > output.vcf
-    public static String[] snpSift(String java, String mem, String bin, String input, String bed, int threads) {
+    public static String[] snpSift(ArrayList<String> java, String mem, String bin, String input, String bed, int threads) {
         ArrayList<String> command = new ArrayList<>();
-        command.add(java);
+        command.addAll(java);
         command.add(mem);
         command.add("-jar");
         if(bin.endsWith("/")) 

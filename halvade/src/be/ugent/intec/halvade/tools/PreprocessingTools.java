@@ -49,7 +49,7 @@ public class PreprocessingTools {
     String bin;
     private int bufferSize = 8*1024;
     Reducer.Context context = null;
-    String java;
+    ArrayList<String> java;
     String mem = "-Xmx2g";
 
     public void setContext(Reducer.Context context) {
@@ -59,15 +59,18 @@ public class PreprocessingTools {
     
     public PreprocessingTools(String bin) {
         this.bin = bin;
-        this.java = "java";
+        java = new ArrayList<>();
+        java.add("java");
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "java", "");  
+        java.add(customArgs);
     }
 
     public String getJava() {
-        return java;
+        return java.get(0);
     }
 
     public void setJava(String java) {
-        this.java = java;
+        this.java.set(0, java);
     }
     
     private static final int BED_OVERLAP = 301;
@@ -260,7 +263,7 @@ public class PreprocessingTools {
             tool = bin + "/" + PicardTools[0];     
               
         ArrayList<String> command = new ArrayList<>();
-        command.add(java);
+        command.addAll(java);
         command.add(mem);
         command.add("-jar");
         command.add(tool);
@@ -281,7 +284,7 @@ public class PreprocessingTools {
         else
             tool = bin + "/" + PicardTools[1];      
         ArrayList<String> command = new ArrayList<>();
-        command.add(java);
+        command.addAll(java);
         command.add(mem);
         command.add("-jar");
         command.add(tool);
@@ -307,7 +310,7 @@ public class PreprocessingTools {
         else
             tool = bin + "/" + PicardTools[4];  
         ArrayList<String> command = new ArrayList<>();
-        command.add(java);
+        command.addAll(java);
         command.add(mem);
         command.add("-jar");
         command.add(tool);
@@ -328,7 +331,7 @@ public class PreprocessingTools {
         else
             tool = bin + "/" + PicardTools[2];  
         ArrayList<String> command = new ArrayList<>();
-        command.add(java);
+        command.addAll(java);
         command.add(mem);
         command.add("-jar");
         command.add(tool);
@@ -349,7 +352,7 @@ public class PreprocessingTools {
         else
             tool = bin + "/" + PicardTools[3];   
         ArrayList<String> command = new ArrayList<>();
-        command.add(java);
+        command.addAll(java);
         command.add(mem);
         command.add("-jar");
         command.add(tool);

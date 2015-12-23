@@ -72,7 +72,7 @@ public class HalvadeMapper<T1, T2> extends Mapper<LongWritable, Text, T1, T2> {
         URI[] localPaths = context.getCacheArchives();
         for(int i = 0; i < localPaths.length; i++ ) {
             Path path = new Path(localPaths[i].getPath());
-            if(path.getName().endsWith(".tar.gz")) {
+            if(path.getName().endsWith("bin.tar.gz")) {
                 binDir = "./" + path.getName() + "/bin/";
             }
         }

@@ -168,7 +168,7 @@ public class RebuildStarGenomeReducer extends Reducer<GenomeSJ, Text, LongWritab
         URI[] localPaths = context.getCacheArchives();
         for(int i = 0; i < localPaths.length; i++ ) {
             Path path = new Path(localPaths[i].getPath());
-            if(path.getName().endsWith(".tar.gz")) {
+            if(path.getName().endsWith("bin.tar.gz")) {
                 binDir = "./" + path.getName() + "/bin/";
             }
         }
