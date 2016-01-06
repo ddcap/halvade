@@ -77,7 +77,6 @@ abstract class BaseInterleaveFiles extends Thread {
                 count += block.getSize();
                 tSize = getSize(dataStream);
                 if(tSize > maxFileSize) {
-                    gzipStream.close();
                     writeData(part, dataStream, gzipStream);
                     Logger.DEBUG("Thread " + thread + " wrote " + count + " lines to dfs");
                     written += tSize;
