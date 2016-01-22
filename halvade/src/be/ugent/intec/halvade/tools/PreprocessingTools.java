@@ -38,6 +38,7 @@ import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMFileWriter;
 import htsjdk.samtools.SAMFileWriterFactory;
 import htsjdk.samtools.SAMRecord;
+import htsjdk.samtools.SAMTag;
 import htsjdk.samtools.SAMTextHeaderCodec;
 import org.apache.hadoop.mapreduce.Reducer;
 
@@ -54,15 +55,17 @@ public class PreprocessingTools {
 
     public void setContext(Reducer.Context context) {
         this.context = context;
-        mem = context.getConfiguration().get("mapreduce.reduce.java.opts");
+        mem = "-Xmx" + (int)(0.8*Integer.parseInt(context.getConfiguration().get("mapreduce.reduce.memory.mb"))) + "m";
+//        mem = context.getConfiguration().get("mapreduce.reduce.java.opts");
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "java", "");  
+        if(customArgs != null)
+            java.add(customArgs);
     }
     
     public PreprocessingTools(String bin) {
         this.bin = bin;
         java = new ArrayList<>();
         java.add("java");
-        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "java", "");  
-        java.add(customArgs);
     }
 
     public String getJava() {
@@ -160,7 +163,7 @@ public class PreprocessingTools {
             
     public int callElPrep(String input, String output, String rg, int threads, 
             SAMRecordIterator SAMit,
-            SAMFileHeader header, String dictFile) throws InterruptedException, QualityException {
+            SAMFileHeader header, String dictFile, boolean updateRG, String RGID) throws InterruptedException, QualityException {
         
         SAMRecord sam;
         SAMFileWriterFactory factory = new SAMFileWriterFactory();
@@ -169,6 +172,8 @@ public class PreprocessingTools {
         int reads = 0;
         while(SAMit.hasNext()) {
             sam = SAMit.next();
+            if(updateRG)
+                sam.setAttribute(SAMTag.RG.name(), RGID);
             Swriter.addAlignment(sam);
             reads++;
         }
@@ -185,7 +190,7 @@ public class PreprocessingTools {
         
     public int streamElPrep(Reducer.Context context, String output, String rg, 
             int threads, SAMRecordIterator SAMit, 
-            SAMFileHeader header, String dictFile) throws InterruptedException, IOException, QualityException {
+            SAMFileHeader header, String dictFile, boolean updateRG, String RGID) throws InterruptedException, IOException, QualityException {
         long startTime = System.currentTimeMillis();
         String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "elprep", "");  
         String[] command = CommandGenerator.elPrep(bin, "/dev/stdin", output, threads, true, rg, null, customArgs);
@@ -205,6 +210,8 @@ public class PreprocessingTools {
         int reads = 0;
         while(SAMit.hasNext()) {
             sam = SAMit.next();
+            if(updateRG)
+                sam.setAttribute(SAMTag.RG.name(), RGID);
             String samString = sam.getSAMString();
             localWriter.write(samString, 0, samString.length());
             reads++;
@@ -222,9 +229,9 @@ public class PreprocessingTools {
         return reads;
     }
     
-    public void callSAMToBAM(String input, String output, int threads) throws InterruptedException {
+    public void callSAMToBAM(String input, String output, int threads, boolean keepDups) throws InterruptedException {
         String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "samtools", "view");  
-        String[] command = CommandGenerator.SAMToolsView(bin, input, output, threads, customArgs);
+        String[] command = CommandGenerator.SAMToolsView(bin, input, output, threads, keepDups, customArgs);
         long estimatedTime = runProcessAndWait("SAMtools view", command); 
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_SAMTOBAM).increment(estimatedTime);
@@ -324,7 +331,7 @@ public class PreprocessingTools {
         HalvadeFileUtils.removeLocalFile(output + ".idx");
         return 0;
     }
-    public int runMarkDuplicates(String input, String output, String metrics) throws InterruptedException {
+    public int runMarkDuplicates(String input, String output, String metrics, boolean keepDups) throws InterruptedException {
         String tool;
         if(bin.endsWith("/")) 
             tool = bin + PicardTools[2];
@@ -337,7 +344,10 @@ public class PreprocessingTools {
         command.add(tool);
         command.add("INPUT=" + input);
         command.add("OUTPUT=" + output);
-        command.add("METRICS_FILE=" + metrics);                     
+        command.add("METRICS_FILE=" + metrics);
+        command.add("ASSUME_SORTED=true");
+        if(!keepDups)
+            command.add("REMOVE_DUPLICATES=true");
         String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "picard", "markduplicates");  
         command = CommandGenerator.addToCommand(command, customArgs);        
         long estimatedTime = runProcessAndWait("Picard MarkDuplicates", GetStringVector(command));

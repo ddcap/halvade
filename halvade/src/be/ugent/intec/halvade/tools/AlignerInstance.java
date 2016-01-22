@@ -61,6 +61,7 @@ public abstract class AlignerInstance {
     protected int containers;
     protected int tasksLeft;
     protected boolean redistribute;
+    protected boolean mergeBam;
     
     
     protected AlignerInstance(Mapper.Context context, String bin) throws IOException, URISyntaxException {
@@ -69,6 +70,7 @@ public abstract class AlignerInstance {
         containers = HalvadeConf.getMapContainerCount(context.getConfiguration());
         tasksLeft = HalvadeConf.getMapTasksLeft(context.getConfiguration());
         redistribute = HalvadeConf.getRedistribute(context.getConfiguration());
+        mergeBam = HalvadeConf.getMergeBam(context.getConfiguration());
         writableRecord = new SAMRecordWritable();
         writableRegion = new ChromosomeRegion();
         writeableCompactRegion = new GenomeSJ();
@@ -90,7 +92,7 @@ public abstract class AlignerInstance {
     }
     
     protected void getIdleCores(Mapper.Context context) throws IOException {
-        if(tasksLeft < containers ) threads = 6;
+        if(tasksLeft < containers ) threads = Math.max(6, threads);
     }
     
     protected int feedLine(String line, ProcessBuilderWrapper proc) throws IOException  {
@@ -107,11 +109,19 @@ public abstract class AlignerInstance {
         int count = 0;
         int read1Ref = sam.getReferenceIndex();
         int read2Ref = sam.getMateReferenceIndex();
-        if (!sam.getReadUnmappedFlag() && (read1Ref == read2Ref || keepChrSplitPairs) && (read1Ref >= 0 || read2Ref >= 0)) {
+        if (!sam.getReadUnmappedFlag() && 
+                (read1Ref == read2Ref || keepChrSplitPairs) && 
+                (read1Ref >= 0 || read2Ref >= 0)) {
             context.getCounter(HalvadeCounters.OUT_BWA_READS).increment(1);
             writableRecord.set(sam);
             int beginpos = sam.getAlignmentStart();
-            HashSet<Integer> keys = splitter.getRegions(sam, read1Ref, read2Ref);
+            HashSet<Integer> keys = null;
+            if (!mergeBam)
+                 keys = splitter.getRegions(sam, read1Ref, read2Ref);
+            else {
+                keys = new HashSet<>();
+                keys.add(0);
+            }
             for(Integer key : keys) {
                 if(useCompact) {
                     writeableCompactRegion.setRegion(key, beginpos);
@@ -138,7 +148,13 @@ public abstract class AlignerInstance {
             context.getCounter(HalvadeCounters.OUT_BWA_READS).increment(1);
             writableRecord.set(sam);
             int beginpos = sam.getAlignmentStart();
-            HashSet<Integer> keys = splitter.getRegions(sam, read1Ref);
+            HashSet<Integer> keys = null;
+            if (!mergeBam)
+                 keys = splitter.getRegions(sam, read1Ref);
+            else {
+                keys = new HashSet<>();
+                keys.add(0);
+            }
             for(Integer key : keys) {
                 if(useCompact) {
                     writeableCompactRegion.setRegion(key, beginpos);

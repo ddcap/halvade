@@ -180,6 +180,7 @@ public final class ChromosomeSplitter {
         HashSet<Integer> keys = new HashSet();
         if(read1Ref >= 0)
             Collections.addAll(keys, getKey(sam.getReferenceName(),beginpos1,endpos1));
+        keys.removeAll(Collections.singleton(null));
         return keys;
     }
     
@@ -438,7 +439,7 @@ public final class ChromosomeSplitter {
 //            String contig = region.getKey();
             for (BedRegion breg : regions) {
                 Logger.DEBUG("region: " + breg.key + ", " + breg.contig + 
-                        " (" + breg.start + " _ " + breg.end + " -> " + (breg.end - breg.start) + ")", 3);
+                        " (" + breg.start + " _ " + breg.end + " -> " + (breg.end - breg.start) + ")", 2);
 //            }
         }
     }
@@ -449,7 +450,7 @@ public final class ChromosomeSplitter {
         for (String line: list) {   
             String[] split0 = line.split(":");
             String[] split1 = split0[1].split("\t");
-            String[] split2 = split1[0].split("-");         
+            String[] split2 = split1[0].split("-");
             String contig = split0[0];
             int r = Integer.parseInt(split1[1]);
             int s = Integer.parseInt(split2[0]);

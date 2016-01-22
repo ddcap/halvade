@@ -83,7 +83,7 @@ public class MapReduceRunner extends Configured implements Tool  {
                     System.exit(-2);
                 }
             }
-            if(!halvadeOpts.dryRun &&  !halvadeOpts.mergeBam) {
+            if(!halvadeOpts.dryRun &&  !halvadeOpts.mergeBam && !halvadeOpts.countOnly) {
                 if(halvadeOpts.combineVcf)
                     runCombineJob(halvadeDir, halvadeOpts.out + "/merge", false);
                 if(halvadeOpts.gff != null)
@@ -193,7 +193,7 @@ public class MapReduceRunner extends Configured implements Tool  {
         if(halvadeOpts.mergeBam) {
             halvadeJob.setSortComparatorClass(SimpleChrRegionComparator.class);
             halvadeJob.setOutputValueClass(SAMRecordWritable.class);
-        } else {
+        }else {
             halvadeJob.setPartitionerClass(ChrRgPartitioner.class);
             halvadeJob.setSortComparatorClass(ChrRgSortComparator.class);
             halvadeJob.setGroupingComparatorClass(ChrRgGroupingComparator.class);
@@ -205,8 +205,13 @@ public class MapReduceRunner extends Configured implements Tool  {
         else if (halvadeOpts.mergeBam) {
             halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.BamMergeReducer.class);
             halvadeJob.setNumReduceTasks(1);
-        } else
-            halvadeJob.setNumReduceTasks(halvadeOpts.reduces);    
+        } else {
+            halvadeJob.setNumReduceTasks(halvadeOpts.reduces); 
+            if(halvadeOpts.countOnly) {
+                halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.CountReadsReducer.class);
+                halvadeJob.setOutputValueClass(LongWritable.class);
+            }
+        }
         
         if(halvadeOpts.useBamInput) {
             halvadeJob.setMapperClass(be.ugent.intec.halvade.hadoop.mapreduce.AlignedBamMapper.class);

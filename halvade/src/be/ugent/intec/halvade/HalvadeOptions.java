@@ -107,7 +107,11 @@ public class HalvadeOptions {
     public boolean redistribute = false;
     public boolean smtEnabled = false;
     public boolean reorderRegions = false;
-    public int overrideMem = -1;
+    public boolean updateRG = false;
+    public int overrideMapMem = -1;
+    public int overrideRedMem = -1;
+    public boolean countOnly = false;
+    public boolean keepDups = true;
     
     protected DecimalFormat onedec;
     protected static final double REDUCE_TASKS_FACTOR = 1.68 * 15;
@@ -151,7 +155,10 @@ public class HalvadeOptions {
             HalvadeConf.setFilterDBSnp(hConf, filterDBSnp);
             HalvadeConf.clearTaskFiles(hConf);
             HalvadeConf.setUseElPrep(hConf, useElPrep);
+            HalvadeConf.setUpdateReadGroup(hConf, updateRG);
             HalvadeConf.setUseUnifiedGenotyper(hConf, useGenotyper);
+            HalvadeConf.setMergeBam(hConf, mergeBam);
+            HalvadeConf.setKeepDups(hConf, keepDups);
             HalvadeConf.setRedistribute(hConf, redistribute);
             HalvadeConf.setReadGroup(hConf, "ID:" + RGID + " LB:" + RGLB + " PL:" + RGPL + " PU:" + RGPU + " SM:" + RGSM);
             HalvadeConf.setkeepChrSplitPairs(hConf, keepChrSplitPairs);
@@ -312,10 +319,14 @@ public class HalvadeOptions {
                 .isRequired(true)
                 .withDescription("Sets the available memory [in GB] per node in this cluster.")
                 .create("mem");
+        Option optMmem = OptionBuilder.withArgName("gb")
+                .hasArg()
+                .withDescription("Overrides the maximum map container memory [in GB].")
+                .create("mapmem");
         Option optRmem = OptionBuilder.withArgName("gb")
                 .hasArg()
-                .withDescription("Overrides the maximum container memory [in GB].")
-                .create("refmem");
+                .withDescription("Overrides the maximum reduce container memory [in GB].")
+                .create("redmem");
         Option optSites = OptionBuilder.withArgName("snpDBa,snpDBb")
                 .hasArg()
                 .isRequired(true)
@@ -445,6 +456,12 @@ public class HalvadeOptions {
                 .create("merge_bam");
         Option optReorderRegions = OptionBuilder.withDescription("Use the default split way but reorder tasks by size based on the read count file given by -rpr option.")
                 .create("reorder_regions");
+        Option optupdateRG = OptionBuilder.withDescription("Update the readgroup when reading from a BAM input file.")
+                .create("update_rg");
+        Option optCount = OptionBuilder.withDescription("Count the number of reads per reduce task (for debug purposes).")
+                .create("count");
+        Option optRemDup = OptionBuilder.withDescription("Remove PCR duplicates for GATK.")
+                .create("remove_dups");
 
         options.addOption(optIn);
         options.addOption(optOut);
@@ -489,9 +506,13 @@ public class HalvadeOptions {
         options.addOption(optCustomArgs);
         options.addOption(optRedis);
         options.addOption(optRmem);
+        options.addOption(optMmem);
         options.addOption(optMergeBam);
         options.addOption(optVerbose);
         options.addOption(optReorderRegions);
+        options.addOption(optupdateRG);
+        options.addOption(optCount);
+        options.addOption(optRemDup);
     }
 
     protected boolean parseArguments(String[] args, Configuration halvadeConf) throws ParseException {
@@ -533,6 +554,9 @@ public class HalvadeOptions {
         if (line.hasOption("smt")) {
             smtEnabled = true;
         }
+        if(line.hasOption("remove_dups")) {
+            keepDups = false;
+        }
         if (line.hasOption("mem")) {
             mem = Double.parseDouble(line.getOptionValue("mem"));
         }
@@ -547,8 +571,11 @@ public class HalvadeOptions {
             setReduceContainers = false;
             reducerContainersPerNode = Integer.parseInt(line.getOptionValue("rpn"));
         }
-        if (line.hasOption("refmem")) {
-            overrideMem = Integer.parseInt(line.getOptionValue("refmem")) * 1024;
+        if (line.hasOption("mapmem")) {
+            overrideMapMem = (int) (Double.parseDouble(line.getOptionValue("mapmem")) * 1024);
+        }
+        if (line.hasOption("redmem")) {
+            overrideRedMem = (int) (Double.parseDouble(line.getOptionValue("redmem")) * 1024);
         }
         if (line.hasOption("scc")) {
             stand_call_conf = Integer.parseInt(line.getOptionValue("scc"));
@@ -556,11 +583,17 @@ public class HalvadeOptions {
         if (line.hasOption("sec")) {
             stand_emit_conf = Integer.parseInt(line.getOptionValue("sec"));
         }
+        if (line.hasOption("count")) {
+            countOnly = true;
+        }
         if (line.hasOption("report_all")) {
             reportAll = true;
         }
         if (line.hasOption("keep")) {
             keepFiles = true;
+        }
+        if (line.hasOption("update_rg")) {
+            updateRG = true;
         }
         if (line.hasOption("redistribute")) {
             redistribute = true;

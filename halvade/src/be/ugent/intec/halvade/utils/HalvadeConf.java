@@ -385,6 +385,21 @@ public class HalvadeConf {
             return false;
     }
     
+    private static final String mergebam = "mergeBam";
+    public static void setMergeBam(Configuration conf, boolean mergeBam) {
+        if(mergeBam)
+            conf.set(mergebam, "true");
+        else 
+            conf.set(mergebam, "false");
+    }   
+    public static boolean getMergeBam(Configuration conf) {
+        String s = conf.get(mergebam);
+        if(s.equalsIgnoreCase("true"))
+            return true;
+        else 
+            return false;
+    }
+    
     private static final String scc = "scc";
     private static final float DEFAULT_DNA_SCC = 30.0f;
     private static final float DEFAULT_RNA_SCC = 20.0f;
@@ -519,5 +534,36 @@ public class HalvadeConf {
         else 
             return false;
     }
+
+    private static final String updateRG = "updateRG";
+    public static void setUpdateReadGroup(Configuration conf, boolean val) {
+        if(val)
+            conf.set(updateRG, "true");
+        else 
+            conf.set(updateRG, "false");
+    }
+    public static boolean getUpdateReadGroup(Configuration conf) {
+        String s = conf.get(updateRG);
+        if(s.equalsIgnoreCase("true"))
+            return true;
+        else 
+            return false;
+    }
+
+    private static final String keepDups = "keepDups";
+    public static void setKeepDups(Configuration conf, boolean val) {
+        if(val)
+            conf.set(keepDups, "true");
+        else 
+            conf.set(keepDups, "false");
+    }
+    public static boolean getKeepDups(Configuration conf) {
+        String s = conf.get(keepDups);
+        if(s.equalsIgnoreCase("true"))
+            return true;
+        else 
+            return false;
+    }
+
 
 }

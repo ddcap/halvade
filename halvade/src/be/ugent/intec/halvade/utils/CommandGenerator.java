@@ -199,7 +199,7 @@ public class CommandGenerator {
         return StringArray;
     }
     
-    public static String[] SAMToolsView(String bin, String input, String output, int threads, String customArgs) {
+    public static String[] SAMToolsView(String bin, String input, String output, int threads, boolean keepDups, String customArgs) {
         ArrayList<String> command = new ArrayList<>();
         if(bin.endsWith("/")) 
             command.add(bin + "samtools"); 
@@ -210,6 +210,10 @@ public class CommandGenerator {
         if(threads > 0) {
             command.add("-@");
             command.add("" + threads);
+        }
+        if(!keepDups){
+            command.add("-F");
+            command.add("0x400");
         }
         command = addToCommand(command, customArgs);
         command.add("-o");

@@ -57,20 +57,18 @@ public class GATKTools {
 
     public void setContext(Reducer.Context context) {
         this.context = context;
-        mem = "-Xmx" + context.getConfiguration().get("mapreduce.reduce.memory.mb") + "m";
+//        mem = context.getConfiguration().get("mapreduce.reduce.java.opts");
+        mem = "-Xmx" + (int)(0.8*Integer.parseInt(context.getConfiguration().get("mapreduce.reduce.memory.mb"))) + "m";
+        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "java", ""); 
+        if(customArgs != null)
+            java.add(customArgs);
     }
-    
-    public void setMemory(int megs) {
-        mem = "-Xmx" + megs + "m";
-    }
-        
+            
     public GATKTools(String reference, String bin) {
         this.reference = reference;
         this.bin = bin;
         java = new ArrayList<>();
         java.add("java");
-        String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "java", "");  
-        java.add(customArgs);
         this.gatk = bin + "/GenomeAnalysisTK.jar" ;
         onedec = new DecimalFormat("###0.0");
     }

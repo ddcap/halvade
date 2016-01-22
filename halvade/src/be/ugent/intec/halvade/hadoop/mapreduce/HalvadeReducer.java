@@ -60,6 +60,7 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
     protected SAMFileHeader outHeader;
     protected boolean keep = false;
     protected boolean inputIsBam = false;
+    protected boolean updateRG = false;
     protected SAMReadGroupRecord bamrg;
     protected String outputdir;
     
@@ -142,7 +143,8 @@ public class HalvadeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable,
         taskId = taskId.substring(taskId.indexOf("r_"));
         taskNr = Integer.parseInt(taskId.split("_")[1]);
         outputdir = HalvadeConf.getOutDir(context.getConfiguration());
-        if(inputIsBam) {
+        updateRG = HalvadeConf.getUpdateReadGroup(context.getConfiguration());
+        if(inputIsBam && !updateRG) {
             header = SAMHeaderReader.readSAMHeaderFrom(new Path(HalvadeConf.getHeaderFile(context.getConfiguration())), context.getConfiguration());
         } else {
             getReadGroupData(context.getConfiguration());

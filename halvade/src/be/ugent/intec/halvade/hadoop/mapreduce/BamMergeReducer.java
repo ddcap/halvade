@@ -10,7 +10,9 @@ import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import htsjdk.samtools.SAMFileHeader;
 import htsjdk.samtools.SAMReadGroupRecord;
+import htsjdk.samtools.SAMRecord;
 import htsjdk.samtools.SAMSequenceDictionary;
+import htsjdk.samtools.SAMTag;
 import java.io.IOException;
 import java.util.Iterator;
 import org.apache.hadoop.conf.Configuration;
@@ -35,25 +37,13 @@ public class BamMergeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable
     protected String RGLB = "LIB1";
     protected String RGPL = "ILLUMINA";
     protected String RGPU = "UNIT1";
-    protected String RGSM = "SAMPLE1";
+    protected String RGSM = "SAMPLE1";  
     protected SAMReadGroupRecord bamrg;
     protected boolean inputIsBam = false;
     protected RecordWriter<LongWritable,SAMRecordWritable> recordWriter;
+    protected SAMRecordWritable samWritable = new SAMRecordWritable();
     protected LongWritable outKey;
     boolean reportBest = false;
-
-    @Override
-    public void run(Context context) throws IOException, InterruptedException {
-        super.run(context); 
-        recordWriter.close(context);
-    }
-
-    @Override
-    protected void reduce(ChromosomeRegion key, Iterable<SAMRecordWritable> values, Context context) throws IOException, InterruptedException {
-        Iterator<SAMRecordWritable> it = values.iterator();
-        while(it.hasNext())
-            recordWriter.write(outKey, it.next());
-    }
 
     @Override
     protected void setup(Context context) throws IOException, InterruptedException {
@@ -80,8 +70,27 @@ public class BamMergeReducer extends Reducer<ChromosomeRegion, SAMRecordWritable
         outKey = new LongWritable();
         outKey.set(0);
     }
+
+    @Override
+    protected void reduce(ChromosomeRegion key, Iterable<SAMRecordWritable> values, Context context) throws IOException, InterruptedException {
+        Iterator<SAMRecordWritable> it = values.iterator();
+        SAMRecord sam = null;
+        while(it.hasNext()) {
+            sam = it.next().get();
+            sam.setAttribute(SAMTag.RG.name(), RGID);
+            samWritable.set(sam);
+            recordWriter.write(outKey, samWritable);
+                    
+        }
+    }
     
-        protected void getReadGroupData(Configuration conf) {
+    @Override
+    protected void cleanup(Context context) throws IOException, InterruptedException {
+        super.cleanup(context); //To change body of generated methods, choose Tools | Templates.
+        recordWriter.close(context);
+    }
+    
+    protected void getReadGroupData(Configuration conf) {
         String readGroup = HalvadeConf.getReadGroup(conf);
         String[] elements = readGroup.split(" ");
         for(String ele : elements) {

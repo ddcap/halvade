@@ -50,6 +50,7 @@ public abstract class GATKReducer extends HalvadeReducer {
     protected double minFS, maxQD;
     protected boolean isRNA;
     protected boolean redistribute;
+    protected boolean keepDups;
     protected int containers;
     protected int tasksLeft;
     protected String gff;
@@ -81,6 +82,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         super.setup(context);
         isFirstAttempt = taskId.endsWith("_0");
         isRNA = HalvadeConf.getIsRNA(context.getConfiguration());
+        keepDups = HalvadeConf.getKeepDups(context.getConfiguration());
         scc = HalvadeConf.getSCC(context.getConfiguration(), isRNA);
         sec = HalvadeConf.getSEC(context.getConfiguration(), isRNA);
         try {
@@ -118,9 +120,9 @@ public abstract class GATKReducer extends HalvadeReducer {
         context.setStatus("call elPrep");
         int reads;
         if (keep) {
-            reads = tools.callElPrep(preSamOut, samOut, inputIsBam ? null : rg, threads, input, outHeader, dictF);
+            reads = tools.callElPrep(preSamOut, samOut, inputIsBam ? null : rg, threads, input, outHeader, dictF, updateRG, RGID);
         } else {
-            reads = tools.streamElPrep(context, samOut, inputIsBam ? null : rg, threads, input, outHeader, dictF);
+            reads = tools.streamElPrep(context, samOut, inputIsBam ? null : rg, threads, input, outHeader, dictF, updateRG, RGID);
         }
 
         Logger.DEBUG(reads + " reads processed in elPrep");
@@ -135,7 +137,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         }
         context.setStatus("convert SAM to BAM");
         Logger.DEBUG("convert SAM to BAM");
-        tools.callSAMToBAM(samOut, output, threads);
+        tools.callSAMToBAM(samOut, output, threads, keepDups);
         context.setStatus("build bam index");
         Logger.DEBUG("build bam index");
         tools.runBuildBamIndex(output);
@@ -155,7 +157,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         String fCounts = tmpFileBase + "-features.count";
         String tmpMetrics = tmpFileBase + "-p3-metrics.txt";
         SAMFileWriterFactory factory = new SAMFileWriterFactory();
-        if (!inputIsBam) {
+        if (!inputIsBam || updateRG) {
             outHeader.addReadGroup(bamrg);
         }
         SAMFileWriter writer = factory.makeBAMWriter(outHeader, true, new File(tmpOut1));
@@ -166,6 +168,8 @@ public abstract class GATKReducer extends HalvadeReducer {
         SAMRecord sam;
         while (input.hasNext()) {
             sam = input.next();
+            if(updateRG || !inputIsBam)
+                sam.setAttribute(SAMTag.RG.name(), RGID);
             writer.addAlignment(sam);
             count++;
         }
@@ -182,7 +186,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         tools.runCleanSam(tmpOut1, tmpOut2);
         Logger.DEBUG("mark duplicates");
         context.setStatus("mark duplicates");
-        tools.runMarkDuplicates(tmpOut2, tmpOut3, tmpMetrics);
+        tools.runMarkDuplicates(tmpOut2, gff != null ? tmpOut3 : output, tmpMetrics, keepDups);
 
         if (gff != null) {
             // tmpOut3 is sam for htseq count!        
@@ -191,16 +195,9 @@ public abstract class GATKReducer extends HalvadeReducer {
             tools.runFeatureCounts(gff, tmpOut3, fCounts, threads);
             HalvadeFileUtils.uploadFileToHDFS(context, FileSystem.get(new URI(outputdir), context.getConfiguration()),
                     fCounts, outputdir + context.getTaskAttemptID().toString() + ".count");
-        }
-
-        if (!inputIsBam) {
-            Logger.DEBUG("add read-group");
-            context.setStatus("add read-group");
-            tools.runAddOrReplaceReadGroups(tmpOut3, output, RGID, RGLB, RGPL, RGPU, RGSM);
-        } else {
             context.setStatus("convert SAM to BAM");
             Logger.DEBUG("convert SAM to BAM");
-            tools.callSAMToBAM(tmpOut3, output, threads);
+            tools.callSAMToBAM(tmpOut3, output, threads, true);
         }
 
         Logger.DEBUG("build bam index");
