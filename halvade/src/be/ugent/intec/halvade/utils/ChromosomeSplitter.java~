@@ -116,7 +116,6 @@ public final class ChromosomeSplitter {
     }
 //    protected HashMap<String, ArrayList<BedRegion> > regions;
     protected ArrayList<BedRegion> regions;
-    protected HashMap<String, ArrayList<BedRegion> > regionsByChrom;
     protected static final double MIN_THRESHOLD = 1.25;
     protected static final double LT_FACTOR = 5.0;
     protected final int MIN_GENE_SEPARATION = 100000;
@@ -130,13 +129,11 @@ public final class ChromosomeSplitter {
 //        getMinRegionLength(bedfile, reduceCount);
         getMinRegionLength(reduceCount);
         calculateRegionsPerChromosome(bedfile);
-        GetRegionsPerRegion();
     }
     public ChromosomeSplitter(SAMSequenceDictionary dict, int reduceCount) throws URISyntaxException, IOException {
         this.dict = dict;
         getMinRegionLength(reduceCount);
         calculateRegionsPerChromosome();
-        GetRegionsPerRegion();
     }
     // fix regions by read counts per 10k pos??? -> either by reordering or by redefining regions by count instead of size
     public ChromosomeSplitter(SAMSequenceDictionary dict, String readsCountFile, int reduceCount, boolean useOnlyToReorder) throws URISyntaxException, IOException {
@@ -147,73 +144,19 @@ public final class ChromosomeSplitter {
         else
             calculateRegionsPerChromosomeByReadCount(reduceCount, readsCountFile);
         orderPartitionsBySize(readsCountFile);
-        GetRegionsPerRegion();
     }     
     public ChromosomeSplitter(String filename, Configuration config) throws URISyntaxException, IOException {
         importSplitter(filename, config);
-        GetRegionsPerRegion();
-    }
-
-    private void GetRegionsPerRegion() {
-        regionsByChrom = new HashMap();
-        for (BedRegion region: regions) {
-            if(!regionsByChrom.containsKey(region.contig)) 
-                regionsByChrom.put(region.contig, new ArrayList());
-            regionsByChrom.get(region.contig).add(region);
-        }
     }
     
     private Integer[] getKey(String refName, int pos, int pos2) {
         Integer tmpList[] = {null, null};
-        ArrayList<BedRegion> keyList = regionsByChrom.get(refName);
-        int i = 0;
-        int found = 0;
-        while (i < keyList.size() && found <2) {
-            BedRegion tmp = keyList.get(i);
-            if (pos >= tmp.start && pos < tmp.end) {
-                tmpList[0] = tmp.key;
-                found++;
-            }
-            if (pos2 >= tmp.start && pos2 < tmp.end) {
-                tmpList[1] = tmp.key;
-                found++;
-            }
-            i++;
-        }  
-/*
-// old      
         for (BedRegion region: regions) {
             if (refName.equalsIgnoreCase(region.contig) && pos >= region.start && pos < region.end)
                 tmpList[0] = region.key;
             if (refName.equalsIgnoreCase(region.contig) && pos2 >= region.start && pos2 < region.end)
                 tmpList[1] = region.key;
         }
-
-// last correct before
-        Integer tmpList[] = {null, null};
-        int p, p2;
-        if(pos < pos2)  { p = pos; p2 = pos2; }
-        else            { p = pos2; p2 = pos; }
-        ArrayList<BedRegion> keyList =  regions.get(refName);
-        if(keyList == null) return tmpList;
-        int i = 0;
-        while(i < keyList.size() && p > keyList.get(i).end)
-            i++;
-        if(i >= keyList.size()) {
-            return tmpList;
-        } else {
-            if(p >=  keyList.get(i).start)
-                tmpList[0] = keyList.get(i).key;
-            while(i < keyList.size() && p2 > keyList.get(i).end)
-                i++;
-            if(i >= keyList.size())
-                return tmpList;
-            else {
-                if(p2 >=  keyList.get(i).start ) 
-                    tmpList[1] = keyList.get(i).key;
-            }
-        }
-*/
         return tmpList;
     }
     
