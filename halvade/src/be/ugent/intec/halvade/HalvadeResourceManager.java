@@ -83,7 +83,7 @@ public class HalvadeResourceManager {
         }
         opt.maps = Math.max(1,opt.nodes*opt.mapContainersPerNode);
         Logger.DEBUG("set # map containers: " + opt.maps);        
-        
+       	HalvadeConf.setMapContainerCount(conf, opt.maps) 
         
         Logger.DEBUG("resources set to " + opt.mapContainersPerNode + " maps [" 
                 + opt.mthreads + " cpu , " + mmem + " mb] per node and " 
