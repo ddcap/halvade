@@ -36,7 +36,7 @@ public class HalvadeResourceManager {
     protected static final int VCORES_AM = 1;
     protected static final int MEM_ALN = (int) (10*1024);
     protected static final int MEM_STAR = (int) (16*1024); // 16 for hg -> reduced reference
-    protected static final int MEM_REF = (int) (4*1024); // 4g for hg fasta 
+    protected static final int MEM_REF = (int) (6*1024); // 4g for hg fasta 
     protected static final int MEM_ELPREP = (int) (16*1024); // 16g for hg for 50x coverage
     // gatk 2-4gb per thread!
     protected static final int[][] RESOURCE_REQ = { 
@@ -83,7 +83,7 @@ public class HalvadeResourceManager {
         }
         opt.maps = Math.max(1,opt.nodes*opt.mapContainersPerNode);
         Logger.DEBUG("set # map containers: " + opt.maps);        
-       	HalvadeConf.setMapContainerCount(conf, opt.maps) 
+       	HalvadeConf.setMapContainerCount(conf, opt.maps); 
         
         Logger.DEBUG("resources set to " + opt.mapContainersPerNode + " maps [" 
                 + opt.mthreads + " cpu , " + mmem + " mb] per node and " 
