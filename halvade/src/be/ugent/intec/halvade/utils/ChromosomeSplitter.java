@@ -496,7 +496,7 @@ public final class ChromosomeSplitter {
 //            String contig = region.getKey();
             for (BedRegion breg : regions) {
                 Logger.DEBUG("region: " + breg.key + ", " + breg.contig + 
-                        " (" + breg.start + " _ " + breg.end + " -> " + (breg.end - breg.start) + ")", 2);
+                        " (" + breg.start + " _ " + breg.end + " -> " + (breg.end - breg.start) + ")", 3);
 //            }
         }
     }

@@ -61,7 +61,7 @@ public class HalvadeOptions {
     public String sites;
     public int nodes, vcores;
     public double mem;
-    public int maps = 1, reduces = 1, mthreads = 1, rthreads = 1;
+    public int maps = 1, reduces = 1, parallel_reducers = 1, mthreads = 1, rthreads = 1;
     public String[] hdfsSites;
     public boolean paired = true;
     public int aln = 0;

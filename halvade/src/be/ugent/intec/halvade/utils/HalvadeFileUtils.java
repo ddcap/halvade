@@ -278,7 +278,7 @@ public class HalvadeFileUtils {
                 if(file.isDirectory() && recursive) {
                     foundPrefix = findFile(file.getAbsolutePath(), suffix, recursive);
                 } else if (file.getAbsolutePath().endsWith(suffix)) {
-                    foundPrefix = file.getAbsolutePath().substring(0, file.getAbsolutePath().lastIndexOf('.'));
+                    foundPrefix = file.getAbsolutePath().substring(0, file.getAbsolutePath().lastIndexOf(suffix));
                     Logger.DEBUG("found existing ref: \"" + foundPrefix + "\"");
                 }
                 i++;
@@ -446,6 +446,7 @@ public class HalvadeFileUtils {
         String refDir = HalvadeConf.getRefDirOnScratch(conf);
         if(!refDir.endsWith("/")) refDir = refDir + "/";
         HalvadeFileLock lock = new HalvadeFileLock(context, tmpDir, STARG_LOCK);
+        String Halvade_Star_Suffix_P2 = HalvadeConf.getPass2Suffix(context.getConfiguration());
         String refBase = null;
         try {
             lock.getLock();
@@ -462,7 +463,7 @@ public class HalvadeFileUtils {
                     String HDFSRef = usePass2Genome ? HalvadeConf.getStarDirPass2HDFS(conf) : HalvadeConf.getStarDirOnHDFS(conf);
                     Logger.DEBUG("downloading STAR genome from: " + HDFSRef);
                     FileSystem fs = FileSystem.get(new URI(HDFSRef), conf);
-                    refBase = findFile(refDir, usePass2Genome ? HALVADE_STAR_SUFFIX_P2 : HALVADE_STAR_SUFFIX_P1, true);
+                    refBase = findFile(refDir, usePass2Genome ? Halvade_Star_Suffix_P2 : HALVADE_STAR_SUFFIX_P1, true);
                     boolean foundExisting = (refBase != null);
                     if (!foundExisting) {
                         refBase = refDir + id + "-star/";
@@ -482,7 +483,7 @@ public class HalvadeFileUtils {
                     }
                     Logger.INFO("FINISHED downloading the complete reference index to local scratch");
                     if(!foundExisting) {
-                        File f = new File(refBase + (usePass2Genome ? HALVADE_STAR_SUFFIX_P2 : HALVADE_STAR_SUFFIX_P1));
+                        File f = new File(refBase + (usePass2Genome ? Halvade_Star_Suffix_P2 : HALVADE_STAR_SUFFIX_P1));
                         f.createNewFile();
                     }
                     bytes.clear();
@@ -495,7 +496,7 @@ public class HalvadeFileUtils {
                 String HDFSRef = usePass2Genome ? HalvadeConf.getStarDirPass2HDFS(conf) : HalvadeConf.getStarDirOnHDFS(conf);
                 Logger.DEBUG("downloading STAR genome from: " + HDFSRef);
                 FileSystem fs = FileSystem.get(new URI(HDFSRef), conf);
-                refBase = findFile(refDir, usePass2Genome ? HALVADE_STAR_SUFFIX_P2 : HALVADE_STAR_SUFFIX_P1, true);
+                refBase = findFile(refDir, usePass2Genome ? Halvade_Star_Suffix_P2 : HALVADE_STAR_SUFFIX_P1, true);
                 boolean foundExisting = (refBase != null);
                 if (!foundExisting) {
                     refBase = refDir + id + "-star/";
@@ -515,7 +516,7 @@ public class HalvadeFileUtils {
                 }
                 Logger.INFO("FINISHED downloading the complete reference index to local scratch");
                 if(!foundExisting) {
-                    File f = new File(refBase + (usePass2Genome ? HALVADE_STAR_SUFFIX_P2 : HALVADE_STAR_SUFFIX_P1));
+                    File f = new File(refBase + (usePass2Genome ? Halvade_Star_Suffix_P2 : HALVADE_STAR_SUFFIX_P1));
                     f.createNewFile();
                 }
                 bytes.clear();
@@ -530,7 +531,7 @@ public class HalvadeFileUtils {
             lock.releaseLock();
         }
         if(refBase == null)
-            refBase = findFile(refDir, usePass2Genome ? HALVADE_STAR_SUFFIX_P2 : HALVADE_STAR_SUFFIX_P1, true);
+            refBase = findFile(refDir, usePass2Genome ? Halvade_Star_Suffix_P2 : HALVADE_STAR_SUFFIX_P1, true);
         return refBase;
     }
     

@@ -85,7 +85,7 @@ public class StarAlignPassXMapper  extends HalvadeMapper<GenomeSJ, Text> {
                     
                     String taskId = context.getTaskAttemptID().toString();
                     taskId = taskId.substring(taskId.indexOf("m_"));
-                    String starGen = HalvadeFileUtils.downloadSTARIndex(context, taskId, false);
+                    String starGen = HalvadeFileUtils.downloadSTARIndex(context, taskId, false); // to free 1 ref from memory so -> dont need to check which to load
                     ((STARInstance)instance).loadSharedMemoryReference(starGen, true); // unload other first
                     ((STARInstance)instance).loadSharedMemoryReference(null, false);
                     bytes.clear();

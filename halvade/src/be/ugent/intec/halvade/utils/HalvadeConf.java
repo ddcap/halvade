@@ -163,6 +163,15 @@ public class HalvadeConf {
         return conf.getInt(vCores, 1);
     }
     
+    private static final String pass2Suffix = "pass2suffix";
+    public static void setPass2Suffix(Configuration conf, String val) {
+        conf.set(pass2Suffix, val);
+        Logger.DEBUG("setting 2 pass suffix to: " + val);
+    }
+    public static String getPass2Suffix(Configuration conf) {
+        return conf.get(pass2Suffix);
+    }
+    
     private static final String mapThreads = "mapthreads";
     public static void setMapThreads(Configuration conf, int val) {
         conf.setInt(mapThreads, val);

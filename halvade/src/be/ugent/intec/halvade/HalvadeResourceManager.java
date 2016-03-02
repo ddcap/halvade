@@ -36,7 +36,7 @@ public class HalvadeResourceManager {
     protected static final int VCORES_AM = 1;
     protected static final int MEM_ALN = (int) (10*1024);
     protected static final int MEM_STAR = (int) (16*1024); // 16 for hg -> reduced reference
-    protected static final int MEM_REF = (int) (6*1024); // 4g for hg fasta 
+    protected static final int MEM_REF = (int) (6*1024); // 4g for hg fasta + java process + some spare
     protected static final int MEM_ELPREP = (int) (16*1024); // 16g for hg for 50x coverage
     // gatk 2-4gb per thread!
     protected static final int[][] RESOURCE_REQ = { 
@@ -59,9 +59,9 @@ public class HalvadeResourceManager {
         if((opt.overrideMapMem > 0 || opt.overrideRedMem > 0)&& type != COMBINE) {
             if(!BAMinput && opt.overrideMapMem > 0)
                 mmem = opt.overrideMapMem;
-            if(opt.overrideRedMem > 0)
+            if(type != RNA_SHMEM_PASS1 && opt.overrideRedMem > 0)
                 rmem = opt.overrideRedMem;
-        }
+        }   
         if(mmem > opt.mem*1024 || rmem > opt.mem*1024)
             throw new InterruptedException("Not enough memory available on system; memory requirements: " + opt.mem*1024 + "/" + Math.max(rmem, mmem));
         if (opt.setMapContainers)
@@ -69,19 +69,19 @@ public class HalvadeResourceManager {
         if (opt.setReduceContainers) 
             opt.reducerContainersPerNode = Math.min(tmpvcores, Math.max(tmpmem / rmem, 1));
         
-        HalvadeConf.setMapContainerCount(conf, opt.maps);
         HalvadeConf.setVcores(conf, opt.vcores);
         opt.mthreads = Math.max(1, tmpvcores/opt.mapContainersPerNode);
-        if(opt.mthreads > 1 && opt.mthreads % 2 == 1 ) {
-            opt.mthreads++;
-            opt.mapContainersPerNode = Math.min(Math.max(tmpvcores/opt.mthreads,1), Math.max(tmpmem / mmem,1));
-        }
         opt.rthreads = Math.max(1, tmpvcores/opt.reducerContainersPerNode);
         if(opt.smtEnabled) {
             opt.mthreads *=2;
             opt.rthreads *=2;
         }
+        if(opt.mthreads > 1 && opt.mthreads % 2 == 1 ) {
+            opt.mthreads++;
+            opt.mapContainersPerNode = Math.min(Math.max(tmpvcores/opt.mthreads,1), Math.max(tmpmem / mmem,1));
+        }
         opt.maps = Math.max(1,opt.nodes*opt.mapContainersPerNode);
+        opt.parallel_reducers = Math.max(1,opt.nodes*opt.reducerContainersPerNode);
         Logger.DEBUG("set # map containers: " + opt.maps);        
        	HalvadeConf.setMapContainerCount(conf, opt.maps); 
         
@@ -98,8 +98,14 @@ public class HalvadeResourceManager {
             conf.set("mapreduce.reduce.cpu.vcores", "" + opt.rthreads );
         conf.set("mapreduce.reduce.memory.mb", "" + rmem);        
         conf.set("mapreduce.reduce.java.opts", "-Xmx" + (int)(0.18*rmem) + "m");
-        conf.set("mapreduce.map.java.opts", "-Xmx" + (int)(0.18*mmem) + "m");
-        conf.set("mapreduce.job.reduce.slowstart.completedmaps", "0.99");
+        conf.set("mapreduce.map.java.opts", "-Xmx" + (int)(0.25*mmem) + "m");
+        
+        if(type == COMBINE) {
+            conf.set("mapreduce.reduce.java.opts", "-Xmx" + (int)(0.8*rmem) + "m");
+            conf.set("mapreduce.map.java.opts", "-Xmx" + (int)(0.8*mmem) + "m");
+        }
+        if(type != COMBINE)
+            conf.set("mapreduce.job.reduce.slowstart.completedmaps", "0.99");
         
         HalvadeConf.setMapThreads(conf, opt.mthreads);
         HalvadeConf.setReducerThreads(conf, opt.rthreads);  

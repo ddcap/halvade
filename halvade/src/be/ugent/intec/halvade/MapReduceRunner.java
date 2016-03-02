@@ -34,12 +34,15 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.Tool;
 import be.ugent.intec.halvade.utils.Logger;
 import be.ugent.intec.halvade.utils.HalvadeConf;
+import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import be.ugent.intec.halvade.utils.Timer;
 import org.seqdoop.hadoop_bam.BAMInputFormat;
 import org.seqdoop.hadoop_bam.VCFInputFormat;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
@@ -53,10 +56,12 @@ public class MapReduceRunner extends Configured implements Tool  {
     protected final String RNA = " RNA job";
     protected final String DNA = " DNA job";
     protected HalvadeOptions halvadeOpts;
+    protected String pass2suffix;
             
     @Override
     public int run(String[] strings) throws Exception {
         int ret = 0;
+        pass2suffix = HalvadeFileUtils.HALVADE_STAR_SUFFIX_P2 + new SimpleDateFormat("-ddMMyy-hhmmss.SSS").format(new Date());
         try {
             Configuration halvadeConf = getConf();
             halvadeOpts = new HalvadeOptions();
@@ -98,9 +103,12 @@ public class MapReduceRunner extends Configured implements Tool  {
     protected int runPass1RNAJob(Configuration pass1Conf, String tmpOutDir) throws IOException, InterruptedException, ClassNotFoundException, URISyntaxException {
         HalvadeConf.setIsPass2(pass1Conf, false);
         HalvadeResourceManager.setJobResources(halvadeOpts, pass1Conf, HalvadeResourceManager.RNA_SHMEM_PASS1, true, halvadeOpts.useBamInput);
+        HalvadeConf.setPass2Suffix(pass1Conf, pass2suffix);
+        
         Job pass1Job = Job.getInstance(pass1Conf, "Halvade pass 1 RNA pipeline");
         pass1Job.addCacheArchive(new URI(halvadeOpts.halvadeBinaries));
         pass1Job.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.HalvadeMapper.class);
+        // set pass 2 suffix so only this job finds it!
         FileSystem fs = FileSystem.get(new URI(halvadeOpts.in), pass1Conf);
         try {
             if (fs.getFileStatus(new Path(halvadeOpts.in)).isDirectory()) {
@@ -169,7 +177,8 @@ public class MapReduceRunner extends Configured implements Tool  {
             System.exit(-2);
         }
         if(halvadeOpts.useBamInput)
-            setHeaderFile(halvadeOpts.in, halvadeConf);
+            setHeaderFile(halvadeOpts.in, halvadeConf);        
+        HalvadeConf.setPass2Suffix(halvadeConf, pass2suffix);
         
         Job halvadeJob = Job.getInstance(halvadeConf, "Halvade" + pipeline);
         halvadeJob.addCacheArchive(new URI(halvadeOpts.halvadeBinaries));

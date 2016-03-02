@@ -115,8 +115,9 @@ public class RebuildStarGenomeReducer extends Reducer<GenomeSJ, Text, LongWritab
         
         //upload to outputdir
         String pass2GenDir = HalvadeConf.getStarDirPass2HDFS(context.getConfiguration());
-        File pass2check = new File(newGenomeDir + HalvadeFileUtils.HALVADE_STAR_SUFFIX_P2);
+        File pass2check = new File(newGenomeDir + HalvadeConf.getPass2Suffix(context.getConfiguration()));
         pass2check.createNewFile();
+        Logger.DEBUG("create check file: " + pass2check.getAbsolutePath());
         if(requireUploadToHDFS) {
             Logger.DEBUG("Uploading STAR genome to parallel filesystem...");
             fs.mkdirs(new Path(pass2GenDir));
