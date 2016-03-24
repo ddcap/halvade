@@ -35,7 +35,7 @@ public class DnaGATKReducer extends GATKReducer {
         String snps = tmpFileBase + ".vcf";    
         boolean useElPrep = HalvadeConf.getUseElPrep(context.getConfiguration());
         ChromosomeRange r = new ChromosomeRange();
-        SAMRecordIterator SAMit = new SAMRecordIterator(values.iterator(), header, r);
+        SAMRecordIterator SAMit = new SAMRecordIterator(values.iterator(), header, r, fixQualEnc);
         
         if(useElPrep && isFirstAttempt) 
             elPrepPreprocess(context, tools, SAMit, preprocess);

@@ -363,7 +363,7 @@ public final class ChromosomeSplitter {
                 for (BedRegion breg : regions) {
                     regionCount++;
                     Logger.DEBUG("region: " + breg.key + ", " + breg.contig + 
-                            " (" + breg.start + " _ " + breg.end + " -> " + (breg.end - breg.start) + ")", 3);
+                            " (" + breg.start + " _ " + breg.end + " -> " + (breg.end - breg.start) + ")", 2);
                 }
 //            }                    
         } finally {
@@ -618,6 +618,9 @@ public final class ChromosomeSplitter {
         } finally {
             if(dis != null)
                 dis.close();
+        }
+        for(BedRegion region : regions) {
+           Logger.DEBUG(region.toString());
         }
     }
 }

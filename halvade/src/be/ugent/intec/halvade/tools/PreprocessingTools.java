@@ -163,7 +163,7 @@ public class PreprocessingTools {
             
     public int callElPrep(String input, String output, String rg, int threads, 
             SAMRecordIterator SAMit,
-            SAMFileHeader header, String dictFile, boolean updateRG, String RGID) throws InterruptedException, QualityException {
+            SAMFileHeader header, String dictFile, boolean updateRG, boolean keepDups, String RGID) throws InterruptedException, QualityException {
         
         SAMRecord sam;
         SAMFileWriterFactory factory = new SAMFileWriterFactory();
@@ -180,7 +180,7 @@ public class PreprocessingTools {
         Swriter.close();
         
         String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "elprep", "");  
-        String[] command = CommandGenerator.elPrep(bin, input, output, threads, true, rg, null, customArgs);
+        String[] command = CommandGenerator.elPrep(bin, input, output, threads, true, rg, null, !keepDups, customArgs);
         long estimatedTime = runProcessAndWait("elPrep", command);
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_ELPREP).increment(estimatedTime);
@@ -190,10 +190,10 @@ public class PreprocessingTools {
         
     public int streamElPrep(Reducer.Context context, String output, String rg, 
             int threads, SAMRecordIterator SAMit, 
-            SAMFileHeader header, String dictFile, boolean updateRG, String RGID) throws InterruptedException, IOException, QualityException {
+            SAMFileHeader header, String dictFile, boolean updateRG, boolean keepDups, String RGID) throws InterruptedException, IOException, QualityException {
         long startTime = System.currentTimeMillis();
         String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "elprep", "");  
-        String[] command = CommandGenerator.elPrep(bin, "/dev/stdin", output, threads, true, rg, null, customArgs);
+        String[] command = CommandGenerator.elPrep(bin, "/dev/stdin", output, threads, true, rg, null, !keepDups, customArgs);
 //        runProcessAndWait(command);
         ProcessBuilderWrapper builder = new ProcessBuilderWrapper(command, null);
         builder.startProcess(true);        
@@ -227,6 +227,13 @@ public class PreprocessingTools {
         if(context != null)
             context.getCounter(HalvadeCounters.TIME_ELPREP).increment(estimatedTime);
         return reads;
+    }
+    
+    public void sampleSam(String input, String output, double fraction) throws InterruptedException {
+        String[] command = CommandGenerator.SAMToolsViewSampling(bin, input, output, fraction);
+        long estimatedTime = runProcessAndWait("SAMtools view sampling", command); 
+        if(context != null)
+            context.getCounter(HalvadeCounters.TIME_SAMPLESAM).increment(estimatedTime);
     }
     
     public void callSAMToBAM(String input, String output, int threads, boolean keepDups) throws InterruptedException {

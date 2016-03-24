@@ -37,24 +37,26 @@ public class CommandGenerator {
     private static int STARBufferSize = 30000000; // smaller gives a bad malloc error...
     private static int SAsparseD = 8; // make smaller reference -> much faster to build, speed to align is a bit less
     private static String[] starOptions = {
-        "--genomeDir", 
+        "--genomeDir",      //0
         "--outFileNamePrefix", 
         "--readFilesIn", 
         "--outTmpDir", 
         "--runThreadN", 
-        "--twopass1readsN", 
+        "--twopass1readsN",  //5
         "--sjdbOverhang", 
         "--outStd",
         "--readFilesCommand",
         "--genomeLoad",
-        "--genomeFastaFiles",
+        "--genomeFastaFiles",  //10
         "--sjdbFileChrStartEnd",
         "--outSAMtype",
         "--runMode",
         "--limitIObufferSize",
-        "--limitGenomeGenerateRAM",
+        "--limitGenomeGenerateRAM",  //15
         "--genomeSAsparseD",
-        "--limitBAMsortRAM"};
+        "--limitBAMsortRAM",
+        "--sjdbGTFfile", // 18
+        "--sjdbGTFchrPrefix"};
     private static String[] starGenomeLoad = {
         "LoadAndExit" , "Remove", "LoadAndKeep"
     };
@@ -125,7 +127,7 @@ public class CommandGenerator {
         "--timed"
     };*/
     public static String[] elPrep(String bin, String input, String output, int threads, boolean filterUnmapped, 
-           String readGroup, String refDict, String customArgs) {
+           String readGroup, String refDict, boolean removeDup, String customArgs) {
         ArrayList<String> command = new ArrayList<>();
         if(bin.endsWith("/")) 
             command.add(bin + elPrepCommand[0]); 
@@ -140,6 +142,9 @@ public class CommandGenerator {
             command.add(readGroup);
         }
         command.add(elPrepOptions[3]);
+        if(removeDup) {
+            command.add("remove");
+        }
         if(refDict != null) {
             command.add(elPrepOptions[0]);
             command.add(refDict);
@@ -194,6 +199,25 @@ public class CommandGenerator {
         command = addToCommand(command, customArgs);
         command.add(output);
         command.addAll(Arrays.asList(input));
+        Object[] ObjectList = command.toArray();
+        String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
+        return StringArray;
+    }
+    
+    
+    public static String[] SAMToolsViewSampling(String bin, String input, String output, double fraction) {
+        ArrayList<String> command = new ArrayList<>();
+        if(bin.endsWith("/")) 
+            command.add(bin + "samtools"); 
+        else
+            command.add(bin + "/samtools");
+        command.add("view");
+        command.add("-s");
+        command.add(""+fraction);
+        command.add("-o");
+        command.add(output);
+        command.add("-b");
+        command.add(input);
         Object[] ObjectList = command.toArray();
         String[] StringArray = Arrays.copyOf(ObjectList,ObjectList.length,String[].class);
         return StringArray;
@@ -352,7 +376,7 @@ public class CommandGenerator {
     }
     
     public static String[] starRebuildGenome(String bin, String newStarGenomeDir, String ref, 
-            String sjdbfile, int overhang, int numberOfThreads, long mem, boolean sparse) {
+            String sjdbfile, int overhang, int numberOfThreads, long mem, boolean sparse, String stargtf) {
         ArrayList<String> command = new ArrayList<>();
         if(bin.endsWith("/")) 
             command.add(bin + starBin); 
@@ -375,6 +399,10 @@ public class CommandGenerator {
         command.add("" + overhang);
         command.add(starOptions[4]);
         command.add("" + numberOfThreads);
+        if(stargtf != null) {
+            command.add(starOptions[18]);
+            command.add(stargtf);
+        }
         if(sparse) {
             command.add(starOptions[16]);
             command.add("" + SAsparseD);
@@ -395,7 +423,7 @@ public class CommandGenerator {
             String outputDir,
             String readsFile1, 
             String readsFile2,
-            int numberOfThreads, int overhang, int nReads, String customArgs) {
+            int numberOfThreads, int overhang, int nReads, String stargtf, String customArgs) {
         ArrayList<String> command = new ArrayList<>();
         if(bin.endsWith("/")) 
             command.add(bin + starBin); 
@@ -414,6 +442,12 @@ public class CommandGenerator {
             command.add(readsFile2);
         command.add(starOptions[4]);
         command.add("" + numberOfThreads);
+//        if(stargtf != null) {
+//            command.add(starOptions[18]);
+//            command.add(stargtf);
+//            command.add(starOptions[19]);
+//            command.add("chr");
+//        }
         command.add(starOptions[14]);
         command.add("" + STARBufferSize); // make default buffersize smaller so more threads are started
         command.add(starOptions[9]);

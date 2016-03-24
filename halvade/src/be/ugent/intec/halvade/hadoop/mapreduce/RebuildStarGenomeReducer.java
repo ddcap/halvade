@@ -109,8 +109,9 @@ public class RebuildStarGenomeReducer extends Reducer<GenomeSJ, Text, LongWritab
         File starOut = new File(newGenomeDir);
         starOut.mkdirs();
         
+        String stargtf = HalvadeConf.getStarGtf(context.getConfiguration());
         long time = STARInstance.rebuildStarGenome(context, bin, newGenomeDir, ref, mergeJS, 
-                                                    overhang, threads, mem);
+                                                    overhang, threads, mem, stargtf);
         context.getCounter(HalvadeCounters.TIME_STAR_BUILD).increment(time);
         
         //upload to outputdir

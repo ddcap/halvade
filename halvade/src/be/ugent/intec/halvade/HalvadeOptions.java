@@ -112,6 +112,8 @@ public class HalvadeOptions {
     public int overrideRedMem = -1;
     public boolean countOnly = false;
     public boolean keepDups = true;
+    public boolean fixQualEnc = false;
+    public String stargtf = null;
     
     protected DecimalFormat onedec;
     protected static final double REDUCE_TASKS_FACTOR = 1.68 * 15;
@@ -150,6 +152,7 @@ public class HalvadeOptions {
                 HalvadeConf.setFilterBed(hConf, filterBed);
             }
             HalvadeConf.setInputIsBam(hConf, useBamInput);
+            HalvadeConf.setFixQualEnc(hConf, fixQualEnc);
             HalvadeConf.setOutDir(hConf, out);
             HalvadeConf.setKeepFiles(hConf, keepFiles);
             HalvadeConf.setFilterDBSnp(hConf, filterDBSnp);
@@ -164,6 +167,9 @@ public class HalvadeOptions {
             HalvadeConf.setkeepChrSplitPairs(hConf, keepChrSplitPairs);
             if (STARGenome != null) {
                 HalvadeConf.setStarDirPass2HDFS(hConf, out);
+            }
+            if (stargtf != null) { 
+                HalvadeConf.setStarGtf(hConf, stargtf);
             }
 
             if (chr != null) {
@@ -395,6 +401,10 @@ public class HalvadeOptions {
                 .hasArg()
                 .withDescription("Sets the gff file to be used with HTSeq-Count. This is required to run HTSeq-Count.")
                 .create("gff");
+        Option optstargtf = OptionBuilder.withArgName("gtf")
+                .hasArg()
+                .withDescription("Sets the gtf file to be used within the STAR alignment.")
+                .create("stargtf");
         Option optMpn = OptionBuilder.withArgName("tasks")
                 .hasArg()
                 .withDescription("Overrides the number of map tasks running simultaneously on each node. ")
@@ -462,6 +472,10 @@ public class HalvadeOptions {
                 .create("count");
         Option optRemDup = OptionBuilder.withDescription("Remove PCR duplicates for GATK.")
                 .create("remove_dups");
+        Option optSS = OptionBuilder.withDescription("Subsample the bam file if more than 1M reads are available.")
+                .create("ss");
+        Option optFixEnc = OptionBuilder.withDescription("Fix the quality encoding of old (pre 1.8) Illumina fastq files to the new encoding.")
+                .create("illumina");
 
         options.addOption(optIn);
         options.addOption(optOut);
@@ -512,7 +526,10 @@ public class HalvadeOptions {
         options.addOption(optReorderRegions);
         options.addOption(optupdateRG);
         options.addOption(optCount);
+//        options.addOption(optSS);
         options.addOption(optRemDup);
+        options.addOption(optstargtf);
+        options.addOption(optFixEnc);
     }
 
     protected boolean parseArguments(String[] args, Configuration halvadeConf) throws ParseException {
@@ -541,6 +558,9 @@ public class HalvadeOptions {
 
         if (line.hasOption("tmp")) {
             tmpDir = line.getOptionValue("tmp");
+        }
+        if (line.hasOption("stargtf")) {
+            stargtf = line.getOptionValue("stargtf");
         }
         if (line.hasOption("refdir")) {
             localRefDir = line.getOptionValue("refdir");
@@ -588,6 +608,9 @@ public class HalvadeOptions {
         }
         if (line.hasOption("report_all")) {
             reportAll = true;
+        }
+        if (line.hasOption("illumina")) {
+            fixQualEnc = true;
         }
         if (line.hasOption("keep")) {
             keepFiles = true;

@@ -34,7 +34,7 @@ public class StarAlignPassXMapper  extends HalvadeMapper<GenomeSJ, Text> {
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException {
         super.cleanup(context);
-        if(allTasksHaveStarted) {
+        if(allTasksHaveStarted && runPass2) {
             try {
                 star_shmem_lock.getLock();    
                 ((STARInstance)instance).loadSharedMemoryReference(null, true);

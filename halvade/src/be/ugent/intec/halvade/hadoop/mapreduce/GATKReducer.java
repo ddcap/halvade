@@ -41,6 +41,7 @@ import java.net.URISyntaxException;
 public abstract class GATKReducer extends HalvadeReducer {
 
     protected boolean isFirstAttempt;
+    protected boolean fixQualEnc;
     protected boolean filterDBsnp;
     protected boolean useUnifiedGenotyper;
     protected double sec, scc;
@@ -82,6 +83,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         super.setup(context);
         isFirstAttempt = taskId.endsWith("_0");
         isRNA = HalvadeConf.getIsRNA(context.getConfiguration());
+        fixQualEnc = HalvadeConf.getFixQualEnc(context.getConfiguration());
         keepDups = HalvadeConf.getKeepDups(context.getConfiguration());
         scc = HalvadeConf.getSCC(context.getConfiguration(), isRNA);
         sec = HalvadeConf.getSEC(context.getConfiguration(), isRNA);
@@ -120,9 +122,11 @@ public abstract class GATKReducer extends HalvadeReducer {
         context.setStatus("call elPrep");
         int reads;
         if (keep) {
-            reads = tools.callElPrep(preSamOut, samOut, inputIsBam ? null : rg, threads, input, outHeader, dictF, updateRG, RGID);
+            reads = tools.callElPrep(preSamOut, samOut, inputIsBam ? null : rg, threads, input, outHeader, dictF, updateRG, 
+                    keepDups, RGID);
         } else {
-            reads = tools.streamElPrep(context, samOut, inputIsBam ? null : rg, threads, input, outHeader, dictF, updateRG, RGID);
+            reads = tools.streamElPrep(context, samOut, inputIsBam ? null : rg, threads, input, outHeader, dictF, updateRG, 
+                    keepDups, RGID);
         }
 
         Logger.DEBUG(reads + " reads processed in elPrep");
@@ -180,13 +184,16 @@ public abstract class GATKReducer extends HalvadeReducer {
         long estimatedTime = System.currentTimeMillis() - startTime;
         context.getCounter(HalvadeCounters.TIME_HADOOP_SAMTOBAM).increment(estimatedTime);
         Logger.DEBUG("time writing " + count + " records to disk: " + estimatedTime / 1000);
-
-        Logger.DEBUG("clean sam");
-        context.setStatus("clean sam");
-        tools.runCleanSam(tmpOut1, tmpOut2);
+        
+        int markdup_threshold = 1000000;
+//        if (reads > markdup_threshold) {
+//            Logger.DEBUG("sample sam");
+//            context.setStatus("sample sam");
+//            tools.sampleSam(tmpOut1, tmpOut2, (double)markdup_threshold / reads);
+//        }
         Logger.DEBUG("mark duplicates");
         context.setStatus("mark duplicates");
-        tools.runMarkDuplicates(tmpOut2, gff != null ? tmpOut3 : output, tmpMetrics, keepDups);
+        tools.runMarkDuplicates(tmpOut1, gff != null ? tmpOut3 : output, tmpMetrics, keepDups && reads < markdup_threshold);
 
         if (gff != null) {
             // tmpOut3 is sam for htseq count!        
@@ -210,7 +217,7 @@ public abstract class GATKReducer extends HalvadeReducer {
         // remove all temporary files now!
         HalvadeFileUtils.removeLocalFile(keep, tmpMetrics, context, HalvadeCounters.FOUT_GATK_TMP);
         HalvadeFileUtils.removeLocalFile(keep, tmpOut1, context, HalvadeCounters.FOUT_GATK_TMP);
-        HalvadeFileUtils.removeLocalFile(keep, tmpOut2, context, HalvadeCounters.FOUT_GATK_TMP);
+//        HalvadeFileUtils.removeLocalFile(keep, tmpOut2, context, HalvadeCounters.FOUT_GATK_TMP);
         HalvadeFileUtils.removeLocalFile(keep, tmpOut3, context, HalvadeCounters.FOUT_GATK_TMP);
         HalvadeFileUtils.removeLocalFile(keep, fCounts);
     }

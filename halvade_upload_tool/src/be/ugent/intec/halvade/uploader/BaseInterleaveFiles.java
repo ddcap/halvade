@@ -37,13 +37,13 @@ abstract class BaseInterleaveFiles extends Thread {
     protected int thread;
     protected boolean useHadoopCompression = false;
     
-    public BaseInterleaveFiles(String base, long maxFileSize, int thread) {
+    public BaseInterleaveFiles(String base, long maxFileSize, int thread, boolean fromHDFS) {
         this.fileBase = base;
         this.thread = thread;
         written = 0;
         read = 0;
         count = 0;
-        factory = FileReaderFactory.getInstance(thread);
+        factory = FileReaderFactory.getInstance(thread, fromHDFS);
         BaseInterleaveFiles.maxFileSize = maxFileSize;
     }
 

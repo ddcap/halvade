@@ -501,6 +501,14 @@ public class HalvadeConf {
     public static String getHeaderFile(Configuration conf) {
         return conf.get(headerFile);        
     }
+
+    private static final String starGtf = "stargtf";
+    public static void setStarGtf(Configuration conf, String val) {
+        conf.set(starGtf, val);
+    }
+    public static String getStarGtf(Configuration conf) {
+        return conf.get(starGtf);        
+    }
     
     /*
     * Custom Arguments for all commands used in Halvade
@@ -568,6 +576,21 @@ public class HalvadeConf {
     }
     public static boolean getKeepDups(Configuration conf) {
         String s = conf.get(keepDups);
+        if(s.equalsIgnoreCase("true"))
+            return true;
+        else 
+            return false;
+    }
+    
+    private static final String fixQualEnc = "fixQualEnc";
+    public static void setFixQualEnc(Configuration conf, boolean val) {
+        if(val)
+            conf.set(fixQualEnc, "true");
+        else 
+            conf.set(fixQualEnc, "false");
+    }
+    public static boolean getFixQualEnc(Configuration conf) {
+        String s = conf.get(fixQualEnc);
         if(s.equalsIgnoreCase("true"))
             return true;
         else 

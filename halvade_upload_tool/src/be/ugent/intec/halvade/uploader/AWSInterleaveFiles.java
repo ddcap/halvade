@@ -33,8 +33,8 @@ public class AWSInterleaveFiles extends BaseInterleaveFiles {
     protected AWSUploader upl; // S3
     protected CompressionCodec codec;
     
-    public AWSInterleaveFiles(String base, long maxFileSize, AWSUploader upl, int thread, CompressionCodec codec) {
-        super(base, maxFileSize, thread);
+    public AWSInterleaveFiles(String base, long maxFileSize, AWSUploader upl, int thread, CompressionCodec codec, boolean fromHDFS) {
+        super(base, maxFileSize, thread, fromHDFS);
         this.upl = upl;
         this.fsName = "S3";
         this.codec = codec;

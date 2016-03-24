@@ -19,10 +19,10 @@ public class PairedFastQReader extends BaseFileReader {
     protected ReadBlock block;
     
 
-    public PairedFastQReader(String fileA, String fileB) throws IOException {
+    public PairedFastQReader(boolean fromHDFS, String fileA, String fileB) throws IOException {
         super(true);
-        readerA = getReader(fileA);
-        readerB = getReader(fileB);
+        readerA = getReader(fromHDFS, fileA);
+        readerB = getReader(fromHDFS, fileB);
         toStr = fileA + " & " + fileB;
         Logger.DEBUG("Paired: " + toStr);
     }

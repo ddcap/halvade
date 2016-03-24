@@ -54,6 +54,7 @@ public class STARInstance extends AlignerInstance {
     private String starOutDir;
     private int overhang, nReads;
     private int starType;
+    private String stargtf = null;
     
     private STARInstance(Mapper.Context context, String bin, int starType) throws IOException, URISyntaxException {
         super(context, bin);
@@ -61,6 +62,7 @@ public class STARInstance extends AlignerInstance {
         taskId = context.getTaskAttemptID().toString();
         taskId = taskId.substring(taskId.indexOf("m_"));
         ref = HalvadeFileUtils.downloadSTARIndex(context, taskId, starType == PASS2);
+        stargtf = HalvadeConf.getStarGtf(context.getConfiguration());
         Logger.DEBUG("ref: " + ref);
         starOutDir = tmpdir + taskId + "-STARout/";
         nReads = 0;
@@ -151,7 +153,7 @@ public class STARInstance extends AlignerInstance {
         String customArgs = HalvadeConf.getCustomArgs(context.getConfiguration(), "star", "");
         String[] command = CommandGenerator.starAlign(bin, starType, ref, starOutDir,  
                 getFileName(tmpdir, taskId, 1), getFileName(tmpdir, taskId, 2), 
-                threads, overhang, nReads / 4, customArgs);
+                threads, overhang, nReads / 4, stargtf, customArgs);
         star = new ProcessBuilderWrapper(command, bin);
         // run command
         // needs to be streamed to output otherwise the process blocks ...
@@ -274,11 +276,11 @@ public class STARInstance extends AlignerInstance {
      */
     protected static boolean sparseGenome = true;
     public static long rebuildStarGenome(TaskInputOutputContext context, String bin, String newGenomeDir, 
-            String ref, String SJouttab, int sjoverhang, int threads, long mem) throws InterruptedException {
+            String ref, String SJouttab, int sjoverhang, int threads, long mem, String stargtf) throws InterruptedException {
         Logger.DEBUG("Creating new genome in " + newGenomeDir);
         String[] command = 
                 CommandGenerator.starRebuildGenome(bin, newGenomeDir, ref, SJouttab, 
-                        sjoverhang, threads, mem, sparseGenome);
+                        sjoverhang, threads, mem, sparseGenome, stargtf);
         
         ProcessBuilderWrapper starbuild = new ProcessBuilderWrapper(command, bin);
         starbuild.startProcess(System.out, System.err);

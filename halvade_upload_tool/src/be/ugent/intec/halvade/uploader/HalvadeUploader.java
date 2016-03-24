@@ -53,6 +53,8 @@ public class HalvadeUploader  extends Configured implements Tool {
     private int bestFileSize = 60000000; // <64MB
     private boolean SSE = false;
     private String profile = "default";
+    private boolean fromHDFS = false;
+    private static double advisdedHeapSize = 16;
     
     
     private AWSCredentials credentials;
@@ -60,7 +62,10 @@ public class HalvadeUploader  extends Configured implements Tool {
      * @param args the command line arguments
      */
     public static void main(String[] args) throws Exception {
-        // TODO code application logic here
+        // check memory:
+        double heapMaxSize = Runtime.getRuntime().maxMemory()/(1024.0*1024*1024);
+        if(heapMaxSize < advisdedHeapSize)
+            System.err.println("WARNING: Heap size is set to " + heapMaxSize + " GB.\nWARNING: To increase performance increase Heap size to at least "+advisdedHeapSize+" GB.");
         Configuration c = new Configuration();
         HalvadeUploader hau = new HalvadeUploader();
         int res = ToolRunner.run(c, hau, args);
@@ -105,7 +110,7 @@ public class HalvadeUploader  extends Configured implements Tool {
             }
         }
         
-        FileReaderFactory factory = FileReaderFactory.getInstance(mthreads);
+        FileReaderFactory factory = FileReaderFactory.getInstance(mthreads, fromHDFS);
         if(manifest != null) {
             Logger.DEBUG("reading input files from " + manifest);
             // read from file
@@ -144,7 +149,7 @@ public class HalvadeUploader  extends Configured implements Tool {
                 fileThreads[t] = new AWSInterleaveFiles(
                         outputDir + "halvade_" + t + "_", 
                         maxFileSize, 
-                        upl, t, codec);
+                        upl, t, codec, fromHDFS);
                 fileThreads[t].start();
             }
             for(int t = 0; t < bestThreads; t++)
@@ -159,7 +164,7 @@ public class HalvadeUploader  extends Configured implements Tool {
                 fileThreads[t] = new HDFSInterleaveFiles(
                         outputDir + "halvade_" + t + "_", 
                         maxFileSize, 
-                        fs, t, codec);
+                        fs, t, codec, fromHDFS);
                 fileThreads[t].start();
             }
             for(int t = 0; t < bestThreads; t++)
@@ -216,6 +221,9 @@ public class HalvadeUploader  extends Configured implements Tool {
         Option optSSE = OptionBuilder.withArgName( "" )
                                 .withDescription(  "Enables Server Side Encryption to transfer the files to amazon S3." )
                                 .create( "sse" );
+        Option optHDFS = OptionBuilder.withArgName( "" )
+                                .withDescription(  "The input data is stored on a dfs (HDFS, S3, etc) and needs to be accessed by hadoop API." )
+                                .create( "dfs" );
         
         options.addOption(optOut);
         options.addOption(optFile1);
@@ -227,6 +235,7 @@ public class HalvadeUploader  extends Configured implements Tool {
         options.addOption(optSnappy);
         options.addOption(optLz4);
         options.addOption(optSSE);
+        options.addOption(optHDFS);
     }
     
     public void parseArguments(String[] args) throws ParseException {
@@ -251,6 +260,8 @@ public class HalvadeUploader  extends Configured implements Tool {
             isInterleaved = true;
         if(line.hasOption("sse"))
             SSE = true;
+        if(line.hasOption("dfs"))
+            fromHDFS = true;
         if(line.hasOption("snappy")) {       
             CompressionCodecFactory codecFactory = new CompressionCodecFactory(getConf());
             codec = codecFactory.getCodecByClassName("org.apache.hadoop.io.compress.SnappyCodec");

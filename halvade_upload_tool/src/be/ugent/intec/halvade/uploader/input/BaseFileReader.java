@@ -12,8 +12,12 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.zip.GZIPInputStream;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 import org.apache.tools.bzip2.CBZip2InputStream;
 
 /**
@@ -38,17 +42,34 @@ public abstract class BaseFileReader {
         return toStr;
     }
     
-    protected static BufferedReader getReader(String file) throws FileNotFoundException, IOException {
-        if(file.endsWith(".gz")) {
-            GZIPInputStream gzip = new GZIPInputStream(new FileInputStream(file), BUFFERSIZE); 
-            return new BufferedReader(new InputStreamReader(gzip));
-        } else if(file.endsWith(".bz2")) {
-            CBZip2InputStream bzip2 = new CBZip2InputStream(new FileInputStream(file));
-            return new BufferedReader(new InputStreamReader(bzip2));
-        } else if(file.equals("-")) {
-            return new BufferedReader(new InputStreamReader(System.in));
-        }else 
-            return new BufferedReader(new FileReader(file));            
+    protected static BufferedReader getReader(boolean readFromDistributedStorage, String file) throws FileNotFoundException, IOException {
+        InputStream hdfsIn;
+        if(readFromDistributedStorage) {
+            Path pt =new Path(file);
+            FileSystem fs = FileSystem.get(pt.toUri(), new Configuration());
+            hdfsIn = fs.open(pt);
+            // read the stream in the correct format!
+            if(file.endsWith(".gz")) {
+                GZIPInputStream gzip = new GZIPInputStream(hdfsIn, BUFFERSIZE); 
+                return new BufferedReader(new InputStreamReader(gzip));
+            } else if(file.endsWith(".bz2")) {
+                CBZip2InputStream bzip2 = new CBZip2InputStream(hdfsIn);
+                return new BufferedReader(new InputStreamReader(bzip2));
+            } else 
+                return new BufferedReader(new InputStreamReader(hdfsIn));
+            
+        } else {
+            if(file.endsWith(".gz")) {
+                GZIPInputStream gzip = new GZIPInputStream(new FileInputStream(file), BUFFERSIZE); 
+                return new BufferedReader(new InputStreamReader(gzip));
+            } else if(file.endsWith(".bz2")) {
+                CBZip2InputStream bzip2 = new CBZip2InputStream(new FileInputStream(file));
+                return new BufferedReader(new InputStreamReader(bzip2));
+            } else if(file.equals("-")) {
+                return new BufferedReader(new InputStreamReader(System.in));
+            }else 
+                return new BufferedReader(new FileReader(file));   
+        }
     }  
 
     @Override

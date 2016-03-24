@@ -102,7 +102,7 @@ public class MapReduceRunner extends Configured implements Tool  {
     
     protected int runPass1RNAJob(Configuration pass1Conf, String tmpOutDir) throws IOException, InterruptedException, ClassNotFoundException, URISyntaxException {
         HalvadeConf.setIsPass2(pass1Conf, false);
-        HalvadeResourceManager.setJobResources(halvadeOpts, pass1Conf, HalvadeResourceManager.RNA_SHMEM_PASS1, true, halvadeOpts.useBamInput);
+        HalvadeResourceManager.setJobResources(halvadeOpts, pass1Conf, HalvadeResourceManager.RNA_SHMEM_PASS1, halvadeOpts.nodes == 1, halvadeOpts.useBamInput);
         HalvadeConf.setPass2Suffix(pass1Conf, pass2suffix);
         
         Job pass1Job = Job.getInstance(pass1Conf, "Halvade pass 1 RNA pipeline");
@@ -209,7 +209,7 @@ public class MapReduceRunner extends Configured implements Tool  {
             halvadeJob.setOutputValueClass(VariantContextWritable.class);
         }
 
-        if(halvadeOpts.justAlign)
+        if(halvadeOpts.justAlign && !halvadeOpts.mergeBam)
             halvadeJob.setNumReduceTasks(0);
         else if (halvadeOpts.mergeBam) {
             halvadeJob.setReducerClass(be.ugent.intec.halvade.hadoop.mapreduce.BamMergeReducer.class);

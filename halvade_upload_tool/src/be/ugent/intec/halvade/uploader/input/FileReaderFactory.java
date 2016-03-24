@@ -21,30 +21,32 @@ public class FileReaderFactory extends BaseFileReader implements Runnable {
     protected BaseFileReader currentReader = null;
     protected static FileReaderFactory allReaders = null;
     protected int threads;
+    protected boolean fromHDFS = false;
 
-    public FileReaderFactory(int threads) {
+    public FileReaderFactory(int threads, boolean fromHDFS) {
         super(false);
         readers = new ArrayList<>();
         this.threads = threads;
+        this.fromHDFS = fromHDFS;
     }
     
-    public static FileReaderFactory getInstance(int threads) {
+    public static FileReaderFactory getInstance(int threads, boolean fromHDFS) {
         if(allReaders == null) {
-            allReaders = new FileReaderFactory(threads);
+            allReaders = new FileReaderFactory(threads, fromHDFS);
         }
         return allReaders;
     }
     
-    public static BaseFileReader createFileReader(String fileA, String fileB, boolean interleaved) throws IOException {
+    public static BaseFileReader createFileReader(boolean fromHDFS, String fileA, String fileB, boolean interleaved) throws IOException {
         if (fileB == null) {
-            return new SingleFastQReader(fileA, interleaved);
+            return new SingleFastQReader(fromHDFS, fileA, interleaved);
         } else {
-            return new PairedFastQReader(fileA, fileB);
+            return new PairedFastQReader(fromHDFS, fileA, fileB);
         }     
     }
     
     public void addReader(String fileA, String fileB, boolean interleaved) throws IOException {
-        readers.add(createFileReader(fileA, fileB, interleaved));
+        readers.add(createFileReader(fromHDFS, fileA, fileB, interleaved));
     }
     
     public void addReader(BaseFileReader reader) {

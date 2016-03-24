@@ -21,9 +21,9 @@ public class SingleFastQReader extends BaseFileReader {
     protected int readsFactor;
     
 
-    public SingleFastQReader(String fileA, boolean interleaved) throws IOException {
+    public SingleFastQReader(boolean fromHDFS, String fileA, boolean interleaved) throws IOException {
         super(true);
-        readerA = getReader(fileA);
+        readerA = getReader(fromHDFS, fileA);
         this.isInterleaved = interleaved;
         if(isInterleaved) 
             readsFactor = 2;

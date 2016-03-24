@@ -28,17 +28,19 @@ public class SAMRecordIterator implements Iterator<SAMRecord> {
     protected SAMFileHeader header;
     protected static final int INTERVAL_OVERLAP = 51;
 
-    public SAMRecordIterator(Iterator<SAMRecordWritable> it, SAMFileHeader header) throws QualityException {
+    public SAMRecordIterator(Iterator<SAMRecordWritable> it, SAMFileHeader header, boolean requireFixQuality) throws QualityException {
         this.it = it;
         r = new ChromosomeRange();
         this.header = header;
+        this.requireFixQuality = requireFixQuality;
         getFirstRecord();
     }
     
-    public SAMRecordIterator(Iterator<SAMRecordWritable> it, SAMFileHeader header, ChromosomeRange r) throws QualityException {
+    public SAMRecordIterator(Iterator<SAMRecordWritable> it, SAMFileHeader header, ChromosomeRange r, boolean requireFixQuality) throws QualityException {
         this.it = it;
         this.r = r;
         this.header = header;
+        this.requireFixQuality = requireFixQuality;
         getFirstRecord();
     }
     
@@ -47,7 +49,8 @@ public class SAMRecordIterator implements Iterator<SAMRecord> {
         if(it.hasNext()) {
             sam = it.next().get();
             sam.setHeader(header);
-            requireFixQuality = (QualityEncoding.guessEncoding(sam) == QualityEncoding.QENCODING.ILLUMINA);
+            if(!requireFixQuality) // is default so need to check (if true means its set manually)
+                requireFixQuality = (QualityEncoding.guessEncoding(sam) == QualityEncoding.QENCODING.ILLUMINA);
             if (requireFixQuality) sam = QualityEncoding.fixMisencodedQuals(sam);
             reads++;
             currentStart = sam.getAlignmentStart();

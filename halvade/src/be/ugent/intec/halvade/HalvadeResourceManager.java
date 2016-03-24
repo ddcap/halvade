@@ -32,7 +32,7 @@ public class HalvadeResourceManager {
     public static int COMBINE = 3;
     
     protected static final int ALL = Integer.MAX_VALUE;
-    protected static final int MEM_AM = (int) (1.5*1024);
+    protected static final int MEM_AM = (int) (2*1024);
     protected static final int VCORES_AM = 1;
     protected static final int MEM_ALN = (int) (10*1024);
     protected static final int MEM_STAR = (int) (16*1024); // 16 for hg -> reduced reference
@@ -53,7 +53,7 @@ public class HalvadeResourceManager {
         
         BAMinput = BAMinput && type < 3;
         int mmem = RESOURCE_REQ[BAMinput? 3 : type][0];
-        int rmem = RESOURCE_REQ[type][1] == ALL ? tmpmem - MEM_AM : RESOURCE_REQ[type][1];
+        int rmem = RESOURCE_REQ[type][1] == ALL ? tmpmem - MEM_AM  : RESOURCE_REQ[type][1];
         if (rmem == MEM_ELPREP && !opt.useElPrep) 
             rmem = MEM_REF;
         if((opt.overrideMapMem > 0 || opt.overrideRedMem > 0)&& type != COMBINE) {
@@ -85,6 +85,9 @@ public class HalvadeResourceManager {
         Logger.DEBUG("set # map containers: " + opt.maps);        
        	HalvadeConf.setMapContainerCount(conf, opt.maps); 
         
+        if(subtractAM) 
+            opt.rthreads -= VCORES_AM;
+            
         Logger.DEBUG("resources set to " + opt.mapContainersPerNode + " maps [" 
                 + opt.mthreads + " cpu , " + mmem + " mb] per node and " 
                 + opt.reducerContainersPerNode + " reducers ["
@@ -92,17 +95,15 @@ public class HalvadeResourceManager {
         
         conf.set("mapreduce.map.cpu.vcores", "" + opt.mthreads);
         conf.set("mapreduce.map.memory.mb", "" + mmem); 
-        if(subtractAM) 
-            conf.set("mapreduce.reduce.cpu.vcores", "" + (opt.rthreads - VCORES_AM) );
-        else 
-            conf.set("mapreduce.reduce.cpu.vcores", "" + opt.rthreads );
+  
+        conf.set("mapreduce.reduce.cpu.vcores", "" + opt.rthreads );
         conf.set("mapreduce.reduce.memory.mb", "" + rmem);        
-        conf.set("mapreduce.reduce.java.opts", "-Xmx" + (int)(0.18*rmem) + "m");
-        conf.set("mapreduce.map.java.opts", "-Xmx" + (int)(0.25*mmem) + "m");
+        conf.set("mapreduce.reduce.java.opts", "-Xmx" + (int)(0.30*rmem) + "m"); // warning this is a test!! it will use too much memory if the memory check isnt disabled!!
+        conf.set("mapreduce.map.java.opts", "-Xmx" + (int)(0.30*mmem) + "m");
         
         if(type == COMBINE) {
-            conf.set("mapreduce.reduce.java.opts", "-Xmx" + (int)(0.8*rmem) + "m");
-            conf.set("mapreduce.map.java.opts", "-Xmx" + (int)(0.8*mmem) + "m");
+            conf.set("mapreduce.reduce.java.opts", "-Xmx" + (int)(0.80*rmem) + "m");
+            conf.set("mapreduce.map.java.opts", "-Xmx" + (int)(0.80*mmem) + "m");
         }
         if(type != COMBINE)
             conf.set("mapreduce.job.reduce.slowstart.completedmaps", "0.99");
