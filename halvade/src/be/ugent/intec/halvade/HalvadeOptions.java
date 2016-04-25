@@ -189,28 +189,6 @@ public class HalvadeOptions {
                 HalvadeConf.setSEC(hConf, stand_emit_conf);
             }
 
-            parseDictFile(hConf);
-            double inputSize = getInputSize(in, hConf);
-            if (coverage == -1.0) {
-                coverage = Math.max(1.0, DEFAULT_COVERAGE * (inputSize / DEFAULT_COVERAGE_SIZE));
-            }
-            Logger.DEBUG("Estimated coverage: " + roundOneDecimal(coverage));
-            // set a minimum first where the real amount is based on
-            reduces = (int) (coverage * REDUCE_TASKS_FACTOR);
-            Logger.DEBUG("estimated # reducers: " + reduces);
-            ChromosomeSplitter splitter;
-            if(bedFile != null)
-                splitter = new ChromosomeSplitter(dict, bedFile, reduces);
-            else if (readCountsPerRegionFile != null)
-                splitter = new ChromosomeSplitter(dict, readCountsPerRegionFile, reduces, reorderRegions);
-            else
-                splitter = new ChromosomeSplitter(dict, reduces);
-            
-            String bedRegions = out + "HalvadeRegions.bed";
-            splitter.exportSplitter(bedRegions, hConf);
-            reduces = splitter.getRegionCount();
-            Logger.DEBUG("actual # reducers: " + reduces);
-            HalvadeConf.setBedRegions(hConf, bedRegions);
 
         } catch (ParseException e) {
             Logger.DEBUG(e.getMessage());
@@ -221,6 +199,41 @@ public class HalvadeOptions {
             return 1;
         }
         return 0;
+    }
+    
+    protected void splitChromosomes(Configuration hConf) throws URISyntaxException, IOException {        
+        parseDictFile(hConf);
+//        double inputSize = getInputSize(in, hConf);
+//        if (coverage == -1.0) {
+//            coverage = Math.max(1.0, DEFAULT_COVERAGE * (inputSize / DEFAULT_COVERAGE_SIZE));
+//        }
+//        Logger.DEBUG("Estimated coverage: " + roundOneDecimal(coverage));
+        // set a minimum first where the real amount is based on
+//            reduces = (int) (coverage * REDUCE_TASKS_FACTOR);
+        reduces = (int) (1.75*nodes*reducerContainersPerNode);
+        int tmpReduces = reduces + 1;
+        Logger.DEBUG("requested # reducers: " + reduces);
+        double factor = 0.95;
+        int factoredReduces = reduces;
+        ChromosomeSplitter splitter = null;
+        while(tmpReduces > reduces) {
+//            Logger.DEBUG("targeting # reducers: " + factoredReduces);
+            if(bedFile != null)
+                splitter = new ChromosomeSplitter(dict, bedFile, factoredReduces);
+            else if (readCountsPerRegionFile != null)
+                splitter = new ChromosomeSplitter(dict, readCountsPerRegionFile, factoredReduces, reorderRegions);
+            else
+                splitter = new ChromosomeSplitter(dict, factoredReduces);
+            tmpReduces = splitter.getRegionCount();
+            factoredReduces = (int)(factoredReduces * factor);
+//            Logger.DEBUG("actual # reducers: " + tmpReduces);
+        }
+
+        String bedRegions = out + "HalvadeRegions.bed";
+        splitter.exportSplitter(bedRegions, hConf);
+        reduces = splitter.getRegionCount();
+        Logger.DEBUG("final # reducers: " + reduces);
+        HalvadeConf.setBedRegions(hConf, bedRegions);
     }
 
     protected String roundOneDecimal(double val) {
