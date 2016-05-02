@@ -128,7 +128,7 @@ public class HalvadeOptions {
                 HelpFormatter formatter = new HelpFormatter();
                 formatter.setWidth(80);
                 formatter.printHelp("hadoop jar HalvadeWithLibs.jar -I <IN> -O <OUT> "
-                        + "-R <REF> -D <SITES> -B <BIN> -nodes <nodes> -mem <mem> -vcores <cores> [options]", options);
+                        + "-R <REF> -D <SITES> -B <BIN> -N <nodes> -M <mem> -C <cores> [options]", options);
                 return 1;
             }
             onedec = new DecimalFormat("###0.0");
@@ -314,25 +314,27 @@ public class HalvadeOptions {
                 .hasArg()
                 .isRequired(true)
                 .withDescription("Sets the number of nodes in this cluster.")
-                .create("nodes");
+                .create("N");
         Option optVcores = OptionBuilder.withArgName("cores")
                 .hasArg()
                 .isRequired(true)
                 .withDescription("Sets the available cpu cores per node in this cluster.")
-                .create("vcores");
+                .create("C");
         Option optMem = OptionBuilder.withArgName("gb")
                 .hasArg()
                 .isRequired(true)
                 .withDescription("Sets the available memory [in GB] per node in this cluster.")
-                .create("mem");
+                .create("M");
         Option optMmem = OptionBuilder.withArgName("gb")
                 .hasArg()
                 .withDescription("Overrides the maximum map container memory [in GB].")
-                .create("mapmem");
+                .withLongOpt("mapmem")
+                .create( );
         Option optRmem = OptionBuilder.withArgName("gb")
                 .hasArg()
                 .withDescription("Overrides the maximum reduce container memory [in GB].")
-                .create("redmem");
+                .withLongOpt("redmem")
+                .create( );
         Option optSites = OptionBuilder.withArgName("snpDBa,snpDBb")
                 .hasArg()
                 .isRequired(true)
@@ -341,15 +343,18 @@ public class HalvadeOptions {
         Option optStarGenome = OptionBuilder.withArgName("stargenome")
                 .hasArg()
                 .withDescription("Directory on HDFS containing all STAR genome files")
-                .create("SG");
+                .withLongOpt("star")
+                .create("S");
         Option optTmp = OptionBuilder.withArgName("dir")
                 .hasArg()
                 .withDescription("Sets the location for temporary files on every node [/tmp/halvade/].")
-                .create("tmp");
+                .withLongOpt("tmp")
+                .create();
         Option optrefdir = OptionBuilder.withArgName("dir")
                 .hasArg()
                 .withDescription("Sets the folder containing all the reference files for BWA or STAR and GATK on every node [tmp directory].")
-                .create("refdir");
+                .withLongOpt("refdir")
+                .create();
         Option optJava = OptionBuilder.withArgName("java")
                 .hasArg()
                 .withDescription("Set location of java binary to use [must be 1.7+].")
@@ -358,68 +363,83 @@ public class HalvadeOptions {
         Option optID = OptionBuilder.withArgName("RGID")
                 .hasArg()
                 .withDescription("sets the RGID for the read-group.")
-                .create("id");
+                .withLongOpt("id")
+                .create( );
         Option optLB = OptionBuilder.withArgName("RGLB")
                 .hasArg()
                 .withDescription("sets the RGLB for the read-group.")
-                .create("lb");
+                .withLongOpt("lb")
+                .create();
         Option optPL = OptionBuilder.withArgName("RGPL")
                 .hasArg()
                 .withDescription("sets the RGPL for the read-group.")
-                .create("pl");
+                .withLongOpt("pl")
+                .create();
         Option optPU = OptionBuilder.withArgName("RGPU")
                 .hasArg()
                 .withDescription("sets the RGPU for the read-group.")
-                .create("pu");
+                .withLongOpt("pu")
+                .create();
         Option optSM = OptionBuilder.withArgName("RGSM")
                 .hasArg()
                 .withDescription("sets the RGSM for the read-group.")
-                .create("sm");
+                .withLongOpt("sm")
+                .create();
         Option optCov = OptionBuilder.withArgName("coverage")
                 .hasArg()
                 .withDescription("Sets the coverage to better distribute the tasks.")
-                .create("cov");
+                .withLongOpt("cov")
+                .create();
         Option optScc = OptionBuilder.withArgName("scc")
                 .hasArg()
                 .withDescription("Sets stand_call_conf for gatk Variant Caller.")
-                .create("scc");
+                .withLongOpt("scc")
+                .create();
         Option optSec = OptionBuilder.withArgName("sec")
                 .hasArg()
                 .withDescription("Sets stand_emit_conf for gatk Variant Caller.")
-                .create("sec");
+                .withLongOpt("sec")
+                .create();
         Option optBed = OptionBuilder.withArgName("bedfile")
                 .hasArg()
                 .withDescription("Sets the bed file containing relevant (Genes) regions which "
                         + "will be used to split the genome into genomic regions.")
-                .create("bed");
+                .withLongOpt("bed")
+                .create();
         Option optFilterBed = OptionBuilder.withArgName("bedfile")
                 .hasArg()
                 .withDescription("Sets the bed file containing relevant (Exome) regions which "
                         + " will be used to filter in the GATK steps.")
-                .create("fbed");
+                .withLongOpt("fbed")
+                .create();
         Option optGff = OptionBuilder.withArgName("gff")
                 .hasArg()
                 .withDescription("Sets the gff file to be used with HTSeq-Count. This is required to run HTSeq-Count.")
+                .withLongOpt("gff")
                 .create("gff");
         Option optstargtf = OptionBuilder.withArgName("gtf")
                 .hasArg()
                 .withDescription("Sets the gtf file to be used within the STAR alignment.")
-                .create("stargtf");
+                .withLongOpt("stargtf")
+                .create();
         Option optMpn = OptionBuilder.withArgName("tasks")
                 .hasArg()
                 .withDescription("Overrides the number of map tasks running simultaneously on each node. ")
-                .create("mpn");
+                .withLongOpt("mpn")
+                .create();
         Option optRpn = OptionBuilder.withArgName("tasks")
                 .hasArg()
                 .withDescription("Overrides the number of reduce tasks running simultaneously on each node. ")
-                .create("rpn");
+                .withLongOpt("rpn")
+                .create();
         Option optCustomArgs = OptionBuilder.withLongOpt("custom_args")
                 .withArgName("tool=args")
                 .hasArgs(2)
                 .withValueSeparator()
                 .withDescription("Adds custom arguments for a tool. If a module in a tool is used, add the name after an underscore. "
                         + "Possible values: " + getProgramNames())
-                .create("CA");
+                .withLongOpt("CA")
+                .create();
         Option optVerbose = OptionBuilder.withArgName("num")
                 .hasArg()
                 .withDescription("Sets verbosity of debugging [2].")
@@ -427,55 +447,74 @@ public class HalvadeOptions {
         Option optAln = OptionBuilder.withArgName("num")
                 .hasArg()
                 .withDescription("Sets the aligner used in Halvade. Possible values are 0 (bwa aln+sampe)[default], 1 (bwa mem), 2 (bowtie2), 3 (cushaw2).")
-                .create("aln");
+                .withLongOpt("aln")
+                .create();
         Option optReadsPerRegion = OptionBuilder.withArgName("file")
                 .hasArg()
                 .withDescription("Give a file with read counts per region to better distribute the regions (split by readcount [default] or reorder regions by size [-reorder_regions]).")
-                .create("rpr");
+                .withLongOpt("rpr")
+                .create();
 
         //flags
         Option optSingle = OptionBuilder.withDescription("Sets the input files to single reads [default is paired-end reads].")
-                .create("s");
+                .withLongOpt("single")
+                .create();
         Option optCombine = OptionBuilder.withDescription("Just Combines the vcf on HDFS [out dir] and doesn't run the hadoop job.")
-                .create("c");
+                .withLongOpt("combine")
+                .create();
         Option optPp = OptionBuilder.withDescription("Uses Picard to preprocess the data for GATK.")
                 .create("P");
         Option optFilterDBsnp = OptionBuilder.withDescription("Use Bedtools to select the needed interval of dbsnp.")
-                .create("filter_dbsnp");
+                .withLongOpt("filter_dbsnp")
+                .create();
         Option optJustAlign = OptionBuilder.withDescription("Only align the reads.")
-                .create("justalign");
+                .withLongOpt("justalign")
+                .create("A");
         Option optSmt = OptionBuilder.withDescription("Enable simultaneous multithreading.")
-                .create("smt");
+                .withLongOpt("smt")
+                .create();
         Option optKeep = OptionBuilder.withDescription("Keep intermediate files.")
-                .create("keep");
+                .withLongOpt("keep")
+                .create();
         Option optHap = OptionBuilder.withDescription("Use HaplotypeCaller instead of UnifiedGenotyper for Variant Detection.")
-                .create("hc");
+                .withLongOpt("haplotypecaller")
+                .create("H");
         Option optRna = OptionBuilder.withDescription("Run the RNA Best Practices pipeline by Broad [default is DNA pipeline]. SG needs to be set for this.")
-                .create("rna");
+                .withLongOpt("rna")
+                .create();
         Option optDry = OptionBuilder.withDescription("Execute a dryrun, will calculate task size, split for regions etc, but not execute the MapReduce job.")
-                .create("dryrun");
+                .withLongOpt("dryrun")
+                .create();
         Option optDrop = OptionBuilder.withDescription("Drop all paired-end reads where the pairs are aligned to different chromosomes.")
-                .create("drop");
+                .withLongOpt("drop")
+                .create();
         Option optReportAll = OptionBuilder.withDescription("Reports all variants at the same location when combining variants.")
-                .create("report_all");
+                .withLongOpt("report_all")
+                .create();
         Option optBamIn = OptionBuilder.withDescription("Uses aligned bam as input files instead of unaligned fastq files.")
-                .create("bam");
+                .withLongOpt("bam")
+                .create();
         Option optRedis = OptionBuilder.withDescription("This will enable Halvade to redistribute resources when possible when not all containers are used.")
-                .create("redistribute");
+                .withLongOpt("redistribute")
+                .create();
         Option optMergeBam = OptionBuilder.withDescription("Merges all bam output from either bam input or the aligned reads from the fastq input files.")
-                .create("merge_bam");
+                .withLongOpt("merge_bam")
+                .create();
         Option optReorderRegions = OptionBuilder.withDescription("Use the default split way but reorder tasks by size based on the read count file given by -rpr option.")
-                .create("reorder_regions");
+                .withLongOpt("reorder_regions")
+                .create();
         Option optupdateRG = OptionBuilder.withDescription("Update the readgroup when reading from a BAM input file.")
-                .create("update_rg");
+                .withLongOpt("update_rg")
+                .create();
         Option optCount = OptionBuilder.withDescription("Count the number of reads per reduce task (for debug purposes).")
-                .create("count");
+                .withLongOpt("count")
+                .create();
         Option optRemDup = OptionBuilder.withDescription("Remove PCR duplicates for GATK.")
-                .create("remove_dups");
-        Option optSS = OptionBuilder.withDescription("Subsample the bam file if more than 1M reads are available.")
-                .create("ss");
+                .withLongOpt("remove_dups")
+                .create();
         Option optFixEnc = OptionBuilder.withDescription("Fix the quality encoding of old (pre 1.8) Illumina fastq files to the new encoding.")
-                .create("illumina");
+                .withLongOpt("illumina")
+                .create();
 
         options.addOption(optIn);
         options.addOption(optOut);
@@ -505,7 +544,7 @@ public class HalvadeOptions {
         options.addOption(optMem);
         options.addOption(optKeep);
         options.addOption(optJustAlign);
-        options.addOption(optCov);
+//        options.addOption(optCov);
         options.addOption(optMpn);
         options.addOption(optGff);
         options.addOption(optRpn);
@@ -526,7 +565,6 @@ public class HalvadeOptions {
         options.addOption(optReorderRegions);
         options.addOption(optupdateRG);
         options.addOption(optCount);
-//        options.addOption(optSS);
         options.addOption(optRemDup);
         options.addOption(optstargtf);
         options.addOption(optFixEnc);
@@ -646,9 +684,9 @@ public class HalvadeOptions {
         if (line.hasOption("drop")) {
             keepChrSplitPairs = false;
         }
-        if (line.hasOption("cov")) {
-            coverage = Double.parseDouble(line.getOptionValue("cov"));
-        }
+//        if (line.hasOption("cov")) {
+//            coverage = Double.parseDouble(line.getOptionValue("cov"));
+//        }
         if (line.hasOption("merge_bam")) {
             mergeBam = true;
         }
