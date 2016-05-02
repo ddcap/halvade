@@ -6,7 +6,7 @@
 halvade documentation
 =====================
 
-A MapReduce implementation of the best practices pipelines for both whole genome, exome sequencing data as well as rna-seq data. Using well-known tools, Halvade provides reliable variant calling for these three types of data. 
+Halvade implements the best-practices pipelines from Broad institute using the MapReduce framework. Halvade supports pipelines for WGS and Exome sequencing data as well as RNA-seq data. The best-practices pipeline is parallelized using MapReduce where the Map phase performs the read mapping and the Reduce phase takes care of the variant calling with the necessary preprocessnig steps. By using other existing tools like BWA, STAR, samtools, picard and GATK we ensure that the variants are reliably called. Additionally these tools get frequent updates and Halvade allows simple replacement of the binary file to update the tool. 
 
 Contents:
 
@@ -14,8 +14,11 @@ Contents:
    :maxdepth: 2
 
    contents/introduction
+   contents/options
    contents/installation
    contents/references
+   contents/upload
+   contents/hadoop
 
 Indices and tables
 ==================
