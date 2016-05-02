@@ -619,8 +619,5 @@ public final class ChromosomeSplitter {
             if(dis != null)
                 dis.close();
         }
-        for(BedRegion region : regions) {
-           Logger.DEBUG(region.toString());
-        }
     }
 }
