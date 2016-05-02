@@ -80,7 +80,7 @@ public class HalvadeUploader  extends Configured implements Tool {
             // automatically generate the help statement
             System.err.println("Error parsing: " + e.getMessage());
             HelpFormatter formatter = new HelpFormatter();
-            formatter.printHelp( "java -jar HalvadeAWSUploader -1 <MANIFEST> -O <OUT> [options]", options );
+            formatter.printHelp( "hadoop jar HalvadeUploaderWithLibs.jar -1 <MANIFEST> -O <OUT> [options]", options );
         } catch (Throwable ex) {
             Logger.THROWABLE(ex);
         }
@@ -200,7 +200,8 @@ public class HalvadeUploader  extends Configured implements Tool {
         Option optSize = OptionBuilder.withArgName( "size" )
                                 .hasArg()
                                 .withDescription(  "Sets the maximum filesize of each split in MB." )
-                                .create( "size" );
+                                .withLongOpt("size")
+                                .create( "s");
         Option optThreads = OptionBuilder.withArgName( "threads" )
                                 .hasArg()
                                 .withDescription(  "Sets the available threads [1]." )
@@ -208,22 +209,27 @@ public class HalvadeUploader  extends Configured implements Tool {
         Option optProfile = OptionBuilder.withArgName( "profilename" )
                                 .hasArg()
                                 .withDescription(  "Sets the profile name to be used when looking for AWS credentials in the credentials file (~/.aws/credentials). [default]" )
-                                .create( "profile" );
+                                .withLongOpt("profile")
+                                .create( "p" );
         Option optInter = OptionBuilder.withArgName( "" )
                                 .withDescription(  "The single file input files contain interleaved paired-end reads." )
                                 .create( "i" );
         Option optSnappy = OptionBuilder.withArgName( "" )
                                 .withDescription(  "Compress the output files with snappy (faster) instead of gzip. The snappy library needs to be installed in Hadoop." )
-                                .create( "snappy" );
+                                .withLongOpt("snappy")
+                                .create();
         Option optLz4 = OptionBuilder.withArgName( "" )
                                 .withDescription(  "Compress the output files with lz4 (faster) instead of gzip. The lz4 library needs to be installed in Hadoop." )
-                                .create( "lz4" );
+                                .withLongOpt("lz4")
+                                .create();
         Option optSSE = OptionBuilder.withArgName( "" )
                                 .withDescription(  "Enables Server Side Encryption to transfer the files to amazon S3." )
-                                .create( "sse" );
+                                .withLongOpt("sse")
+                                .create();
         Option optHDFS = OptionBuilder.withArgName( "" )
                                 .withDescription(  "The input data is stored on a dfs (HDFS, S3, etc) and needs to be accessed by hadoop API." )
-                                .create( "dfs" );
+                                .withLongOpt("dfs")
+                                .create();
         
         options.addOption(optOut);
         options.addOption(optFile1);
