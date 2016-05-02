@@ -92,7 +92,7 @@ public class HalvadeOptions {
     public String bedFile = null;
     public String filterBed = null;
     public String bedRegion = null;
-    public double coverage = -1.0;
+//    public double coverage = -1.0;
     public String halvadeBinaries;
     public String bin;
     public String readCountsPerRegionFile = null;
@@ -429,7 +429,7 @@ public class HalvadeOptions {
                 .hasArg()
                 .withDescription("Sets the gff file to be used with HTSeq-Count. This is required to run HTSeq-Count.")
                 .withLongOpt("gff")
-                .create("gff");
+                .create();
         Option optstargtf = OptionBuilder.withArgName("gtf")
                 .hasArg()
                 .withDescription("Sets the gtf file to be used within the STAR alignment.")
@@ -566,7 +566,7 @@ public class HalvadeOptions {
         options.addOption(optReportAll);
         options.addOption(optSmt);
         options.addOption(optRna);
-        options.addOption(optReadsPerRegion);
+//        options.addOption(optReadsPerRegion);
         options.addOption(optStarGenome);
         options.addOption(optBamIn);
         options.addOption(optCustomArgs);
@@ -575,7 +575,7 @@ public class HalvadeOptions {
         options.addOption(optMmem);
         options.addOption(optMergeBam);
         options.addOption(optVerbose);
-        options.addOption(optReorderRegions);
+//        options.addOption(optReorderRegions);
         options.addOption(optupdateRG);
         options.addOption(optCount);
         options.addOption(optRemDup);
