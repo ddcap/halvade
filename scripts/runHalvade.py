@@ -29,7 +29,7 @@ def readConfig(filename):
 					if key.startswith("emr"):
 						emr_config[key] = val
 						print "EMR %s: %s" % (key, val)
-					elif key == "CA":
+					elif key == "ca":
 						tca = val.split('=', 1)
 						custom_args[tca[0]] = tca[1]
 						print "CA %s: %s" % (tca[0], tca[1])
@@ -97,21 +97,27 @@ if "emr_type" in emr_config:
 	argsArray.append("--instance-count")
 	argsArray.append(config["nodes"])
 	argsArray.append("--enable-debugging")
-	argsArray.append("--log-uri")
-	argsArray.append(s3logging)
 	argsArray.append("--ami-version")
 	argsArray.append(emr_config["emr_ami_v"])
+	argsArray.append("--log-uri")
+	argsArray.append(s3logging)
         argsArray.append("--bootstrap-actions")
         argsArray.append("Path=s3://elasticmapreduce/bootstrap-actions/configure-hadoop,Name=configuration,Args="+hadoopArgs+ ",Path="+emr_config["emr_script"]+",Name=maketmpdir")
 	argsArray.append("--steps")
 	argsString ="["
         for key in config:
-                argsString+="-"+key+","
+				if (len(key) > 1):
+	                argsString+="--"+key+","					
+				else
+	                argsString+="-"+key+","
                 argsString+=config[key]+","
         for key in flags:
-                argsString+="-"+key+","
+				if (len(key) > 1):
+	                argsString+="--"+key+","					
+				else
+	                argsString+="-"+key+","
         for key in custom_args:
-                argsString+="-CA,"
+                argsString+="--CA,"
                 argsString+=key+"="+custom_args[key]+","
 	argsString = argsString[:-1]+"]"
 	argsArray.append("Name=Halvade,Jar="+emr_config["emr_jar"]+",ActionOnFailure=TERMINATE_CLUSTER,Args="+argsString)
@@ -125,12 +131,19 @@ else:
 	argsArray.append("jar")
 	argsArray.append(jar)
 	for key in config:
+		if (len(key) > 1):
+			argsArray.append("--"+key)				
+		else
+			argsArray.append("-"+key)
 		argsArray.append("-"+key)
 		argsArray.append(config[key])
 	for key in flags:
-		argsArray.append("-"+key)
+		if (len(key) > 1):
+			argsArray.append("--"+key)				
+		else
+			argsArray.append("-"+key)
 	for key in custom_args:
-		argsArray.append("-CA")
+		argsArray.append("--CA")
 		argsArray.append(key+"="+custom_args[key])
 	print argsArray
         spawnDaemon(argsArray)

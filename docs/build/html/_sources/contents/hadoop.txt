@@ -27,7 +27,7 @@ After Hadoop is installed, the configuration needs to be updated to run Halvade 
 	  <value>1800000</value>
 	</property>
 
-Yarn, the scheduler, needs to know how many cores and how much memory is available on the nodes, this is set in *yarn-site.xml*. This is very important for the number of tasks that will be started on the cluster. In this example nodes with 128 GBytes of memory and 24 cores is used. Because many tools benefit from the hyperthreading capabilities of a cpu, the vcores is set to 48 in the case hyperthreading is available:
+Next, CDH 5 needs to know how many cores and how much memory is available on the nodes, this is set in *yarn-site.xml*. This is very important for the number of tasks that will be started on the cluster. In this example nodes with 128 GBytes of memory and a dual socket cpu setup with in total 24 cores is used. Because many tools benefit from the hyperthreading capabilities of a cpu, the vcores is set to 48:
 
 .. code-block:: xml
 	:linenos:
@@ -57,31 +57,21 @@ Yarn, the scheduler, needs to know how many cores and how much memory is availab
 	  <value>1</value>
 	</property>
 
-After this, the configuration needs to be pushed to all nodes and certain running services restarted:
+After this the configuration needs to be pushed to all nodes:
 
-.. code-block:: bash
-	:linenos:
+    $ scp *-site.xml myuser@myCDHnode-<n>.mycompany.com:/etc/hadoop/conf.my_cluster/
 
-	scp *-site.xml myuser@myCDHnode-<n>.mycompany.com:/etc/hadoop/conf.my_cluster/
+And the MapReduce service needs to be restarted:
 
-On the Resource Manager run:
+On the Resource Manager:
 
-.. code-block:: bash
-	:linenos:
+    $ sudo service hadoop-yarn-resourcemanager restart
 
-	sudo service hadoop-yarn-resourcemanager restart
+On each NodeManager:
 
-On each NodeManager run:
+    $ sudo service hadoop-yarn-nodemanager restart
 
-.. code-block:: bash
-	:linenos:
+On the JobHistory server:
 
-	sudo service hadoop-yarn-nodemanager restart
-
-On the JobHistory server run:
-
-.. code-block:: bash
-	:linenos:
-
-	sudo service hadoop-mapreduce-historyserver restart
+    $ sudo service hadoop-mapreduce-historyserver restart
 

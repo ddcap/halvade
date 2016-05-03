@@ -26,12 +26,13 @@ The index files, the reference and the dbsnp file need to be uploaded to the HDF
 BWA reference for WGS/WES data
 ------------------------------
 
-For the whole genome and exome sequencing pipelines the BWA aligner is used. To run BWA an index needs to be created of the reference fasta file, which will needs to be accessible by Halvade so BWA can be called correctly. The BWA binary is available in the ``bin.tar.gz`` archive, which is provided in every Halvade release. 
+For the whole genome and exome sequencing pipelines the BWA aligner is used. To run BWA an index needs to be created of the reference fasta file, which will needs to be accessible by Halvade so BWA can be called correctly. The BWA binary is available in the ``bin.tar.gz`` archive, which is provided in every Halvade release. However, this is also needed by Halvade itself, so first make a copy of this archive and extract the copy.
 
 .. code-block:: bash
 	:linenos:
 
-	tar -xvf bin.tar.gz
+	cp bin.tar.gz copy_bin.tar.gz
+	tar -xvf copy_bin.tar.gz
 	./bin/bwa index ucsc.hg19.fasta
 
 This process will create 5 files with the provided name as a prefix, the naming is important as Halvade finds this index by the given fasta prefix ``ucsc.hg19``. 
@@ -39,18 +40,16 @@ This process will create 5 files with the provided name as a prefix, the naming 
 STAR reference for RNA-seq data
 -------------------------------
 
-.. note:: The process to build the STAR index requires a minimum of 32 GBytes of RAM, make sure the machine this is run on has sufficient RAM memory.
-
-The RNA-seq pipeline uses the STAR aligner to perform the read alignment step. Similarly to BWA, the STAR aligner requires an index of the reference fasta file. Again this can be created by using the STAR binary which is provided in the ``bin.tar.gz`` archive which is available in every Halvade release. 
+The RNA-seq pipeline uses the STAR aligner to perform the read alignment step. Similarly to BWA, the STAR aligner requires an index of the reference fasta file. Again this can be created by using the STAR binary which is provided in the ``bin.tar.gz`` archive which is available in every Halvade release. Make a copy of this archive as it will be needed by Halvade later on. This process can be done in the terminal as follows:
 
 .. code-block:: bash
 	:linenos:
 
-	tar -xvfbin.tar.gz
-	mkdir ./STAR_ref/
-	./bin/STAR --genomeDir ./STAR_ref/ --genomeFastaFiles ucsc.hg19.fasta --runMode genomeGenerate --runThreadN 4
+	cp bin.tar.gz copy_bin.tar.gz
+	tar -xvf copy_bin.tar.gz
+	./bin/STAR .............
 
-The example command given to build the STAR genome index uses 4 threads, this should be updated to reflect the number of cores available to you on the machine. After the STAR genome index has been created, the provided output folder will contain all files needed by STAR and in turn Halvade.
+After the STAR genome index has been created, the provided output folder will contain all files needed by STAR and in turn Halvade.
 
 
 

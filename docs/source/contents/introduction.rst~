@@ -1,7 +1,7 @@
 Introduction
 ============
 
-Halvade is a Hadoop MapReduce implementation of the best practices pipeline for whole genome and exome sequencing as well as RNA-seq from Broad Institute. Halvade will produce a vcf output file which contains the single nucleotide variants (SNVs) and additionally indels in certain pipelines. This program requires Hadoop on either a local cluster, a single machine or an Amazon EMR cluster to run. As Hadoop is typically run on a linux cluster or machine, this documentation only provides information for a linux setup. The GATK provided in the tool only works with Java v1.7 or newer, so this should be installed on every node.
+Halvade is a Hadoop MapReduce implementation of the best practices pipeline for whole genome and exome sequencing as well as RNA-seq from Broad Institute. Halvade will produce a vcf output file which contains the single nucleotide variants (SNVs) and additionally indels in certain pipelines. This program requires Hadoop on either a local cluster, a single machine or an Amazon EMR cluster to run. As Hadoop is typically run on a linux cluster or machine, this documentation only provides information for a linux setup. The GATK provided in the tool only works with Java v1.7 or newer, so this should be installed on every node. If this is not the default Java you should use the –J option to set the location of the Java v1.7 binary. 
 
 .. note:: Halvade is available under the GNU license. However, the GATK provided comes with its own license which is available in the Halvade github repository and the release packages or is available online `here <https://www.broadinstitute.org/gatk/about/#licensing>`_.
 

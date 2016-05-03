@@ -327,16 +327,19 @@ public class HalvadeOptions {
                 .hasArg()
                 .isRequired(true)
                 .withDescription("Sets the number of nodes in this cluster.")
+                .withLongOpt("nodes")
                 .create("N");
         Option optVcores = OptionBuilder.withArgName("cores")
                 .hasArg()
                 .isRequired(true)
                 .withDescription("Sets the available cpu cores per node in this cluster.")
+                .withLongOpt("vcores")
                 .create("C");
         Option optMem = OptionBuilder.withArgName("gb")
                 .hasArg()
                 .isRequired(true)
                 .withDescription("Sets the available memory [in GB] per node in this cluster.")
+                .withLongOpt("mem")
                 .create("M");
         Option optMmem = OptionBuilder.withArgName("gb")
                 .hasArg()
@@ -427,7 +430,7 @@ public class HalvadeOptions {
                 .create();
         Option optGff = OptionBuilder.withArgName("gff")
                 .hasArg()
-                .withDescription("Sets the gff file to be used with HTSeq-Count. This is required to run HTSeq-Count.")
+                .withDescription("Sets the gff file to be used with FeautreCounts. This is required to count reads per exon.")
                 .withLongOpt("gff")
                 .create();
         Option optstargtf = OptionBuilder.withArgName("gtf")
@@ -600,10 +603,10 @@ public class HalvadeOptions {
         }
         if (line.hasOption("rna")) {
             rnaPipeline = true;
-            if (line.hasOption("SG"))
-                STARGenome = line.getOptionValue("SG");
+            if (line.hasOption("star"))
+                STARGenome = line.getOptionValue("star");
             if(!useBamInput && STARGenome == null) {
-                throw new ParseException("the '-rna' option requires -SG, pointing to the location of the STAR reference directory if alignment with STAR aligner is required (fastq).");
+                throw new ParseException("the '-rna' option requires --star pointing to the location of the STAR reference directory if alignment with STAR aligner is required (fastq).");
             }
         }
 
@@ -672,7 +675,7 @@ public class HalvadeOptions {
         if (line.hasOption("redistribute")) {
             redistribute = true;
         }
-        if (line.hasOption("s")) {
+        if (line.hasOption("single")) {
             paired = false;
         }
         if (line.hasOption("justalign")) {
@@ -713,7 +716,7 @@ public class HalvadeOptions {
         if (line.hasOption("reorder_regions")) {
             reorderRegions = true;
         }
-        if (line.hasOption("hc")) {
+        if (line.hasOption("haplotypecaller")) {
             useGenotyper = false;
         }
         if (line.hasOption("P")) {

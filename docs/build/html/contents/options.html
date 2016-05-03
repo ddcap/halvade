@@ -1,0 +1,286 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Halvade Options &mdash; halvade 1.1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="halvade 1.1.0 documentation" href="../index.html" />
+    <link rel="prev" title="Run Halvade" href="run.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="run.html" title="Run Halvade"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">halvade 1.1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="halvade-options">
+<h1>Halvade Options<a class="headerlink" href="#halvade-options" title="Permalink to this headline">¶</a></h1>
+<p>Any directory given in the command line option needs to be accessible by all nodes. This can be either on HDFS, GPFS, Amazon S3 or any other distributed filesystem, additionally when using only 1 node this can also be local scratch. If no prefix is used, HDFS will be used by default. However, the default file system can be changed with the <code class="docutils literal"><span class="pre">fs.defaultFS</span></code> configuration of Hadoop.  When this is changed the directories can simply be given without any prefix, else a prefix <code class="docutils literal"><span class="pre">file:///</span></code> needs to be given for local scratch and mounted GPFS directories. For data stored on S3 when using the Amazon EMR service, the directories need to contain the bucket name as a prefix, e.g. <code class="docutils literal"><span class="pre">S4://bucketname/</span></code>.
+A script <code class="docutils literal"><span class="pre">runHalvade.py</span></code> is provided to gather all options in a simple config file which then calls Halvade with all provided options.</p>
+<div class="section" id="required-options">
+<h2>Required options<a class="headerlink" href="#required-options" title="Permalink to this headline">¶</a></h2>
+<table class="docutils option-list" frame="void" rules="none">
+<col class="option" />
+<col class="description" />
+<tbody valign="top">
+<tr><td class="option-group">
+<kbd><span class="option">-B <var>STR</var></span></kbd></td>
+<td>Binary location. This string gives the location where bin.tar.gz is located.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-D <var>STR</var></span></kbd></td>
+<td>DBSNP file location. This string gives the absolute filename of the DBSNP file, this file needs
+to be compatible with the reference FASTA file provided by the –R option.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-I <var>STR</var></span></kbd></td>
+<td>Input directory. The string points to the directory containing the preprocessed input
+on the used file system.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-O <var>STR</var></span></kbd></td>
+<td>Output directory. This string points to the directory which will contain the output vcf files
+of Halvade.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-R <var>STR</var></span></kbd></td>
+<td>Reference Location. This string gives the prefix (without .fasta) of the absolute filename of
+the reference in FASTA format. The corresponding index files, built with BWA, need to be in
+this directory having the same prefix as the reference FASTA file. The STAR genome index is
+located in different folder.</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-M</span>, <span class="option">--mem <var>&lt;INT&gt;</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>Memory size. This gives the total memory each node in the cluster has. The memory size is given in GB.</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-N</span>, <span class="option">--nodes <var>INT</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>Node count. This gives the total number of nodes in the local cluster or the number of nodes you want to request when using Amazon EMR. Amazon AWS has a limit of 20 nodes unless the nodes are reserved for an extended period of time.</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-C</span>, <span class="option">--vcores <var>INT</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>Vcores count. This gives the number of cores that can be used per node on the cluster (to enable simultaneous multithreading use the -smt option).</td></tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="optional-options">
+<h2>Optional options<a class="headerlink" href="#optional-options" title="Permalink to this headline">¶</a></h2>
+<table class="docutils option-list" frame="void" rules="none">
+<col class="option" />
+<col class="description" />
+<tbody valign="top">
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-A</span>, <span class="option">--justalign</span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>Just align. This option is used to only align the data. The aligned reads are written to the output folder set with the <em>–O</em> option.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--aln <var>INT</var></span></kbd></td>
+<td>Select Aligner. Sets the aligner used in Halvade. Possible values are 0 (bwa aln+sampe)[default], 1 (bwa mem), 2 (bowtie2), 3 (cushaw2). Note that these tools need to be present in the bin.tar.gz file.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--bam</span></kbd></td>
+<td>Bam input. This option enables reading aligned BAM input, using this will avoid realigning. If a realignment is required, the data needs to be transformed to fastq files, shuffled and preprocessed for Halvade.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--bed <var>STR</var></span></kbd></td>
+<td>Bed region. This option uses a bed file to split the genome in genomic regions that will be processed by one reduce task. If an exome bed file is given (exome option) this will be used by default, for WGS the entire genome is used to calculate the regions.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--CA <var>&lt;STR=STR&gt;</var></span></kbd></td>
+<td>Custom arguments. This options allows the tools run with Halvade to be run with additional arguments. The arguments are given in this form: toolname=extra arguments. All options must be correct for the tool in question, multiple arguments can be added by giving a quoted string and separating the arguments with a space. Possible toolnames are bwa_aln, bwa_mem, bwa_sampe, star, elprep, samtools_view, bedtools_bdsnp, bedtools_exome, picard_buildbamindex, picard_addorreplacereadgroup, picard_markduplicates, picard_cleansam, gatk_realignertargetcreator, gatk_indelrealigner, gatk_baserecalibrator, gatk_printreads, gatk_combinevariants, gatk_variantcaller, gatk_variantannotator, gatk_variantfiltration, gatk_splitncigarreads.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--combine</span></kbd></td>
+<td>Combine VCF. With this option Halvade will combine VCF files in the input directory and not perform variant calling. This is done by default after the variant calling.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--count</span></kbd></td>
+<td>Count reads. This counts the reads per Halvade region, this is only used for debugging purposes.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--drop</span></kbd></td>
+<td>Drop. Halvade will drop all paired-end reads where the pairs are aligned to different chromosomes.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--dryrun</span></kbd></td>
+<td>Dry run. This will initialize Halvade, which calculates the task sizes and region sizes of the chromosomes, but Halvade will not execute the Hadoop job.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--fbed <var>STR</var></span></kbd></td>
+<td>Filter on bed. This option will enable the reads to be filtered on the given bed file before performing the GATK steps. This is typically used in an exome dataset where only reads in a known bed file are expected.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--filter_dbsnp</span></kbd></td>
+<td>Filter dbsnp. This flag turns on filtering of the dbSNP file before using it in the GATK. This can improve performance in some cases but typically the overhead of converting is too big.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--gff <var>STR</var></span></kbd></td>
+<td>GFF file. This sets the GFF file that will be used by Featurecounts to count the number of reads per exon.</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-H</span>, <span class="option">--haplotypecaller</span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>HaplotypeCaller. With this option Halvade will use the HaplotypeCaller tool from GATK instead of the UnifiedGenotyper tool, which is used by default. This is the newer variant caller which is slower but more accurate.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--id <var>STR</var></span></kbd></td>
+<td>Read Group ID. This string sets the Read Group ID which will be used when adding Read Group information to the intermediate results. [GROUP1]</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--illumina</span></kbd></td>
+<td>Convert Illumina scores. This Option forces Halvade to convert every basepair quality to be converted to the Illumina format.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-J <var>STR</var></span></kbd></td>
+<td>Java. This string sets the location of the Java v1.7 binary, this file should be present on every node in the cluster. If this is not set Halvade with use the default Java which should be v1.7 or newer.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--keep</span></kbd></td>
+<td>Keep intermediate files. This option enables all intermediate files to be stored in the temporary folder set by –tmp. This allows the user to check the data after processing.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--lb <var>STR</var></span></kbd></td>
+<td>Read Group Library. This string sets the Read Group Library which will be used when adding Read Group information to the intermediate results. [LIB1]</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--mapmem <var>INT</var></span></kbd></td>
+<td>Map Memory. This sets the memory available for the containers assigned for the map tasks.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--merge_bam</span></kbd></td>
+<td>Merge BAM output.  With this option set, Halvade with not perform variant calling but only read alignment. All alignments will be merged into 1 output BAM file.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--mpn <var>INT</var></span></kbd></td>
+<td>Maps per node. This overrides the number of map tasks that are run simultaneously on each node. Only use this when the number of map containers per node does not make sense for your cluster.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-P</span></kbd></td>
+<td>Picard. Use Picard in the preprocessing steps, by default elPrep is used which is a more efficient execution of the algorithms called in Picard. This however requires less memory and can be useful on some clusters.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--pl <var>STR</var></span></kbd></td>
+<td>Read Group Platform. This string sets the Read Group Platform which will be used when adding Read Group information to the intermediate results. [ILLUMINA]</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--pu <var>STR</var></span></kbd></td>
+<td>Read Group Platform Unit. This string sets the Read Group Platform Unit which will be used when adding Read Group information to the intermediate results. [UNIT1]</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--redistribute</span></kbd></td>
+<td>Redistribute Cores. This is an optimization to better utilize the CPU cores at the end of the map phase, to improve load balancing. Only use when the cores per container is less than 4.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--redmem <var>INT</var></span></kbd></td>
+<td>Reduce Memory. This sets the memory available for the containers assigned for the reduce tasks.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--refdir <var>STR</var></span></kbd></td>
+<td>Reference directory. This sets the reference directory, Halvade will use this directory to find existing references on each node. This directory needs to be accessible by all nodes, but can be a local disk or a network disk. Halvade finds the reference files by looking for files in the directory or subdirectory with these suffixes: .bwa_ref, .gatk_ref, .star_ref, .dbsnp.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--remove_dups</span></kbd></td>
+<td>Remove Duplicates. This will remove the found PCR duplicates in the corresponding step.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--report_all</span></kbd></td>
+<td>Report all output. This option will give all vcf output records in the merged output file. By default the vcf record with the highest score will be kept if multiple records are found at the same location.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--rna</span></kbd></td>
+<td>RNA pipeline. This options enables Halvade to run the RNA seq pipeline instead of the default DNA seq pipeline. This option requires an additional argument SG which points to the STAR genome directory.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--rpn <var>INT</var></span></kbd></td>
+<td>Reduces per node. This overrides the number of reduce tasks that are run simultaneously on each node. Only use this when the number of reduce containers per node does not make sense for your cluster.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-S</span>, <span class="option">--star <var>STR</var></span></kbd></td>
+<td>Star genome. This gives the directory of the Star genome reference. This can be HDFS or S3, however a S3 directory requires the S3://bucketname/ prefix.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--scc <var>INT</var></span></kbd></td>
+<td>stand_call_conf. The value of this option will be used for the stand_call_conf when calling the GATK Variant Caller (UnifiedGenotyper by default).</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--sec <var>INT</var></span></kbd></td>
+<td>stand_emit_conf. The value of this option will be used for the stand_emit_conf when calling the GATK Variant Caller (UnifiedGenotyper by default).</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--single</span></kbd></td>
+<td>Single-end reads. This option sets the input to be single-ended reads. By default Halvade reads in paired-end interleaved FASTQ files.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--sm <var>STR</var></span></kbd></td>
+<td>Read Group Sample Name. This string sets the Read Group Sample Name which will be used when adding Read Group information to the intermediate results. [SAMPLE1]</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--smt</span></kbd></td>
+<td>Simultaneous multithreading. This option enables Halvade to use simultaneous multithreading on each node.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--stargtf <var>STR</var></span></kbd></td>
+<td>GFF for STAR. This option point to the GFF/GTF file to be used when rebuilding the STAR genome, this can improve accuracy of finding splice sites.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--tmp <var>STR</var></span></kbd></td>
+<td>Temporary directory. This string gives the location where intermediate files will be stored. This should be on a local disk for every node for optimal performance.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--update_rg</span></kbd></td>
+<td>Update read group. This forces the readgroup to be updated to the one provided by the options, even if the input is read from a BAM file with a read group present.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-v <var>INT</var></span></kbd></td>
+<td>Verbosity. This sets the verbosity level for debugging, default is [2].</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Halvade Options</a><ul>
+<li><a class="reference internal" href="#required-options">Required options</a></li>
+<li><a class="reference internal" href="#optional-options">Optional options</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="run.html"
+                        title="previous chapter">Run Halvade</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/contents/options.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="run.html" title="Run Halvade"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">halvade 1.1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &copy; Copyright 2016, Dries Decap.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.1.
+    </div>
+  </body>
+</html>

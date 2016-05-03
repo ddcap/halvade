@@ -1,0 +1,197 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>Halvade Preprocessing &mdash; halvade 1.1.0 documentation</title>
+    
+    <link rel="stylesheet" href="../_static/classic.css" type="text/css" />
+    <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    '../',
+        VERSION:     '1.1.0',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="../_static/jquery.js"></script>
+    <script type="text/javascript" src="../_static/underscore.js"></script>
+    <script type="text/javascript" src="../_static/doctools.js"></script>
+    <link rel="top" title="halvade 1.1.0 documentation" href="../index.html" />
+    <link rel="next" title="Run Halvade" href="run.html" />
+    <link rel="prev" title="Uploading the references" href="upload.html" /> 
+  </head>
+  <body role="document">
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="run.html" title="Run Halvade"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="upload.html" title="Uploading the references"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">halvade 1.1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <div class="section" id="halvade-preprocessing">
+<h1>Halvade Preprocessing<a class="headerlink" href="#halvade-preprocessing" title="Permalink to this headline">¶</a></h1>
+<p>The Halvade Uploader will preprocesses the fastq files, this will interleave the paired-end reads and split the files in pieces of 60MB (by default, can be changed with the <strong>-size</strong> option). The Halvade Uploader will automatically upload these preprocessed files to the given output directory on either local scratch, GPFS, HDFS, Amazon S3 or any other distirubted file system. The prefix for the used distributed file system is the same as with the Halvade tool.</p>
+<div class="section" id="synopsis">
+<h2>Synopsis<a class="headerlink" href="#synopsis" title="Permalink to this headline">¶</a></h2>
+<div class="highlight-bash"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre>1
+2
+3</pre></div></td><td class="code"><div class="highlight"><pre><span></span>Hadoop jar HalvadeUploaderWithLibs.jar –1 /dir/to/input.manifest -O /halvade/out/ –t 8
+Hadoop jar HalvadeUploaderWithLibs.jar –1 /dir/to/reads1.fastq -2 /dir/to/reads2.fastq -O /halvade/out/ –t 8
+Hadoop jar HalvadeUploaderWithLibs.jar –1 /dir/to/input.manifest -O s3://bucketname/halvade/out/ -profile /dir/to/credentials.txt –t 8
+</pre></div>
+</td></tr></table></div>
+</div>
+<div class="section" id="performance">
+<h2>Performance<a class="headerlink" href="#performance" title="Permalink to this headline">¶</a></h2>
+<p>For better performance it is advised to increase the Java heap memory for the hadoop command, e.g. for 32GB:</p>
+<div class="highlight-bash"><div class="highlight"><pre><span></span><span class="nb">export</span> <span class="nv">HADOOP_HEAPSIZE</span><span class="o">=</span>32768
+</pre></div>
+</div>
+</div>
+<div class="section" id="required-options">
+<h2>Required options<a class="headerlink" href="#required-options" title="Permalink to this headline">¶</a></h2>
+<table class="docutils option-list" frame="void" rules="none">
+<col class="option" />
+<col class="description" />
+<tbody valign="top">
+<tr><td class="option-group">
+<kbd><span class="option">-1 <var>STR</var></span></kbd></td>
+<td>Manifest/Input file. This string gives the absolute path of the Manifest file or the first input fastq file. This manifest file contains a line per file pair, separated by a tab: <em>/dir/to/fastq1.fastq /dir/to/fastq2.fastq</em>. If this is equal to &#8216;-&#8216; then the fastq reads are read from standard input.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-O <var>STR</var></span></kbd></td>
+<td>Output directory. This string gives the directory where the output files will be put.</td></tr>
+</tbody>
+</table>
+</div>
+<div class="section" id="optional-options">
+<h2>Optional options<a class="headerlink" href="#optional-options" title="Permalink to this headline">¶</a></h2>
+<table class="docutils option-list" frame="void" rules="none">
+<col class="option" />
+<col class="description" />
+<tbody valign="top">
+<tr><td class="option-group">
+<kbd><span class="option">-2 <var>STR</var></span></kbd></td>
+<td>Input file 2. This gives the second pair of paired-end reads in a fastq file.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--dfs</span></kbd></td>
+<td>Input on a DFS. This enables reading data from a distributed filesystem like HDFS and amazon S3.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-i</span></kbd></td>
+<td>Interleaved. This is used when one fastq input file is given, the input file is assumed to have
+both pairs of paired-end reads and the reads are interleaved.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--lz4</span></kbd></td>
+<td>Lz4 compression. This enables lz4 compression, this is faster than gzip but will require more
+disk space. The lz4 compression library needs to be enabled in the Hadoop distribution for this
+to work.</td></tr>
+<tr><td class="option-group" colspan="2">
+<kbd><span class="option">-p</span>, <span class="option">--profile <var>STR</var></span></kbd></td>
+</tr>
+<tr><td>&nbsp;</td><td>AWS profile. Gives the path of the credentials file used to acces S3. This should be configured
+when installing the Amazon EMR command line interface. By default this is <code class="docutils literal"><span class="pre">~/.aws/credentials</span></code>.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-s</span>, <span class="option">--size <var>INT</var></span></kbd></td>
+<td>Size. This sets the maximum file size (in bytes) of each interleaved file [60MB].</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--snappy</span></kbd></td>
+<td>Snappy compression. This enables snappy compression, this is faster than gzip but will require
+more disk space. Snappy requires less disk space than lz4 and is comparable in compression speed.
+The snappy compression library needs to be enabled in the Hadoop distribution for this to work.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">--sse</span></kbd></td>
+<td>Server side encryption. Turns on Server side encryption (SSE) when transferring the data to the
+Amazon S3 storage.</td></tr>
+<tr><td class="option-group">
+<kbd><span class="option">-t <var>INT</var></span></kbd></td>
+<td>Threads. This sets the number of threads used to preprocess the input data.</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="../index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">Halvade Preprocessing</a><ul>
+<li><a class="reference internal" href="#synopsis">Synopsis</a></li>
+<li><a class="reference internal" href="#performance">Performance</a></li>
+<li><a class="reference internal" href="#required-options">Required options</a></li>
+<li><a class="reference internal" href="#optional-options">Optional options</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="upload.html"
+                        title="previous chapter">Uploading the references</a></p>
+  <h4>Next topic</h4>
+  <p class="topless"><a href="run.html"
+                        title="next chapter">Run Halvade</a></p>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="../_sources/contents/preprocessing.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3>Quick search</h3>
+    <form class="search" action="../search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="../genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="run.html" title="Run Halvade"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="upload.html" title="Uploading the references"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="../index.html">halvade 1.1.0 documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &copy; Copyright 2016, Dries Decap.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.4.1.
+    </div>
+  </body>
+</html>
