@@ -1,7 +1,7 @@
 Halvade Options
 ===============
 
-Any directory given in the command line option needs to be accessible by all nodes. This can be either on HDFS, GPFS, Amazon S3 or any other distributed filesystem, additionally when using only 1 node this can also be local scratch. If no prefix is used, HDFS will be used by default. However, the default file system can be changed with the ``fs.defaultFS`` configuration of Hadoop.  When this is changed the directories can simply be given without any prefix, else a prefix ``file:///`` needs to be given for local scratch and mounted GPFS directories. For data stored on S3 when using the Amazon EMR service, the directories need to contain the bucket name as a prefix, e.g. ``S4://bucketname/``. 
+Any directory given in the command line option needs to be accessible by all nodes. This can be either on HDFS, GPFS, Amazon S3 or any other distributed filesystem, additionally when using only 1 node this can also be local scratch. If no prefix is used, HDFS will be used by default. However, the default file system can be changed with the ``fs.defaultFS`` configuration of Hadoop.  When this is changed the directories can simply be given without any prefix, else a prefix ``file:///`` needs to be given for local scratch and mounted GPFS directories. For data stored on S3 when using the Amazon EMR service, the directories need to contain the bucket name as a prefix, e.g. ``S3://bucketname/``. 
 A script ``runHalvade.py`` is provided to gather all options in a simple config file which then calls Halvade with all provided options.
 
 

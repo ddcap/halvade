@@ -1,7 +1,7 @@
 Halvade
 =======
 
-Halvade, a mapreduce implementation of the best practice DNA-seq/RNA-seq pipeline by Broad Institute.
+Halvade, a mapreduce implementation of the best practice DNA-seq/RNA-seq pipeline by Broad Institute. More information is available in the bioinformatics paper [here](http://bioinformatics.oxfordjournals.org/content/early/2015/04/15/bioinformatics.btv179.full.pdf+html).
 
 To build Halvade run this command in the `halvade` folder:
 

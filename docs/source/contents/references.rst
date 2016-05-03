@@ -1,11 +1,13 @@
 The human genome reference
 ==========================
 
-Halvade uses the genome reference fasta file (``ucsc.hg19.fasta``) found in the GATK resource bundle to build the index files for both BWA and STAR. The fasta file comes together with an index and a dictionary file. Additionally a full dbsnp file (version 138) is used when recalibrating the basescores for the reads. These files are all found in the GATK resource bundle which is available `here <ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/2.8/hg19/>`_. The ftp site has a limited number of parallel downloads and might not load at these times. Here is how you download the files using the terminal:
+Halvade uses the genome reference fasta file (``ucsc.hg19.fasta``) found in the GATK resource bundle to build the index files for both BWA and STAR. The fasta file comes together with an index and a dictionary file. Additionally a full dbsnp file (version 138) is used when recalibrating the basescores for the reads. These files are all found in the GATK resource bundle which is available `here <ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/2.8/hg19/>`_. The ftp site has a limited number of parallel downloads and might not load at these times. Here is how you download the files using the terminal in the current directory, it is advised to make a new directory just for this:
 
 .. code-block:: bash
 	:linenos:
 
+	mkdir halvade_refs/
+	cd halvade_refs/
 	wget ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/2.8/hg19/ucsc.hg19.fasta.gz
 	wget ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/2.8/hg19/ucsc.hg19.fasta.fai.gz
 	wget ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/2.8/hg19/ucsc.hg19.dict.gz

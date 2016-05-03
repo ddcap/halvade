@@ -19,6 +19,7 @@ Contents:
    contents/hadoop
    contents/upload
    contents/preprocessing
+   contents/samples
    contents/run
    contents/options
 

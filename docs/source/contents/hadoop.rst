@@ -6,13 +6,17 @@ Halvade runs on the Hadoop MapReduce framework, if Hadoop MapReduce version 2.0 
 Single node
 -----------
 
+TODO
+
 Docker
 ------
 
+TODO
 
 Multi node
 ----------
 
+TODO
 
 Hadoop configuration
 --------------------
