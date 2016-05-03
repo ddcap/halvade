@@ -68,16 +68,13 @@ def spawnDaemon(args):
         subprocess.Popen(args, stdout=open('halvade'+str(os.getpid())+'.stdout', 'a'), stderr=open('halvade'+str(os.getpid())+'.stderr', 'a'))
         os._exit(os.EX_OK)
 
-
 # read config
 if (len(sys.argv) > 1):
         print "*** Reading configuration from %s:" % sys.argv[1]
         readConfig(sys.argv[1])
 else:   
-        print "*** Reading configuration from %s:" % halvade
-        readConfig(halvade)
-        print "*** Reading configuration from %s:" % arguments
-        readConfig(arguments)
+        print "*** Please give the configuration file to run Halvade ***"
+        sys.exit(-1)
 
 print jar
 # determine if S3 is used -> use amazon EMR
@@ -107,15 +104,15 @@ if "emr_type" in emr_config:
 	argsString ="["
         for key in config:
 				if (len(key) > 1):
-	                argsString+="--"+key+","					
-				else
-	                argsString+="-"+key+","
-                argsString+=config[key]+","
+					argsString+="--"+key+","
+				else:
+					argsString+="-"+key+","
+				argsString+=config[key]+","
         for key in flags:
 				if (len(key) > 1):
-	                argsString+="--"+key+","					
-				else
-	                argsString+="-"+key+","
+					argsString+="--"+key+","
+				else:
+					argsString+="-"+key+","
         for key in custom_args:
                 argsString+="--CA,"
                 argsString+=key+"="+custom_args[key]+","
@@ -133,14 +130,14 @@ else:
 	for key in config:
 		if (len(key) > 1):
 			argsArray.append("--"+key)				
-		else
+		else:
 			argsArray.append("-"+key)
 		argsArray.append("-"+key)
 		argsArray.append(config[key])
 	for key in flags:
 		if (len(key) > 1):
 			argsArray.append("--"+key)				
-		else
+		else:
 			argsArray.append("-"+key)
 	for key in custom_args:
 		argsArray.append("--CA")
