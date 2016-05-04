@@ -65,7 +65,7 @@ When all desired configuration for Halvade have been added to the config file, s
 
 	python runHalvade.py
 
-This will start Halvade, which in turn will start the necessary Hadoop jobs. The script will return the ID of the process (*PID*) which is used in the filenames to store the standard out and error logs, namely in the files **halvadePID.stdout** and **halvadePID.stderr**.
+This will start Halvade, which in turn will start the necessary Hadoop jobs. The script will return the ID of the process (*PID*) which is used in the filenames to store the standard out and error logs, namely in the files **halvadePID.stdout** and **halvadePID.stderr**. The output of Halvade will be a single VCF file in the output directory provided in the subdirectory ``merge``. 
 
 Amazon AWS
 ----------
