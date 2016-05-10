@@ -25,7 +25,7 @@ Download and unzip the Hadoop distribution (here 2.7.2):
 	:linenos:
 
 	wget http://www.eu.apache.org/dist/hadoop/common/hadoop-2.7.2/hadoop-2.7.2.tar.gz
-	tar -xvf hadoop-2.7.2
+	tar -xvf hadoop-2.7.2.tar.gz
 
 
 To configure the Hadoop installation to run in psuedo-distributed mode edit these files as follows, creating the file or replacing the line if necessary:
