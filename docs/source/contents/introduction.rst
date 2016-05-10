@@ -10,5 +10,5 @@ Halvade depends on existing tools to run the pipeline, these tools require addit
 Recipes
 =======
 
-Two recipes have been created to run Halvade on WGS and RNA-seq data. These show all commands needed to run Halvade with the example data. The recipe for the DNA-seq pipeline can be found ` here <https://github.com/biointec/halvade/wiki/Recipe:-DNA-seq-with-Halvade-on-a-local-Hadoop-cluster>`_. The RNA-seq data is typically less big and therefore we chose to provide a recipe to run the Halvade rna pipeline on a single node Hadoop environment, which can be found `here <https://github.com/biointec/halvade/wiki/Recipe:-RNA-seq-with-Halvade-on-a-local-Hadoop-cluster>`_.
+Two recipes have been created to run Halvade on WGS and RNA-seq data. These show all commands needed to run Halvade with the example data. The recipe for the DNA-seq pipeline can be found `here <https://github.com/biointec/halvade/wiki/Recipe:-DNA-seq-with-Halvade-on-a-local-Hadoop-cluster>`_. The RNA-seq data is typically less big and therefore we chose to provide a recipe to run the Halvade rna pipeline on a single node Hadoop environment, which can be found `here <https://github.com/biointec/halvade/wiki/Recipe:-RNA-seq-with-Halvade-on-a-local-Hadoop-cluster>`_.
 
