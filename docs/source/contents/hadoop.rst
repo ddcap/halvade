@@ -12,7 +12,7 @@ Halvade runs on the Hadoop MapReduce framework, if Hadoop MapReduce version 2.0 
 Single node
 -----------
 
-To run Hadoop on a single node, it is advised to install Hadoop in psuedo-distributed mode. The following instructions are based on `this  <https://hadoop.apache.org/docs/r2.7.2/hadoop-project-dist/hadoop-common/SingleCluster.html>`_ tutorial and can be used for additional information. Hadoop requires ssh and rsync to run, to install these on your system run these commands (on Ubuntu): 
+To run Hadoop on a single node, it is advised to install Hadoop in psuedo-distributed mode. The following instructions are based on `this  <https://hadoop.apache.org/docs/r2.7.2/hadoop-project-dist/hadoop-common/SingleCluster.html>`_ tutorial and can be used for additional information. Hadoop requires ssh and rsync to run, to install these on your system, run these commands (on Ubuntu): 
 
 .. code-block:: bash
 	:linenos:
