@@ -11,7 +11,7 @@ To build the Halvade uploader tool run this command in the `halvade_uploader_too
 
 `> ant`
 
-The documentation for Halvade is available on [readthedocs.org](halvade.readthedocs.io).
+The documentation for Halvade is available on [readthedocs.org](https://halvade.readthedocs.io).
 
 There's two recipies available on the wiki page itself:
 
