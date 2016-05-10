@@ -15,10 +15,8 @@ The documentation for Halvade is available on [readthedocs.org](halvade.readthed
 
 There's two recipies available on the wiki page itself:
 
-For the DNA-seq pipeline recipe go [here](https://github.com/ddcap/halvade/wiki/Recipe:-DNA-seq-with-Halvade-on-a-local-Hadoop-cluster).
+- For the DNA-seq pipeline recipe go [here](https://github.com/biointec/halvade/wiki/Recipe:-DNA-seq-with-Halvade-on-a-local-Hadoop-cluster).
 
-For the RNA-seq pipeline recipe go [here](https://github.com/ddcap/halvade/wiki/Recipe:-RNA-seq-with-Halvade-on-a-local-Hadoop-cluster).
-
-See the [Halvade manual](https://github.com/ddcap/halvade/wiki) to get started.
+- For the RNA-seq pipeline recipe go [here](https://github.com/biointec/halvade/wiki/Recipe:-RNA-seq-with-Halvade-on-a-local-Hadoop-cluster).
 
 This software is available under the GPLv3 license.
