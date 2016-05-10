@@ -1,12 +1,12 @@
 Example datasets
 ================
 
-The input data for these pipelines typically consist of either 2 fastq files for paired-end reads or a bam file containing already aligned reads. 
+The input data for these pipelines typically consist of either 2 FASTQ files for paired-end reads or a BAM file containing already aligned reads. 
 
 Whole genome sequencing sample
 ------------------------------
 
-The Whole genome sequencing sample is the NA12878 dataset, this dataset is typically used in similar benchmarks and papers. It consists of 1.5 billion paired-end reads of 100bp sequenced and translates into a 50x coverage. Execute the following commands to download and preprocess the data:
+The whole genome sequencing sample is the NA12878 dataset, this dataset is typically used in similar benchmarks and papers. This dataset consists of 1.5 billion paired-end reads of 100 basepairs in length. This translates into a 50x coverage. Execute the following commands to download and preprocess the data:
 
 .. code-block:: bash
 	:linenos:
@@ -21,7 +21,7 @@ The Whole genome sequencing sample is the NA12878 dataset, this dataset is typic
 RNA-seq sample
 --------------
 
-The RNA-seq example dataset is found in the *encode project* under the *SK-MEL-5* experiment. The *ENCSR201WVA* dataset provides both paired fastq files and bam files. In this example we will download a single replicate of the *ENCBS524EJL* biosampl available in paired fastq files. To download and preprocess the fastq files simply run these commands in the terminal:
+The RNA-seq example dataset is found in the *encode project* under the *SK-MEL-5* experiment. The *ENCSR201WVA* dataset provides both paired FASTQ files and aligned BAM files. In this example we will download a single replicate of the *ENCBS524EJL* bio sample available in paired FASTQ files. To download and preprocess the FASTQ files run these commands in the terminal:
 
 .. code-block:: bash
 	:linenos:

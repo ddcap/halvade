@@ -1,8 +1,7 @@
 Hadoop setup
 ============
 
-Halvade runs on the Hadoop MapReduce framework, if Hadoop MapReduce version 2.0 or newer is already installed on your cluster, you can continue to the Hadoop configuration section to make sure the advised configuration is set. 
-Halvade uses GATK, which only works with Java 1.7 so this version of Java needs to be installed on every node in the cluster and set as the default Java instance, in Ubuntu use these commands:
+Halvade runs on the Hadoop MapReduce framework, if Hadoop MapReduce version 2.0 or newer is already installed on your cluster, you can continue to the `Hadoop configuration`_ section to make sure the advised configuration is enabled. Halvade uses GATK, which requires a specific eversion of Java, currently version 1.7. To make sure GATK works as expected the correct version of Java needs to be installed on every node in the cluster and set as the default Java instance, in Ubuntu use these commands:
 
 .. code-block:: bash
 	:linenos:
@@ -13,7 +12,7 @@ Halvade uses GATK, which only works with Java 1.7 so this version of Java needs 
 Single node
 -----------
 
-To run Hadoop on a single node, we will install Hadoop in psuedo-distributed operation. The following instructions are based on `this <https://hadoop.apache.org/docs/r2.7.2/hadoop-project-dist/hadoop-common/SingleCluster.html>`_ tutorial and can be used if something is unclear. Hadoop requires ssh and rsync to run, to install these on your system run these commands (on Ubuntu): 
+To run Hadoop on a single node, it is advised to install Hadoop in psuedo-distributed mode. The following instructions are based on `this  <https://hadoop.apache.org/docs/r2.7.2/hadoop-project-dist/hadoop-common/SingleCluster.html>`_ tutorial and can be used for additional information. Hadoop requires ssh and rsync to run, to install these on your system run these commands (on Ubuntu): 
 
 .. code-block:: bash
 	:linenos:
@@ -29,14 +28,14 @@ Download and unzip the Hadoop distribution (here 2.7.2):
 	tar -xvf hadoop-2.7.2
 
 
-To configure the Hadoop installation to run in psuedo-distributed mode edit these files as follows, replacing the line if necessary:
+To configure the Hadoop installation to run in psuedo-distributed mode edit these files as follows, creating the file or replacing the line if necessary:
 
 ``etc/hadoop/hadoop-env.sh``:
 
 .. code-block:: bash
 	:linenos:
 
-	export JAVA_HOME=/usr/java/latest
+	export JAVA_HOME=/your/java/bin/directory
 
 ``etc/hadoop/core-site.xml``:
 
@@ -86,7 +85,7 @@ To configure the Hadoop installation to run in psuedo-distributed mode edit thes
 		</property>
 	</configuration>
 	
-Additionally we need to make sure that ssh can connect to localhost without requiring a password, check ``ssh localhost``, if this isn't the case run the following commands:
+Additionally we need to make sure that that the node can make a passwordless connection to localhost with ssh, check if ``ssh localhost`` works without a password. If this isn't the case run the following commands:
 
 .. code-block:: bash
 	:linenos:
@@ -95,7 +94,7 @@ Additionally we need to make sure that ssh can connect to localhost without requ
 	cat ~/.ssh/id_dsa.pub >> ~/.ssh/authorized_keys
 	chmod 0600 ~/.ssh/authorized_keys
 
-Now we need to format the namenode and start the hdfs and yarn services, do this as follows:
+Now we need to format the NameNode and start the HDFS and Yarn services, do this as follows:
 
 .. code-block:: bash
 	:linenos:
@@ -106,7 +105,7 @@ Now we need to format the namenode and start the hdfs and yarn services, do this
 	bin/hdfs dfs -mkdir /user
 	bin/hdfs dfs -mkdir /user/<username>
 
-Now Hadoop can be run from the ``bin/hadoop`` command and for ease of use can be added to the path by adding this line to your ``.bashrc`` file:
+Now Hadoop can be run from the ``bin/hadoop`` command and for ease of use this directory can be added to the ``PATH`` variable by adding this line to your ``.bashrc`` file:
 
 .. code-block:: bash
 	:linenos:
@@ -114,7 +113,7 @@ Now Hadoop can be run from the ``bin/hadoop`` command and for ease of use can be
 	export PATH=$PATH:/hadoop/install/dir/bin
 
 
-After editing the configuration files to run Halvade optimally on your node, see below, the services will need to be restarted. To restart the pseudo-distributed Hadoop environment run these commands:
+After the `Hadoop configuration`_ has been updated to run Halvade optimally on your node, the services will need to be restarted. To restart the pseudo-distributed Hadoop environment run these commands:
 
 .. code-block:: bash
 	:linenos:
@@ -123,32 +122,6 @@ After editing the configuration files to run Halvade optimally on your node, see
 	sbin/stop-yarn.sh
 	sbin/start-dfs.sh
 	sbin/start-yarn.sh
-
-
-
-Docker
-------
-
-When using a single node setup it is also possible to use a Docker image with hadoop already installed. To install Docker on your system we advice to follow the instructions `here <https://docs.docker.com/engine/installation/>`_. After the installation completes, install the Hadoop Docker image from Sequenceiq by running the following command: 
-
-.. code-block:: bash
-	:linenos:
-
-	docker pull sequenceiq/hadoop-docker:2.7.1
-
-Connecting to the Docker image can be done as follows: 
-
-.. code-block:: bash
-	:linenos:
-
-	docker run -it sequenceiq/hadoop-docker:2.7.1 /etc/bootstrap.sh -bash
-
-This will start a bash terminal inside the Docker image, which allows you to edit and update the image according to the rest of the guide to run Halvade. The configuration files that need to be edited for Halvade are located at ``/usr/local/hadoop/etc/hadoop``. When you exit the bash from the Docker image the edited and downloaded files will be lost, to avoid this we recommend saving the Docker image when you finish the Halvade configurations. To save the running Docker image as *halvade-demo* you can run the following command from a sepparate terminal without exiting the image:
-
-.. code-block:: bash
-	:linenos:
-
-	docker commit sequenceiq/hadoop-docker:2.7.1 halvade-demo
 
 
 Multi node
@@ -160,7 +133,7 @@ For the Hadoop installation on a multi node cluster, we refer to the manual give
 Hadoop configuration
 --------------------
 
-After Hadoop is installed, the configuration needs to be updated to run Halvade in an optimal environment. In Halvade each tasks processes a portion of the input data, however the execution time can vary to a certain degree. For this the task timeout needs to be set high enough, in *mapred-site.xml* change this property to 30 minutes:
+After Hadoop is installed, the configuration needs to be updated to run Halvade in an optimal environment. In Halvade, each task processes a portion of the input data. However, the execution time can vary to a certain degree. For this the task timeout needs to be set high enough, in ``mapred-site.xml`` change this property to 30 minutes:
 
 .. code-block:: xml
 	:linenos:
@@ -170,7 +143,7 @@ After Hadoop is installed, the configuration needs to be updated to run Halvade 
 	  <value>1800000</value>
 	</property>
 
-Yarn, the scheduler, needs to know how many cores and how much memory is available on the nodes, this is set in *yarn-site.xml*. This is very important for the number of tasks that will be started on the cluster. In this example nodes with 128 GBytes of memory and 24 cores is used. Because many tools benefit from the hyperthreading capabilities of a cpu, the vcores is set to 48 in the case hyperthreading is available:
+The Yarn scheduler needs to know how many cores and how much memory is available on the nodes, this is set in ``yarn-site.xml``. This is very important for the number of tasks that will be started on the cluster. In this example, nodes with 128 GBytes of memory and 24 cores are used. Because some of the tools used benefit from the hyperthreading capabilities of a CPU, the vcores is set to 48 if hyperthreading is available:
 
 .. code-block:: xml
 	:linenos:
@@ -200,14 +173,24 @@ Yarn, the scheduler, needs to know how many cores and how much memory is availab
 	  <value>1</value>
 	</property>
 
-After this, the configuration needs to be pushed to all nodes and certain running services restarted:
+After this, the configuration needs to be pushed to all nodes and certain running services restarted. On a single node cluster with Hadoop in pseudo-distributed mode run: 
+
+.. code-block:: bash
+	:linenos:
+
+	sbin/stop-dfs.sh
+	sbin/stop-yarn.sh
+	sbin/start-dfs.sh
+	sbin/start-yarn.sh
+
+On a multi node cluster the services running on different nodes need to be restarted after distributing the configuration files, these following commands assume a CDH 5 installation according to the guide shown before:
 
 .. code-block:: bash
 	:linenos:
 
 	scp *-site.xml myuser@myCDHnode-<n>.mycompany.com:/etc/hadoop/conf.my_cluster/
 
-On the Resource Manager run:
+On the ResourceManager run:
 
 .. code-block:: bash
 	:linenos:
@@ -228,7 +211,7 @@ On the JobHistory server run:
 
 	sudo service hadoop-mapreduce-historyserver restart
 
-Additionally for the RNA-seq pipeline, the memory check needs to be disabled because Halvade uses multiple instances of the STAR aligner when aligning the reads. The genome index files are first loaded into shared memory so every instance can access this instead of loading the reference itself. However, due to the way Hadoop checks physical memory, which includes the shared memory, this check should be disabled. To do this add these configurations to the *yarn-site.xml* file.
+For the RNA-seq pipeline, the memory check needs to be disabled because Halvade uses multiple instances of the STAR aligner when aligning the reads. The genome index files are first loaded into shared memory so every instance can access this instead of loading the reference itself. However, due to the way Hadoop checks physical memory, which includes the shared memory, this check should be disabled. To do this, add these properties to the ``yarn-site.xml`` file.
 
 .. code-block:: bash
 	:linenos:
@@ -244,7 +227,7 @@ Additionally for the RNA-seq pipeline, the memory check needs to be disabled bec
 
 Intel’s Hadoop Adapter for Lustre
 ---------------------------------
-When using Lustre as the filesystem instead of HDFS, using Intel's adapter for Lustre will increase the performance of Halvade. To enable the Adapter for Lustre you need to change some configurations in your Hadoop installation. In *core-site.xml* you need to point to the location of Lustre and set the Lustre FileSystem class, if Lustre is mounted on */mnt/lustre/* add these to the file:
+When using Lustre as the filesystem instead of HDFS, using Intel's adapter for Lustre will increase the performance of Halvade. To enable the Adapter for Lustre you need to change some configurations in your Hadoop installation. In ``core-site.xml`` you need to point to the location of Lustre and set the Lustre FileSystem class, if Lustre is mounted on ``/mnt/lustre/``, add these to the file:
 
 .. code-block:: bash
 	:linenos:
@@ -266,7 +249,7 @@ When using Lustre as the filesystem instead of HDFS, using Intel's adapter for L
 		<value>/mnt/lustre/hadoop</value>
 	</property>
 
-Additionally, you need to set the Shuffle class in *mapred-site.xml*:
+Additionally, you need to set the Shuffle class in ``mapred-site.xml``:
 
 .. code-block:: bash
 	:linenos:
@@ -280,7 +263,7 @@ Additionally, you need to set the Shuffle class in *mapred-site.xml*:
 		<value>org.apache.hadoop.mapred.SharedFsPlugins$Shuffle</value>
 	</property>
 
-After adding these settings to the configuration, the files need to be pushed to all nodes again and all services restarted, see above. Additionally the jar containing Intel's Adapter for Lustre should be available on all nodes and added to the classpath of Hadoop. To do this you can find the directories that are currently in your hadoop classpath and add the jar to one of these on every node, to find the directories run:
+After adding these settings to the configuration, the files need to be pushed to all nodes again and all services restarted, see above. Additionally the jar containing Intel's Adapter for Lustre should be available on all nodes and added to the classpath of Hadoop. To do this you can find the directories that are currently in your hadoop classpath and add the jar to one of these on every node. To find the directories, run this command:
 
 .. code-block:: bash
 	:linenos:

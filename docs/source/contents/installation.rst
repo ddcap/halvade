@@ -6,7 +6,7 @@ Every Halvade release is available at `github <https://github.com/biointec/halva
 .. code-block:: bash
 	:linenos:
 
-	wget https://github.com/ddcap/halvade/releases/download/v1.2.0/Halvade_v1.2.0.tar.gz
+	wget https://github.com/biointec/halvade/releases/download/v1.2.0/Halvade_v1.2.0.tar.gz
 	tar -xvf Halvade_v1.2.0.tar.gz
 
 The files that are provided in this package are the following:
@@ -37,7 +37,7 @@ Halvade can also be built from the source files. To do this, first you need to c
 	ant
 	cd ../
 
-This will build the two jar files in the respective directories. The scripts and example configuration files can be found in the scripts directory, move the jar files to the script directory so the scripts can run the jar file:
+This will build the two jar files in the respective *dist* subdirectories. The scripts and example configuration files can be found in the *scripts* directory, move the jar files to the script directory so the scripts have access to the jar file:
 
 .. code-block:: bash
 	:linenos:
