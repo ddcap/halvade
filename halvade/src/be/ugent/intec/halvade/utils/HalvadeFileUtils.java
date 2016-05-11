@@ -111,7 +111,7 @@ public class HalvadeFileUtils {
             Logger.DEBUG(from + " downloaded");
         else {
             Logger.DEBUG(from + " failed to download");   
-            throw new IOException();
+            throw new IOException("expection downloading "  + from + " to " + to + " from fs <" + fs + "> with error val: " + val);
         }
         return val;            
     }

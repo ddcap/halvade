@@ -53,6 +53,8 @@ If the nodes in the cluster have hyperthreading enabled, add the ``smt`` option 
 
 		refdir="/user/ddecap/halvade/ref/"
 
+	This folder is expected to be on local scratch or a mounted distributed filesystem so this doesn't require a prefix.
+
 
 Run
 ---
