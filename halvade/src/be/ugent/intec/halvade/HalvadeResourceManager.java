@@ -35,14 +35,16 @@ public class HalvadeResourceManager {
     protected static final int MEM_AM = (int) (2*1024);
     protected static final int VCORES_AM = 1;
     protected static final int MEM_ALN = (int) (10*1024);
-    protected static final int MEM_STAR = (int) (16*1024); // 16 for hg -> reduced reference
+    protected static final int MEM_STAR_FULL = (int) (32*1024); // full star ref
+    protected static final int MEM_STAR_SMALL = (int) (10*1024); // second pass smaller star ref
+    protected static final int MEM_STAR_SHARED = (int) (6*1024); // set minimum if memory check is disabled
     protected static final int MEM_REF = (int) (6*1024); // 4g for hg fasta + java process + some spare
     protected static final int MEM_ELPREP = (int) (16*1024); // 16g for hg for 50x coverage
     // gatk 2-4gb per thread!
     protected static final int[][] RESOURCE_REQ = { 
         //mapmem, redmem
-        {MEM_STAR,  ALL},     // RNA with shared memory pass1
-        {MEM_STAR,  MEM_ELPREP}, // RNA with shared memory pass2
+        {MEM_STAR_FULL,  ALL},     // RNA with shared memory pass1
+        {MEM_STAR_SMALL,  MEM_ELPREP}, // RNA with shared memory pass2
         {MEM_ALN,   MEM_ELPREP}, // DNA
         {4*1024,    4*1024}   // combine
     };
@@ -56,9 +58,13 @@ public class HalvadeResourceManager {
         BAMinput = BAMinput && type < 3;
         int mmem = RESOURCE_REQ[BAMinput? 3 : type][0];
         int rmem = RESOURCE_REQ[type][1] == ALL ? tmpmem - MEM_AM  : RESOURCE_REQ[type][1];
+        if ((type == RNA_SHMEM_PASS1 || type == RNA_SHMEM_PASS2) && conf.get("yarn.nodemanager.pmem-check-enabled").equalsIgnoreCase("false")) {
+            Logger.DEBUG("pmem check disabled, using less memory for STAR because of shared memory", 2);
+            mmem = MEM_STAR_SHARED;
+        }
         if (rmem == MEM_ELPREP && !opt.useElPrep) 
             rmem = MEM_REF;
-        if((opt.overrideMapMem > 0 || opt.overrideRedMem > 0)&& type != COMBINE) {
+        if((opt.overrideMapMem > 0 || opt.overrideRedMem > 0) && type != COMBINE) {
             if(!BAMinput && opt.overrideMapMem > 0)
                 mmem = opt.overrideMapMem;
             if(type != RNA_SHMEM_PASS1 && opt.overrideRedMem > 0)
@@ -98,9 +104,8 @@ public class HalvadeResourceManager {
   
         conf.set("mapreduce.reduce.cpu.vcores", "" + opt.rthreads );
         conf.set("mapreduce.reduce.memory.mb", "" + rmem);        
-        conf.set("mapreduce.reduce.java.opts", "-Xmx" + (int)(0.30*rmem) + "m"); // warning this is a test!! it will use too much memory if the memory check isnt disabled!!
-        conf.set("mapreduce.map.java.opts", "-Xmx" + (int)(0.30*mmem) + "m");
-        
+        conf.set("mapreduce.reduce.java.opts", "-Xmx" + (int)(0.20*rmem) + "m"); // warning this is a test!! it will use too much memory if the memory check isnt disabled!!
+        conf.set("mapreduce.map.java.opts", "-Xmx" + (int)(0.20*mmem) + "m");
         if(type == COMBINE) {
             conf.set("mapreduce.reduce.java.opts", "-Xmx" + (int)(0.80*rmem) + "m");
             conf.set("mapreduce.map.java.opts", "-Xmx" + (int)(0.80*mmem) + "m");
