@@ -287,7 +287,7 @@ public final class ChromosomeSplitter {
             br.close();
         }
         regionLength = (int) (genomeLength / reduceCount);
-        Logger.DEBUG("regionLength: " + regionLength);
+        Logger.DEBUG("regionLength: " + regionLength, 3);
         return regionLength;
     }
     private int getMinRegionLength(int reduceCount) {
@@ -299,7 +299,7 @@ public final class ChromosomeSplitter {
                 genomeLength += seqlen;
         }
         regionLength = (int) (genomeLength / reduceCount);
-        Logger.DEBUG("regionLength: " + regionLength);
+        Logger.DEBUG("regionLength: " + regionLength, 3);
         return regionLength;
     }
     
@@ -363,7 +363,7 @@ public final class ChromosomeSplitter {
                 for (BedRegion breg : regions) {
                     regionCount++;
                     Logger.DEBUG("region: " + breg.key + ", " + breg.contig + 
-                            " (" + breg.start + " _ " + breg.end + " -> " + (breg.end - breg.start) + ")", 2);
+                            " (" + breg.start + " _ " + breg.end + " -> " + (breg.end - breg.start) + ")", 3);
                 }
 //            }                    
         } finally {
@@ -491,7 +491,7 @@ public final class ChromosomeSplitter {
             }
             i++;
         }
-        be.ugent.intec.halvade.utils.Logger.DEBUG("Total regions: " + regionCount);
+        be.ugent.intec.halvade.utils.Logger.DEBUG("Total regions: " + regionCount, 3);
 //        for(Entry<String, ArrayList<BedRegion>> region : regions.entrySet()) {
 //            String contig = region.getKey();
             for (BedRegion breg : regions) {

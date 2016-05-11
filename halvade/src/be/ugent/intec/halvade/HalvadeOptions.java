@@ -221,7 +221,6 @@ public class HalvadeOptions {
         int factoredReduces = reduces;
         ChromosomeSplitter splitter = null;
         while(tmpReduces > reduces) {
-//            Logger.DEBUG("targeting # reducers: " + factoredReduces);
             if(bedFile != null)
                 splitter = new ChromosomeSplitter(dict, bedFile, factoredReduces);
             else if (readCountsPerRegionFile != null)
@@ -230,7 +229,6 @@ public class HalvadeOptions {
                 splitter = new ChromosomeSplitter(dict, factoredReduces);
             tmpReduces = splitter.getRegionCount();
             factoredReduces = (int)(factoredReduces * factor);
-//            Logger.DEBUG("actual # reducers: " + tmpReduces);
         }
 
         String bedRegions = out + "HalvadeRegions.bed";
