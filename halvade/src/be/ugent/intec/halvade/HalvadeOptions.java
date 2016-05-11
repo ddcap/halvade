@@ -133,6 +133,7 @@ public class HalvadeOptions {
             }
             onedec = new DecimalFormat("###0.0");
             // add parameters to configuration:
+            HalvadeConf.setRefDirIsSet(hConf, localRefDir != null);
             if (localRefDir == null) {
                 localRefDir = tmpDir;
             }

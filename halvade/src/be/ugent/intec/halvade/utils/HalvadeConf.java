@@ -582,19 +582,20 @@ public class HalvadeConf {
             return false;
     }
     
+    private static final String refDirIsSet = "refDirIsSet";
+    public static void setRefDirIsSet(Configuration conf, boolean val) {
+        conf.setBoolean(refDirIsSet, val);
+    }
+    public static boolean getRefDirIsSet(Configuration conf) {
+        return conf.getBoolean(refDirIsSet, false);
+    }
+    
     private static final String fixQualEnc = "fixQualEnc";
     public static void setFixQualEnc(Configuration conf, boolean val) {
-        if(val)
-            conf.set(fixQualEnc, "true");
-        else 
-            conf.set(fixQualEnc, "false");
+        conf.setBoolean(fixQualEnc, val);
     }
     public static boolean getFixQualEnc(Configuration conf) {
-        String s = conf.get(fixQualEnc);
-        if(s.equalsIgnoreCase("true"))
-            return true;
-        else 
-            return false;
+        return conf.getBoolean(fixQualEnc, false);
     }
 
 

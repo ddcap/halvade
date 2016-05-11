@@ -114,12 +114,9 @@ public class RebuildStarGenomeReducer extends Reducer<GenomeSJ, Text, LongWritab
                                                     overhang, threads, mem, stargtf);
         context.getCounter(HalvadeCounters.TIME_STAR_BUILD).increment(time);
         
-        //upload to outputdir
-        String pass2GenDir = HalvadeConf.getStarDirPass2HDFS(context.getConfiguration());
-        File pass2check = new File(newGenomeDir + HalvadeConf.getPass2Suffix(context.getConfiguration()));
-        pass2check.createNewFile();
-        Logger.DEBUG("create check file: " + pass2check.getAbsolutePath());
         if(requireUploadToHDFS) {
+            //upload to outputdir
+            String pass2GenDir = HalvadeConf.getStarDirPass2HDFS(context.getConfiguration());
             Logger.DEBUG("Uploading STAR genome to parallel filesystem...");
             fs.mkdirs(new Path(pass2GenDir));
             File[] genFiles = starOut.listFiles();
@@ -127,6 +124,10 @@ public class RebuildStarGenomeReducer extends Reducer<GenomeSJ, Text, LongWritab
                 HalvadeFileUtils.uploadFileToHDFS(context, fs, gen.getAbsolutePath(), pass2GenDir + gen.getName());
             }
             Logger.DEBUG("Finished uploading new reference to " + pass2GenDir);
+        } else {
+            File pass2check = new File(newGenomeDir + HalvadeConf.getPass2Suffix(context.getConfiguration()));
+            pass2check.createNewFile();
+            Logger.DEBUG("create check file: " + pass2check.getAbsolutePath());
         }
         HalvadeFileUtils.removeLocalFile(mergeJS);
     }
@@ -138,7 +139,7 @@ public class RebuildStarGenomeReducer extends Reducer<GenomeSJ, Text, LongWritab
         keyFactors = new ArrayList<>();
         tmpDir = HalvadeConf.getScratchTempDir(context.getConfiguration());
         refDir = HalvadeConf.getRefDirOnScratch(context.getConfiguration());
-        requireUploadToHDFS = refDir.startsWith(tmpDir);
+        requireUploadToHDFS = !HalvadeConf.getRefDirIsSet(context.getConfiguration());
         out = HalvadeConf.getOutDir(context.getConfiguration()); 
         jobId = context.getJobID().toString();
         taskId = context.getTaskAttemptID().toString();

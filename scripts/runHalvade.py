@@ -132,7 +132,6 @@ else:
 			argsArray.append("--"+key)				
 		else:
 			argsArray.append("-"+key)
-		argsArray.append("-"+key)
 		argsArray.append(config[key])
 	for key in flags:
 		if (len(key) > 1):
