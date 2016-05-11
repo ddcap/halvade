@@ -215,6 +215,7 @@ public class HalvadeOptions {
             reduces = (int) (1.75*nodes*reducerContainersPerNode);
         else
             reduces = nReduces;
+        if(reduces < 26) reduces = 26; // set a minimum of 26 reduces so at least all big chromosomes have one reduce task.
         int tmpReduces = reduces + 1;
         Logger.DEBUG("requested # reducers: " + reduces);
         double factor = 0.95;
