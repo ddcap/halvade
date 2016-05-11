@@ -103,7 +103,8 @@ public class MapReduceRunner extends Configured implements Tool  {
     protected int runPass1RNAJob(Configuration pass1Conf, String tmpOutDir) throws IOException, InterruptedException, ClassNotFoundException, URISyntaxException {
         HalvadeConf.setIsPass2(pass1Conf, false);
         HalvadeResourceManager.setJobResources(halvadeOpts, pass1Conf, HalvadeResourceManager.RNA_SHMEM_PASS1, halvadeOpts.nodes == 1, halvadeOpts.useBamInput);
-        halvadeOpts.splitChromosomes(pass1Conf);
+        int pass2Reduces = HalvadeResourceManager.getPass2Reduces(halvadeOpts);
+        halvadeOpts.splitChromosomes(pass1Conf, pass2Reduces);
         HalvadeConf.setPass2Suffix(pass1Conf, pass2suffix);
         
         Job pass1Job = Job.getInstance(pass1Conf, "Halvade pass 1 RNA pipeline");
@@ -170,7 +171,7 @@ public class MapReduceRunner extends Configured implements Tool  {
             HalvadeResourceManager.setJobResources(halvadeOpts, halvadeConf, jobType, false, halvadeOpts.useBamInput);
             pipeline = DNA; 
         }
-        halvadeOpts.splitChromosomes(halvadeConf);
+        halvadeOpts.splitChromosomes(halvadeConf, 0);
         HalvadeConf.setOutDir(halvadeConf, tmpOutDir);
         FileSystem outFs = FileSystem.get(new URI(tmpOutDir), halvadeConf);
         if (outFs.exists(new Path(tmpOutDir))) {
@@ -246,7 +247,7 @@ public class MapReduceRunner extends Configured implements Tool  {
         }
         HalvadeConf.setReportAllVariant(combineConf, halvadeOpts.reportAll);
         HalvadeResourceManager.setJobResources(halvadeOpts, combineConf, HalvadeResourceManager.COMBINE, false, halvadeOpts.useBamInput);
-        halvadeOpts.splitChromosomes(combineConf);
+//        halvadeOpts.splitChromosomes(combineConf, 0);
         Job combineJob = Job.getInstance(combineConf, "HalvadeCombineVCF");            
         combineJob.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
 

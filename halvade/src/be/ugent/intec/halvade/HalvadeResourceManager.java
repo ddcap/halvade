@@ -50,6 +50,8 @@ public class HalvadeResourceManager {
     public static void setJobResources(HalvadeOptions opt, Configuration conf, int type, boolean subtractAM, boolean BAMinput) throws InterruptedException {
         int tmpmem = (int) (opt.mem * 1024);
         int tmpvcores = opt.vcores;
+        if(subtractAM) 
+            tmpvcores -= VCORES_AM;
         
         BAMinput = BAMinput && type < 3;
         int mmem = RESOURCE_REQ[BAMinput? 3 : type][0];
@@ -66,7 +68,7 @@ public class HalvadeResourceManager {
             throw new InterruptedException("Not enough memory available on system; memory requirements: " + opt.mem*1024 + "/" + Math.max(rmem, mmem));
         if (opt.setMapContainers)
             opt.mapContainersPerNode = Math.min(tmpvcores, Math.max(tmpmem / mmem,1));
-        if (opt.setReduceContainers) 
+        if (opt.setReduceContainers && (type != RNA_SHMEM_PASS2 || type != COMBINE)) 
             opt.reducerContainersPerNode = Math.min(tmpvcores, Math.max(tmpmem / rmem, 1));
         
         HalvadeConf.setVcores(conf, opt.vcores);
@@ -85,8 +87,6 @@ public class HalvadeResourceManager {
         Logger.DEBUG("set # map containers: " + opt.maps);        
        	HalvadeConf.setMapContainerCount(conf, opt.maps); 
         
-        if(subtractAM) 
-            opt.rthreads -= VCORES_AM;
             
         Logger.DEBUG("resources set to " + opt.mapContainersPerNode + " maps [" 
                 + opt.mthreads + " cpu , " + mmem + " mb] per node and " 
@@ -113,5 +113,18 @@ public class HalvadeResourceManager {
         
         HalvadeConf.setMapThreads(conf, opt.mthreads);
         HalvadeConf.setReducerThreads(conf, opt.rthreads);  
+    }
+    
+    public static int getPass2Reduces(HalvadeOptions opt) throws InterruptedException {
+        int tmpmem = (int) (opt.mem * 1024);
+        
+        int rmem = RESOURCE_REQ[RNA_SHMEM_PASS2][1];
+        if (rmem == MEM_ELPREP && !opt.useElPrep) 
+            rmem = MEM_REF;
+        
+        int reducerContainersPerNode = Math.min(opt.vcores, Math.max(tmpmem / rmem, 1));
+        int reduces = (int) (1.75*opt.nodes*reducerContainersPerNode);
+        return reduces;
+        
     }
 }

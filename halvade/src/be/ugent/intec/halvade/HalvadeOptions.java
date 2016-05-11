@@ -202,7 +202,7 @@ public class HalvadeOptions {
         return 0;
     }
     
-    protected void splitChromosomes(Configuration hConf) throws URISyntaxException, IOException {        
+    protected void splitChromosomes(Configuration hConf, int nReduces) throws URISyntaxException, IOException {        
         parseDictFile(hConf);
 //        double inputSize = getInputSize(in, hConf);
 //        if (coverage == -1.0) {
@@ -211,7 +211,10 @@ public class HalvadeOptions {
 //        Logger.DEBUG("Estimated coverage: " + roundOneDecimal(coverage));
         // set a minimum first where the real amount is based on
 //            reduces = (int) (coverage * REDUCE_TASKS_FACTOR);
-        reduces = (int) (1.75*nodes*reducerContainersPerNode);
+        if(nReduces == 0 )
+            reduces = (int) (1.75*nodes*reducerContainersPerNode);
+        else
+            reduces = nReduces;
         int tmpReduces = reduces + 1;
         Logger.DEBUG("requested # reducers: " + reduces);
         double factor = 0.95;
