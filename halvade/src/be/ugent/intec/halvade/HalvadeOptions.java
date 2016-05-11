@@ -621,6 +621,7 @@ public class HalvadeOptions {
         }
         if (line.hasOption("refdir")) {
             localRefDir = line.getOptionValue("refdir");
+            if(!localRefDir.endsWith("/")) localRefDir += "/";
         }
         if (line.hasOption("nodes")) {
             nodes = Integer.parseInt(line.getOptionValue("nodes"));
