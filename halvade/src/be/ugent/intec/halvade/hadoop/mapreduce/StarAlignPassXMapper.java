@@ -99,6 +99,7 @@ public class StarAlignPassXMapper  extends HalvadeMapper<GenomeSJ, Text> {
             }
         } catch (IOException ex) {
             Logger.EXCEPTION(ex);
+            throw ex;
         } finally {
             star_shmem_lock.releaseLock();
         }

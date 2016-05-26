@@ -43,7 +43,7 @@ public class HalvadeResourceManager {
     // gatk 2-4gb per thread!
     protected static final int[][] RESOURCE_REQ = { 
         //mapmem, redmem
-        {MEM_STAR_FULL,  ALL},     // RNA with shared memory pass1
+        {MEM_STAR_FULL,  MEM_STAR_FULL},     // RNA with shared memory pass1
         {MEM_STAR_SMALL,  MEM_ELPREP}, // RNA with shared memory pass2
         {MEM_ALN,   MEM_ELPREP}, // DNA
         {4*1024,    4*1024}   // combine
@@ -57,7 +57,9 @@ public class HalvadeResourceManager {
         
         BAMinput = BAMinput && type < 3;
         int mmem = RESOURCE_REQ[BAMinput? 3 : type][0];
-        int rmem = RESOURCE_REQ[type][1] == ALL ? tmpmem - MEM_AM  : RESOURCE_REQ[type][1];
+        int rmem = RESOURCE_REQ[type][1];
+        if (rmem == ALL)
+            rmem = Math.max(MEM_STAR_FULL, tmpmem/2);
         if ((type == RNA_SHMEM_PASS1 || type == RNA_SHMEM_PASS2) && conf.get("yarn.nodemanager.pmem-check-enabled").equalsIgnoreCase("false")) {
             Logger.DEBUG("pmem check disabled, using less memory for STAR because of shared memory", 2);
             mmem = MEM_STAR_SHARED;
@@ -75,7 +77,7 @@ public class HalvadeResourceManager {
         if (opt.setMapContainers)
             opt.mapContainersPerNode = Math.min(tmpvcores, Math.max(tmpmem / mmem,1));
         if (opt.setReduceContainers && (type != RNA_SHMEM_PASS2 || type != COMBINE)) 
-            opt.reducerContainersPerNode = Math.min(tmpvcores, Math.max(tmpmem / rmem, 1));
+            opt.reducerContainersPerNode = type == RNA_SHMEM_PASS1 ? 2 : Math.min(tmpvcores, Math.max(tmpmem / rmem, 1));
         
         HalvadeConf.setVcores(conf, opt.vcores);
         opt.mthreads = Math.max(1, tmpvcores/opt.mapContainersPerNode);
@@ -84,6 +86,8 @@ public class HalvadeResourceManager {
             opt.mthreads *=2;
             opt.rthreads *=2;
         }
+        if(type == RNA_SHMEM_PASS1) // give half resources of 1 node to make the genome (not full for if multiple instances are running)
+            opt.rthreads = tmpvcores / 2;
         if(opt.mthreads > 1 && opt.mthreads % 2 == 1 ) {
             opt.mthreads++;
             opt.mapContainersPerNode = Math.min(Math.max(tmpvcores/opt.mthreads,1), Math.max(tmpmem / mmem,1));
@@ -127,6 +131,9 @@ public class HalvadeResourceManager {
         if (rmem == MEM_ELPREP && !opt.useElPrep) 
             rmem = MEM_REF;
         
+        if(opt.overrideRedMem > 0) 
+            rmem = opt.overrideRedMem;
+                
         int reducerContainersPerNode = Math.min(opt.vcores, Math.max(tmpmem / rmem, 1));
         int reduces = (int) (1.75*opt.nodes*reducerContainersPerNode);
         return reduces;
