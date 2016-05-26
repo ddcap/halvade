@@ -46,7 +46,7 @@ Optional options
 --mapmem INT		Map Memory. This sets the memory available for the containers assigned for the map tasks. 
 --merge_bam			Merge BAM output.  With this option set, Halvade will not perform variant calling but only read alignment. All alignments will be merged into 1 output BAM file.
 --mpn INT			Maps per node. This overrides the number of map tasks that are run simultaneously on each node. Only use this when the number of map containers per node does not make sense for your cluster.
--P					Picard. Use Picard in the preprocessing steps, by default elPrep is used which is a more efficient execution of the algorithms called in Picard. This, however, requires less memory and can be useful on some clusters.
+--elprep			elPrep. Use elPrep in the preprocessing steps, by default Picard is used which is a slower but requires less memory. ElPrep provides a more efficient execution of the preprocessing algorithms.
 --pl STR			Read Group Platform. This string sets the Read Group Platform which will be used when adding Read Group information to the intermediate results. [ILLUMINA]
 --pu STR			Read Group Platform Unit. This string sets the Read Group Platform Unit which will be used when adding Read Group information to the intermediate results. [UNIT1]
 --redistribute		Redistribute Cores. This is an optimization to better utilize the CPU cores at the end of the map phase, to improve load balancing. Only use when the cores per container is less than 4.

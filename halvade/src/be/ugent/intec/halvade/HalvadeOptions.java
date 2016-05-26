@@ -79,7 +79,7 @@ public class HalvadeOptions {
     public String RGPL = "ILLUMINA";
     public String RGPU = "UNIT1";
     public String RGSM = "SAMPLE1";
-    public boolean useElPrep = true;
+    public boolean useElPrep = false;
     public boolean keepFiles = false;
     public int stand_call_conf = -1;
     public int stand_emit_conf = -1;
@@ -481,8 +481,9 @@ public class HalvadeOptions {
         Option optCombine = OptionBuilder.withDescription("Just Combines the vcf on HDFS [out dir] and doesn't run the hadoop job.")
                 .withLongOpt("combine")
                 .create();
-        Option optPp = OptionBuilder.withDescription("Uses Picard to preprocess the data for GATK.")
-                .create("P");
+        Option optPp = OptionBuilder.withDescription("Uses elPrep to preprocess the data for GATK, this requires more memory but is faster.")
+                .withLongOpt("elprep")
+                .create();
         Option optFilterDBsnp = OptionBuilder.withDescription("Use Bedtools to select the needed interval of dbsnp.")
                 .withLongOpt("filter_dbsnp")
                 .create();
@@ -723,8 +724,8 @@ public class HalvadeOptions {
         if (line.hasOption("haplotypecaller")) {
             useGenotyper = false;
         }
-        if (line.hasOption("P")) {
-            useElPrep = false;
+        if (line.hasOption("elprep")) {
+            useElPrep = true;
         }
         if (line.hasOption("id")) {
             RGID = line.getOptionValue("id");
