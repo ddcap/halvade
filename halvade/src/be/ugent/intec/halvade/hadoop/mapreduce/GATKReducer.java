@@ -189,7 +189,6 @@ public abstract class GATKReducer extends HalvadeReducer {
         context.getCounter(HalvadeCounters.TIME_HADOOP_SAMTOBAM).increment(estimatedTime);
         Logger.DEBUG("time writing " + count + " records to disk: " + estimatedTime / 1000);
         
-        int markdup_threshold = 1000000;
 //        if (reads > markdup_threshold) {
 //            Logger.DEBUG("sample sam");
 //            context.setStatus("sample sam");
@@ -197,7 +196,7 @@ public abstract class GATKReducer extends HalvadeReducer {
 //        }
         Logger.DEBUG("mark duplicates");
         context.setStatus("mark duplicates");
-        tools.runMarkDuplicates(tmpOut1, gff != null ? tmpOut3 : output, tmpMetrics, keepDups && reads < markdup_threshold);
+        tools.runMarkDuplicates(tmpOut1, gff != null ? tmpOut3 : output, tmpMetrics, keepDups);
 
         if (gff != null) {
             // tmpOut3 is sam for htseq count!        
