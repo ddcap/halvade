@@ -31,6 +31,8 @@ import be.ugent.intec.halvade.utils.ChromosomeRange;
 import be.ugent.intec.halvade.utils.HalvadeFileUtils;
 import be.ugent.intec.halvade.utils.HalvadeConf;
 import be.ugent.intec.halvade.utils.Logger;
+import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -74,7 +76,9 @@ public abstract class GATKReducer extends HalvadeReducer {
             processAlignments(values, context, tools, gatk);
         } catch (URISyntaxException | QualityException | ProcessException ex) {
             Logger.EXCEPTION(ex);
-            throw new InterruptedException(ex.getMessage());
+            StringWriter errors = new StringWriter();
+            ex.printStackTrace(new PrintWriter(errors));
+            throw new InterruptedException(ex.getMessage() + "\n" + errors.toString());
         }
     }
 

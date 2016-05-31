@@ -165,21 +165,23 @@ public final class ChromosomeSplitter {
     
     private Integer[] getKey(String refName, int pos, int pos2) {
         Integer tmpList[] = {null, null};
-        ArrayList<BedRegion> keyList = regionsByChrom.get(refName);
-        int i = 0;
-        int found = 0;
-        while (i < keyList.size() && found <2) {
-            BedRegion tmp = keyList.get(i);
-            if (pos >= tmp.start && pos < tmp.end) {
-                tmpList[0] = tmp.key;
-                found++;
-            }
-            if (pos2 >= tmp.start && pos2 < tmp.end) {
-                tmpList[1] = tmp.key;
-                found++;
-            }
-            i++;
-        }  
+        ArrayList<BedRegion> keyList = null;
+        try {
+            keyList = regionsByChrom.get(refName);
+            int i = 0;
+            int found = 0;
+            while (i < keyList.size() && found <2) {
+                BedRegion tmp = keyList.get(i);
+                if (pos >= tmp.start && pos < tmp.end) {
+                    tmpList[0] = tmp.key;
+                    found++;
+                }
+                if (pos2 >= tmp.start && pos2 < tmp.end) {
+                    tmpList[1] = tmp.key;
+                    found++;
+                }
+                i++;
+            } 
 /*
 // old      
         for (BedRegion region: regions) {
@@ -214,6 +216,13 @@ public final class ChromosomeSplitter {
             }
         }
 */
+            
+        } catch (NullPointerException ex) {
+            if(keyList == null) {
+                Logger.DEBUG("refname " + refName + " not found");
+                throw new NullPointerException("chromosome " + refName + " not found in reference");
+            }
+        }
         return tmpList;
     }
     

@@ -21,7 +21,9 @@ import org.seqdoop.hadoop_bam.SAMRecordWritable;
 import org.seqdoop.hadoop_bam.VariantContextWritable;
 import be.ugent.intec.halvade.hadoop.datatypes.ChromosomeRegion;
 import be.ugent.intec.halvade.hadoop.datatypes.GenomeSJ;
+import be.ugent.intec.halvade.hadoop.mapreduce.HTSeqCombineMapper;
 import be.ugent.intec.halvade.hadoop.mapreduce.HalvadeTextInputFormat;
+import be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper;
 import be.ugent.intec.halvade.hadoop.partitioners.*;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
@@ -249,14 +251,12 @@ public class MapReduceRunner extends Configured implements Tool  {
         HalvadeResourceManager.setJobResources(halvadeOpts, combineConf, HalvadeResourceManager.COMBINE, false, halvadeOpts.useBamInput);
 //        halvadeOpts.splitChromosomes(combineConf, 0);
         Job combineJob = Job.getInstance(combineConf, "HalvadeCombineVCF");            
-        combineJob.setJarByClass(be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
+        combineJob.setJarByClass(VCFCombineMapper.class);
 
         addInputFiles(halvadeOutDir, combineConf, combineJob, featureCount ? ".count" : ".vcf");
         FileOutputFormat.setOutputPath(combineJob, new Path(mergeOutDir));
 
-        combineJob.setMapperClass(featureCount ? 
-                be.ugent.intec.halvade.hadoop.mapreduce.HTSeqCombineMapper.class : 
-                be.ugent.intec.halvade.hadoop.mapreduce.VCFCombineMapper.class);
+        combineJob.setMapperClass(featureCount ? HTSeqCombineMapper.class : VCFCombineMapper.class);
         combineJob.setMapOutputKeyClass(featureCount ? Text.class : LongWritable.class);
         combineJob.setMapOutputValueClass(featureCount ? LongWritable.class : VariantContextWritable.class);
         combineJob.setInputFormatClass(featureCount ? TextInputFormat.class : VCFInputFormat.class);
